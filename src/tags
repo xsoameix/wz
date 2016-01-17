@@ -1,0 +1,46 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+WZ_H	wz.h	2;"	d
+bytes	wzfile.c	/^  uint8_t * bytes;$/;"	m	struct:__anon1	file:
+check	wzfile.c	/^  uint32_t  check;  \/\/ checksum$/;"	m	struct:__anon2	file:
+copy	wzfile.c	/^  string    copy;   \/\/ copyright$/;"	m	struct:__anon3	file:
+decode_str	wzfile.c	/^decode_str(string * buffer, wzfile * file) {$/;"	f
+free_dir	wzfile.c	/^free_dir(wzdir * buffer) {$/;"	f
+free_dirs	wzfile.c	/^free_dirs(wzdir * buffer, uint32_t count) {$/;"	f
+free_head	wzfile.c	/^free_head(wzhead * head) {$/;"	f
+free_str	wzfile.c	/^free_str(string * buffer) {$/;"	f
+hash	wzfile.c	/^  uint32_t  hash;   \/\/ hash from the version$/;"	m	struct:__anon4	file:
+ident	wzfile.c	/^  char      ident[4];$/;"	m	struct:__anon3	file:
+init_str	wzfile.c	/^init_str(string * buffer) {$/;"	f
+len	wzfile.c	/^  uint32_t  len;$/;"	m	struct:__anon1	file:
+main	wz.c	/^main(int argc, char ** argv) {$/;"	f
+name	wzfile.c	/^  string    name;$/;"	m	struct:__anon2	file:
+offset	wzfile.c	/^  uint32_t  offset;$/;"	m	struct:__anon2	file:
+open_file	wzfile.c	/^open_file(char * filename) {$/;"	f
+raw	wzfile.c	/^  FILE *    raw;$/;"	m	struct:__anon4	file:
+read_byte	wzfile.c	/^read_byte(uint8_t * buffer, wzfile * file) {$/;"	f
+read_bytes	wzfile.c	/^read_bytes(uint8_t * buffer, size_t len, wzfile * file) {$/;"	f
+read_chars	wzfile.c	/^read_chars(string * buffer, wzfile * file) {$/;"	f
+read_dir	wzfile.c	/^read_dir(wzdir * dir, wzfile * file) {$/;"	f
+read_dirs	wzfile.c	/^read_dirs(wzdir ** buffer, uint32_t * len, wzfile * file) {$/;"	f
+read_file	wzfile.c	/^read_file(FILE * raw) {$/;"	f
+read_head	wzfile.c	/^read_head(wzhead * head, wzfile * file) {$/;"	f
+read_int	wzfile.c	/^read_int(uint32_t * buffer, wzfile * file) {$/;"	f
+read_le16	wzfile.c	/^read_le16(uint16_t * buffer, wzfile * file) {$/;"	f
+read_le32	wzfile.c	/^read_le32(uint32_t * buffer, wzfile * file) {$/;"	f
+read_le64	wzfile.c	/^read_le64(uint64_t * buffer, wzfile * file) {$/;"	f
+read_str	wzfile.c	/^read_str(string * buffer, size_t len, wzfile * file) {$/;"	f
+size	wzfile.c	/^  uint32_t  size;$/;"	m	struct:__anon2	file:
+size	wzfile.c	/^  uint64_t  size;$/;"	m	struct:__anon3	file:
+start	wzfile.c	/^  uint32_t  start;$/;"	m	struct:__anon3	file:
+start_main	wzmain.c	/^start_main(int argc, char ** argv) {$/;"	f
+string	wzfile.c	/^} string;$/;"	t	typeref:struct:__anon1	file:
+type	wzfile.c	/^  uint8_t   type;$/;"	m	struct:__anon2	file:
+ver	wzfile.c	/^  int16_t   ver;    \/\/ encrypted version$/;"	m	struct:__anon4	file:
+wzdir	wzfile.c	/^} wzdir;$/;"	t	typeref:struct:__anon2	file:
+wzfile	wzfile.c	/^} wzfile;$/;"	t	typeref:struct:__anon4	file:
+wzhead	wzfile.c	/^} wzhead;$/;"	t	typeref:struct:__anon3	file:
