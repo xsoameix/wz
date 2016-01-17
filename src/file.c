@@ -327,19 +327,20 @@ init_aes(wzaes * aes) {
   if ((aes->plain = malloc(aes->len * 2)) == NULL) return 1;
   memset(aes->plain, 0, aes->len);
   aes->cipher = aes->plain + aes->len;
+  alloc_crypto();
   return 0;
 }
 
 void
 free_aes(wzaes * aes) {
-  free(aes->plain), dealloc_crypto();
+  dealloc_crypto();
+  free(aes->plain);
 }
 
 int
 init_strk(wzstrk * strk, wzaes * aes) {
   if ((strk->ascii = malloc(aes->len * 2)) == NULL) return free_aes(aes), 1;
-  strk->unicode = strk->ascii + aes->len;
-  return alloc_crypto(), 0;
+  return strk->unicode = strk->ascii + aes->len, 0;
 }
 
 int
@@ -388,7 +389,8 @@ decode_strk(wzstrk * strk, wzfile * file) {
   };                      // JMS can be decoded with empty cipher :)
   size_t i, j, times = sizeof(values) / sizeof(values[i]);
   wzaes aes; wzstrk guess;
-  if (init_aes(&aes) || init_strk(&guess, &aes)) return 1;
+  if (init_aes(&aes)) return 1;
+  if (init_strk(&guess, &aes)) return free_aes(&aes), 1;
   for (i = 0; i < times; i++) {
     for (j = 0; j < 16; j += 4) memcpy(aes.iv + j, values[i], 4);
     if (!encode_aes(&aes) &&
