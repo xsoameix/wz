@@ -21,6 +21,16 @@ $ ./src/wz /path/to/file.wz
 $ ctest .
 ```
 
+## Documentation
+
+### Version Encrytion
+
+![Version Encrytion](doc/version-encryption.png)
+
+### Characters Encrytion
+
+![Characters Encrytion](doc/characters-encryption.png)
+
 ## Reference
 
 * [Golang](https://github.com/diamondo25/go-wz/blob/master/directory.go)
