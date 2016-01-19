@@ -11,9 +11,12 @@ size_t mused_len = 0;
 size_t mused_size = 0;
 size_t mused_err = 0;
 
+void * __real_malloc(size_t);
+void   __real_free(void *);
+
 void *
-memalloc(size_t size) {
-  void * ptr = malloc(size);
+__wrap_malloc(size_t size) {
+  void * ptr = __real_malloc(size);
   if (ptr == NULL) return NULL;
   mused[mused_len].size = size;
   mused[mused_len].ptr = ptr;
@@ -22,7 +25,7 @@ memalloc(size_t size) {
 }
 
 void
-memfree(void * ptr) {
+__wrap_free(void * ptr) {
   if (ptr == NULL) return;
   musage * usage = NULL;
   size_t i;
@@ -32,7 +35,7 @@ memfree(void * ptr) {
   }
   if (i == mused_len) { mused_err++; return; }
   usage->freed = 1, mused_size -= usage->size;
-  free(ptr);
+  __real_free(ptr);
 }
 
 size_t memused(void) { return mused_size; }

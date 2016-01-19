@@ -1,7 +1,7 @@
 #include "file.h"
 
 int
-start_main(int argc, char ** argv) {
+main(int argc, char ** argv) {
   if (argc == 1) {
     printf("wz version 0.0.1\n"
            "Copyright (C) 2016 Lien Chiang\n"
@@ -12,8 +12,8 @@ start_main(int argc, char ** argv) {
            "Written by Lien Chiang.\n");
   } else if (argc == 2) {
     wzfile file;
-    if (open_file(&file, argv[1]) ||
-        close_file(&file)) return 1;
+    if (wz_open_file(&file, argv[1]) ||
+        wz_close_file(&file)) return 1;
   }
   return 0;
 }

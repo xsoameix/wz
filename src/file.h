@@ -72,33 +72,33 @@ typedef struct {
 #define WZ_ENC_ASCII   0
 #define WZ_ENC_UNICODE 1
 
-int      read_data(void * buffer, size_t len, wzfile * file);
-int      read_byte(uint8_t * buffer, wzfile * file);
-int      read_le16(uint16_t * buffer, wzfile * file);
-int      read_le32(uint32_t * buffer, wzfile * file);
-int      read_le64(uint64_t * buffer, wzfile * file);
-int      read_int(uint32_t * buffer, wzfile * file);
-int      read_bytes(uint8_t * buffer, size_t len, wzfile * file);
-void     init_str(wzstr * buffer);
-int      read_str(wzstr * buffer, size_t len, wzfile * file);
-void     free_str(wzstr * buffer);
-void     decode_chars(wzchr * buffer, wzfile * file);
-int      read_chars(wzchr * buffer, wzfile * file);
-uint32_t rotl32(uint32_t x, uint32_t n);
-void     decode_addr(wzaddr * addr, wzfile * file);
-int      read_addr(wzaddr * addr, wzfile * file);
-int      read_obj(wzobj * obj, wzfile * file);
-void     free_obj(wzobj * obj);
-int      read_dir(wzdir * dir, wzfile * file);
-void     free_dir(wzdir * dir);
-int      read_head(wzhead * head, wzfile * file);
-void     free_head(wzhead * head);
-int      encode_ver(wzver * ver);
-int      valid_ver(wzver * ver, wzfile * file);
-int      decode_ver(wzver * ver, wzfile * file);
-int      read_file(wzfile * file, FILE * raw);
-void     free_file(wzfile * file);
-int      open_file(wzfile * file, char * filename);
-int      close_file(wzfile * file);
+int      wz_read_data(void * buffer, size_t len, wzfile * file);
+int      wz_read_byte(uint8_t * buffer, wzfile * file);
+int      wz_read_le16(uint16_t * buffer, wzfile * file);
+int      wz_read_le32(uint32_t * buffer, wzfile * file);
+int      wz_read_le64(uint64_t * buffer, wzfile * file);
+int      wz_read_int(uint32_t * buffer, wzfile * file);
+int      wz_read_bytes(uint8_t * buffer, size_t len, wzfile * file);
+void     wz_init_str(wzstr * buffer);
+int      wz_read_str(wzstr * buffer, size_t len, wzfile * file);
+void     wz_free_str(wzstr * buffer);
+void     wz_decode_chars(wzchr * buffer, wzfile * file);
+int      wz_read_chars(wzchr * buffer, wzfile * file);
+uint32_t wz_rotl32(uint32_t x, uint32_t n);
+void     wz_decode_addr(wzaddr * addr, wzfile * file);
+int      wz_read_addr(wzaddr * addr, wzfile * file);
+int      wz_read_obj(wzobj * obj, wzfile * file);
+void     wz_free_obj(wzobj * obj);
+int      wz_read_dir(wzdir * dir, wzfile * file);
+void     wz_free_dir(wzdir * dir);
+int      wz_read_head(wzhead * head, wzfile * file);
+void     wz_free_head(wzhead * head);
+int      wz_encode_ver(wzver * ver);
+int      wz_valid_ver(wzver * ver, wzfile * file);
+int      wz_decode_ver(wzver * ver, wzfile * file);
+int      wz_read_file(wzfile * file, FILE * raw);
+void     wz_free_file(wzfile * file);
+int      wz_open_file(wzfile * file, char * filename);
+int      wz_close_file(wzfile * file);
 
 #endif
