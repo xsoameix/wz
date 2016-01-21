@@ -3,10 +3,10 @@
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
-#include <endian.h>
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include "../lib/endian.h"
 #include "file.h"
 
 int
