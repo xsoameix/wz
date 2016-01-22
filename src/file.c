@@ -138,20 +138,20 @@ wz_read_addr(wzaddr * addr, wzfile * file) {
 }
 
 int
-wz_read_obj(wzobj * obj, wzfile * file) {
-  if (wz_read_byte(&obj->type, file)) return 1;
-  if (obj->type == 1) { // unknown 10 bytes
+wz_read_node(wznode * node, wzfile * file) {
+  if (wz_read_byte(&node->type, file)) return 1;
+  if (node->type == 1) { // unknown 10 bytes
     printf("inspect 1 %ld\n", ftell(file->raw));
     if (fseek(file->raw, 10, SEEK_CUR)) return 1;
     return 0;
-  } else if (obj->type == 2) {
+  } else if (node->type == 2) {
     printf("inspect 2 %ld\n", ftell(file->raw));
     return 1;
-  } else if (obj->type == 3 || obj->type == 4) {
-    if (wz_read_chars(&obj->name, file)) return 1;
-    if (wz_read_int(&obj->size, file) ||
-        wz_read_int(&obj->check, file) ||
-        wz_read_addr(&obj->addr, file)) return wz_free_chars(&obj->name), 1;
+  } else if (node->type == 3 || node->type == 4) {
+    if (wz_read_chars(&node->name, file)) return 1;
+    if (wz_read_int(&node->size, file) ||
+        wz_read_int(&node->check, file) ||
+        wz_read_addr(&node->addr, file)) return wz_free_chars(&node->name), 1;
   } else {
     printf("inspect >= 5 %ld\n", ftell(file->raw));
     return 1;
@@ -160,21 +160,21 @@ wz_read_obj(wzobj * obj, wzfile * file) {
 }
 
 void
-wz_free_obj(wzobj * obj) {
-  if (obj->type == 3 || obj->type == 4)
-    wz_free_chars(&obj->name);
+wz_free_node(wznode * node) {
+  if (node->type == 3 || node->type == 4)
+    wz_free_chars(&node->name);
 }
 
 int
-wz_decode_obj(wzobj * obj, wzfile * file) {
-  if (obj->type == 3 || obj->type == 4) {
-    if (wz_decode_chars(&obj->name, file)) return 1;
-    wz_decode_addr(&obj->addr, file);
-    printf(" type   %d\n", obj->type);
-    printf(" name   %.*s\n", obj->name.len, obj->name.bytes);
-    printf(" size   %"PRIu32"\n", obj->size);
-    printf(" check  %08X\n", obj->check);
-    printf(" addr   %08X\n", obj->addr.val);
+wz_decode_node(wznode * node, wzfile * file) {
+  if (node->type == 3 || node->type == 4) {
+    if (wz_decode_chars(&node->name, file)) return 1;
+    wz_decode_addr(&node->addr, file);
+    printf(" type   %d\n", node->type);
+    printf(" name   %.*s\n", node->name.len, node->name.bytes);
+    printf(" size   %"PRIu32"\n", node->size);
+    printf(" check  %08X\n", node->check);
+    printf(" addr   %08X\n", node->addr.val);
   } else {
   }
   return 0;
@@ -184,25 +184,25 @@ int
 wz_read_dir(wzdir * dir, wzfile * file) {
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
-  wzobj * objs = malloc(len * sizeof(* objs));
-  if (objs == NULL) return 1;
+  wznode * nodes = malloc(len * sizeof(* nodes));
+  if (nodes == NULL) return 1;
   size_t i, j;
   for (i = 0; i < len; i++) {
-    if (wz_read_obj(objs + i, file)) {
+    if (wz_read_node(nodes + i, file)) {
       for (j = 0; j < i; j++)
-        wz_free_obj(objs + j);
-      return free(objs), 1;
+        wz_free_node(nodes + j);
+      return free(nodes), 1;
     }
   }
-  return dir->objs = objs, dir->len = len, 0;
+  return dir->nodes = nodes, dir->len = len, 0;
 }
 
 void
 wz_free_dir(wzdir * dir) {
   size_t i;
   for (i = 0; i < dir->len; i++)
-    wz_free_obj(&dir->objs[i]);
-  free(dir->objs);
+    wz_free_node(&dir->nodes[i]);
+  free(dir->nodes);
 }
 
 int
@@ -211,7 +211,7 @@ wz_decode_dir(wzdir * dir, wzfile * file) {
   printf("[%"PRIu32"]\n", dir->len);
   for (i = 0; i < dir->len; i++) {
     printf("[%zu]\n", i);
-    if (wz_decode_obj(dir->objs + i, file)) return 1;
+    if (wz_decode_node(dir->nodes + i, file)) return 1;
   }
   return 0;
 }
@@ -256,9 +256,9 @@ wz_valid_ver(wzver * ver, wzfile * file) {
   file->ver.hash = ver->hash;
   uint32_t i, len = file->root.len;
   for (i = 0; i < len; i++) {
-    wzobj * obj = &file->root.objs[i];
-    if (obj->type == 3 || obj->type == 4) {
-      wzaddr addr = obj->addr;
+    wznode * node = &file->root.nodes[i];
+    if (node->type == 3 || node->type == 4) {
+      wzaddr addr = node->addr;
       wz_decode_addr(&addr, file);
       if (addr.val > file->size)
         return file->ver.hash = copy, 1;
@@ -354,13 +354,14 @@ wz_valid_strk(wzstrk * strk, wzfile * file) {
   file->strk = * strk;
   size_t i, j;
   for (i = 0; i < file->root.len; i++) {
-    wzobj * obj = &file->root.objs[i];
-    if ((obj->type == 3 || obj->type == 4) && obj->name.enc == WZ_ENC_ASCII) {
-      if (wz_decode_chars(&obj->name, file)) return file->strk = copy, 1;
-      for (j = 0; j < obj->name.len; j++)
-        if (!isprint(obj->name.bytes[j]))
-          return wz_decode_chars(&obj->name, file), file->strk = copy, 1;
-      wz_decode_chars(&obj->name, file);
+    wznode * node = &file->root.nodes[i];
+    if ((node->type == 3 || node->type == 4) &&
+        node->name.enc == WZ_ENC_ASCII) {
+      if (wz_decode_chars(&node->name, file)) return file->strk = copy, 1;
+      for (j = 0; j < node->name.len; j++)
+        if (!isprint(node->name.bytes[j]))
+          return wz_decode_chars(&node->name, file), file->strk = copy, 1;
+      wz_decode_chars(&node->name, file);
     }
   }
   return file->strk = copy, 0;

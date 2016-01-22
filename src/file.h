@@ -26,11 +26,11 @@ typedef struct {
   uint32_t  size;
   uint32_t  check;    // checksum
   wzaddr    addr;
-} wzobj;
+} wznode;
 
 typedef struct {
   uint32_t  len;
-  wzobj *   objs;
+  wznode *  nodes;
 } wzdir;
 
 typedef struct {
@@ -88,8 +88,8 @@ int      wz_read_chars(wzchr * buffer, wzfile * file);
 uint32_t wz_rotl32(uint32_t x, uint32_t n);
 void     wz_decode_addr(wzaddr * addr, wzfile * file);
 int      wz_read_addr(wzaddr * addr, wzfile * file);
-int      wz_read_obj(wzobj * obj, wzfile * file);
-void     wz_free_obj(wzobj * obj);
+int      wz_read_node(wznode * node, wzfile * file);
+void     wz_free_node(wznode * node);
 int      wz_read_dir(wzdir * dir, wzfile * file);
 void     wz_free_dir(wzdir * dir);
 int      wz_read_head(wzhead * head, wzfile * file);

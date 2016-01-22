@@ -330,7 +330,7 @@ START_TEST(test_read_addr) {
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_read_obj) {
+START_TEST(test_read_node) {
   // It should read type 1
   char normal[] =
     "\x01""\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
@@ -340,54 +340,54 @@ START_TEST(test_read_obj) {
     "\x05";
   wzfile file;
   create_file(&file, normal, strlen(normal));
-  wzobj obj;
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 0);
+  wznode node;
+  ck_assert_int_eq(wz_read_node(&node, &file), 0);
   ck_assert(memused() == 0);
 
   // It should read type 2
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 1);
+  ck_assert_int_eq(wz_read_node(&node, &file), 1);
 
   // It should read type 3
   ck_assert(memused() == 0);
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 0);
-  ck_assert(obj.type == 3);
-  ck_assert_int_eq(strncmp(obj.name.bytes, "\x01\x23", 2), 0);
-  ck_assert(obj.name.len == 2);
-  ck_assert(obj.size == 1 && obj.check == 2 && obj.addr.val == 0x67452301);
+  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert(node.type == 3);
+  ck_assert_int_eq(strncmp(node.name.bytes, "\x01\x23", 2), 0);
+  ck_assert(node.name.len == 2);
+  ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
   ck_assert(memused() == 2);
-  wz_free_obj(&obj);
+  wz_free_node(&node);
 
   // It should read type 4
   ck_assert(memused() == 0);
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 0);
-  ck_assert(obj.type == 4);
-  ck_assert_int_eq(strncmp(obj.name.bytes, "\x01\x23", 2), 0);
-  ck_assert(obj.name.len == 2);
-  ck_assert(obj.size == 1 && obj.check == 2 && obj.addr.val == 0x67452301);
+  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert(node.type == 4);
+  ck_assert_int_eq(strncmp(node.name.bytes, "\x01\x23", 2), 0);
+  ck_assert(node.name.len == 2);
+  ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
   ck_assert(memused() == 2);
-  wz_free_obj(&obj);
+  wz_free_node(&node);
 
   // It should not read type 5
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 1);
-  ck_assert(obj.type == 5);
+  ck_assert_int_eq(wz_read_node(&node, &file), 1);
+  ck_assert(node.type == 5);
   ck_assert(memused() == 0);
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_free_obj) {
+START_TEST(test_free_node) {
   // It should be ok
   char normal[] = "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
-  wzobj obj;
-  ck_assert_int_eq(wz_read_obj(&obj, &file), 0);
+  wznode node;
+  ck_assert_int_eq(wz_read_node(&node, &file), 0);
   ck_assert(memused() == 2);
-  wz_free_obj(&obj);
+  wz_free_node(&node);
   ck_assert(memused() == 0);
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_decode_obj) {
+START_TEST(test_decode_node) {
   // It should be ok
   char ascii[] = "\x01\x23";
   wzfile file = {
@@ -395,7 +395,7 @@ START_TEST(test_decode_obj) {
     .ver = {.hash = 0x713},
     .strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}
   };
-  wzobj obj = {
+  wznode node = {
     .type = 3,
     .name = {
       .bytes = ascii,
@@ -404,10 +404,10 @@ START_TEST(test_decode_obj) {
     },
     .addr = {.pos = 0x51, .val = 0x49e34db3}
   };
-  ck_assert_int_eq(wz_decode_obj(&obj, &file), 0);
-  ck_assert_int_eq(strncmp(obj.name.bytes, "\x88\x88", 2), 0);
-  ck_assert(obj.addr.val == 0x2ed);
-  ck_assert(obj.name.len == 2 && memused() == 0);
+  ck_assert_int_eq(wz_decode_node(&node, &file), 0);
+  ck_assert_int_eq(strncmp(node.name.bytes, "\x88\x88", 2), 0);
+  ck_assert(node.addr.val == 0x2ed);
+  ck_assert(node.name.len == 2 && memused() == 0);
 } END_TEST
 
 START_TEST(test_read_dir) {
@@ -421,10 +421,10 @@ START_TEST(test_read_dir) {
   wzdir dir;
   ck_assert_int_eq(wz_read_dir(&dir, &file), 0);
   ck_assert(dir.len == 3);
-  ck_assert(dir.objs[0].type == 1);
-  ck_assert(dir.objs[1].type == 3);
-  ck_assert(dir.objs[2].type == 4);
-  ck_assert(memused() == sizeof(* dir.objs) * 3 + 2 * 2);
+  ck_assert(dir.nodes[0].type == 1);
+  ck_assert(dir.nodes[1].type == 3);
+  ck_assert(dir.nodes[2].type == 4);
+  ck_assert(memused() == sizeof(* dir.nodes) * 3 + 2 * 2);
   wz_free_dir(&dir);
   delete_file(&file);
 
@@ -447,7 +447,7 @@ START_TEST(test_free_dir) {
   create_file(&file, normal, strlen(normal));
   wzdir dir;
   ck_assert_int_eq(wz_read_dir(&dir, &file), 0);
-  ck_assert(memused() == sizeof(* dir.objs) + 2);
+  ck_assert(memused() == sizeof(* dir.nodes) + 2);
   wz_free_dir(&dir);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -457,14 +457,14 @@ START_TEST(test_decode_dir) {
   // It should be ok
   char ascii[] = "\x01\x23";
   wzfile file = {.strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}};
-  wzobj obj = {.type = 3};
-  obj.name.bytes = ascii;
-  obj.name.len = strlen(ascii);
-  obj.name.enc = WZ_ENC_ASCII;
-  wzdir dir = {.len = 1, .objs = &obj};
+  wznode node = {.type = 3};
+  node.name.bytes = ascii;
+  node.name.len = strlen(ascii);
+  node.name.enc = WZ_ENC_ASCII;
+  wzdir dir = {.len = 1, .nodes = &node};
   ck_assert_int_eq(wz_decode_dir(&dir, &file), 0);
-  ck_assert_int_eq(strncmp(obj.name.bytes, "\x88\x88", 2), 0);
-  ck_assert(obj.name.len == 2 && memused() == 0);
+  ck_assert_int_eq(strncmp(node.name.bytes, "\x88\x88", 2), 0);
+  ck_assert(node.name.len == 2 && memused() == 0);
 } END_TEST
 
 START_TEST(test_read_head) {
@@ -529,7 +529,7 @@ START_TEST(test_valid_ver) {
     .head = {.start = 0x3c},
     .root = {
       .len = 1,
-      .objs = (wzobj[]) {{
+      .nodes = (wznode[]) {{
         .type = 3,
         .addr = {.pos = 0x51, .val = 0x49e34db3}
       }}
@@ -553,7 +553,7 @@ START_TEST(test_decode_ver) {
     .head = {.start = 0x3c},
     .root = {
       .len = 1,
-      .objs = (wzobj[]) {{
+      .nodes = (wznode[]) {{
         .type = 3,
         .addr = {.pos = 0x56, .val = 0x5eb2cd05}
       }}
@@ -575,7 +575,7 @@ START_TEST(test_read_file) {
     "\x12\x00\x00\x00"                 // start
     "ab"                               // copy
     "\x01\x23"                         // ver
-    "\x01"                             // objs len
+    "\x01"                             // nodes len
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   FILE * raw = fmemopen(normal, sizeof(normal) - 1, "rb");
@@ -583,8 +583,8 @@ START_TEST(test_read_file) {
   ck_assert_int_eq(wz_read_file(&file, raw), 0);
   ck_assert_int_eq(strncmp(file.head.copy.bytes, "ab", 2), 0);
   ck_assert(file.head.copy.len == 2);
-  ck_assert(file.root.objs[0].name.len == 2);
-  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
+  ck_assert(file.root.nodes[0].name.len == 2);
+  ck_assert(memused() == sizeof(* file.root.nodes) + file.strk.len * 2 + 4);
   wz_free_file(&file);
   fclose(raw);
 
@@ -618,7 +618,7 @@ START_TEST(test_free_file) {
   FILE * raw = fmemopen(normal, sizeof(normal) - 1, "rb");
   ck_assert(raw != NULL);
   ck_assert_int_eq(wz_read_file(&file, raw), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
+  ck_assert(memused() == sizeof(* file.root.nodes) + file.strk.len * 2 + 4);
   wz_free_file(&file);
   ck_assert(memused() == 0);
   fclose(raw);
@@ -641,7 +641,7 @@ START_TEST(test_open_file) {
   ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
+  ck_assert(memused() == sizeof(* file.root.nodes) + file.strk.len * 2 + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
@@ -666,7 +666,7 @@ START_TEST(test_close_file) {
   ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
+  ck_assert(memused() == sizeof(* file.root.nodes) + file.strk.len * 2 + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
   ck_assert(memused() == 0);
@@ -692,9 +692,9 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_rotl32);
   tcase_add_test(tcase, test_decode_addr);
   tcase_add_test(tcase, test_read_addr);
-  tcase_add_test(tcase, test_read_obj);
-  tcase_add_test(tcase, test_free_obj);
-  tcase_add_test(tcase, test_decode_obj);
+  tcase_add_test(tcase, test_read_node);
+  tcase_add_test(tcase, test_free_node);
+  tcase_add_test(tcase, test_decode_node);
   tcase_add_test(tcase, test_read_dir);
   tcase_add_test(tcase, test_free_dir);
   tcase_add_test(tcase, test_decode_dir);
