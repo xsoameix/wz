@@ -8,11 +8,18 @@ void
 create_file(wzfile * file, char * buffer, size_t len) {
   FILE * raw = fmemopen(buffer, len, "rb");
   ck_assert(raw != NULL);
-  file->raw = raw, file->pos = 0, file->size = len, file->ver.hash = 0;
+  file->raw = raw;
+  file->pos = 0;
+  file->size = len;
+  file->ver.hash = 0;
+  file->strk.ascii = NULL;
+  file->strk.unicode = NULL;
+  file->strk.len = 0;
 }
 
 void
 delete_file(wzfile * file) {
+  ck_assert(memerr() == 0);
   fclose(file->raw);
 }
 
@@ -188,30 +195,41 @@ START_TEST(test_free_str) {
 } END_TEST
 
 START_TEST(test_decode_chars) {
-  // It should be ok
-  char normal[] = "\x01\x23";
-  wzfile file = {.strk = {.ascii = "\x01\x02\x03\x04"}};
-  create_file(&file, normal, strlen(normal));
+  // It should decode ascii
+  char ascii[] = "\x01\x23";
+  wzfile file = {.strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}};
   wzchr buffer;
-  wzstr str;
-  wz_init_str(&str);
-  ck_assert_int_eq(wz_read_str(&str, strlen(normal), &file), 0);
-  buffer.bytes = str.bytes;
-  buffer.len = str.len;
+  buffer.bytes = ascii;
+  buffer.len = strlen(ascii);
   buffer.enc = WZ_ENC_ASCII;
-  wz_decode_chars(&buffer, &file);
-  ck_assert_int_eq(strncmp(buffer.bytes, "\x01\x23", 2), 0);
-  ck_assert_int_eq(buffer.len == 2 && memused() == 2, 1);
+  ck_assert_int_eq(wz_decode_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\x88\x88", 2), 0);
+  ck_assert(buffer.len == 2 && memused() == 0);
+
+  // It should decode unicode
+  char unicode[] = "\x45\x67";
+  file.strk.unicode = "\x89\xab\xcd\xef";
+  file.strk.len = 4;
+  buffer.bytes = unicode;
+  buffer.len = strlen(unicode);
+  buffer.enc = WZ_ENC_UNICODE;
+  ck_assert_int_eq(wz_decode_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\xcc\xcc", 2), 0);
+  ck_assert(buffer.len == 2 && memused() == 0);
 
   // It should not decode if hash == 0
   file.strk.ascii = NULL;
   wzchr copy = buffer;
-  wz_decode_chars(&buffer, &file);
+  ck_assert_int_eq(wz_decode_chars(&buffer, &file), 0);
   ck_assert(buffer.bytes == copy.bytes);
   ck_assert(buffer.len == copy.len);
-  ck_assert_int_eq(buffer.len == 2 && memused() == 2, 1);
-  wz_free_str(&str);
-  delete_file(&file);
+
+  // It should not decode if string key is too short
+  file.strk.ascii = "\xcd";
+  file.strk.len = 1;
+  ck_assert_int_eq(wz_decode_chars(&buffer, &file), 1);
+  ck_assert(buffer.bytes == copy.bytes);
+  ck_assert(buffer.len == copy.len);
 } END_TEST
 
 START_TEST(test_read_chars) {
@@ -226,20 +244,89 @@ START_TEST(test_read_chars) {
   wzchr buffer;
   ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
   ck_assert_int_eq(strncmp(buffer.bytes, "\x01\x23", 2), 0);
-  ck_assert_int_eq(buffer.len == 2 && memused() == 2, 1);
+  ck_assert(buffer.len == 2 && memused() == 2);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
   ck_assert_int_eq(strncmp(buffer.bytes, "\x45\x67", 2), 0);
-  ck_assert_int_eq(buffer.len == 2 && memused() == 2, 1);
+  ck_assert(buffer.len == 2 && memused() == 2);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
   ck_assert_int_eq(strncmp(buffer.bytes, "\x89\xab", 2), 0);
-  ck_assert_int_eq(buffer.len == 2 && memused() == 2, 1);
+  ck_assert(buffer.len == 2 && memused() == 2);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
   ck_assert_int_eq(strncmp(buffer.bytes, "\xcd\xef\x01\x23\x45\x67", 6), 0);
-  ck_assert_int_eq(buffer.len == 6 && memused() == 6, 1);
+  ck_assert(buffer.len == 6 && memused() == 6);
   wz_free_chars(&buffer);
+  delete_file(&file);
+
+  // It should decode if string key is set
+  create_file(&file, normal, sizeof(normal) - 1);
+  file.strk.ascii   = "\x01\x23\x45\x67\x89\xab";
+  file.strk.unicode = "\xcd\xef\x01\x23\x45\x67";
+  file.strk.len = 6;
+  ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\x00\x00", 2), 0);
+  ck_assert(buffer.len == 2 && memused() == 2);
+  wz_free_chars(&buffer);
+  ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\x44\x44", 2), 0);
+  ck_assert(buffer.len == 2 && memused() == 2);
+  wz_free_chars(&buffer);
+  ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\x44\x44", 2), 0);
+  ck_assert(buffer.len == 2 && memused() == 2);
+  wz_free_chars(&buffer);
+  ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
+  ck_assert_int_eq(strncmp(buffer.bytes, "\x00\x00\x00\x00\x00\x00", 6), 0);
+  ck_assert(buffer.len == 6 && memused() == 6);
+  wz_free_chars(&buffer);
+  delete_file(&file);
+} END_TEST
+
+START_TEST(test_free_chars) {
+  // It should be ok
+  char normal[] = "\xfe\x01\x23";
+  wzfile file;
+  create_file(&file, normal, sizeof(normal) - 1);
+  wzchr buffer;
+  ck_assert_int_eq(wz_read_chars(&buffer, &file), 0);
+  ck_assert(memused() == 2);
+  wz_free_chars(&buffer);
+  ck_assert(memused() == 0);
+  delete_file(&file);
+} END_TEST
+
+START_TEST(test_rotl32) {
+  // It should be ok
+  ck_assert(wz_rotl32(0xf2345678, 3) == 0x91a2b3c7);
+} END_TEST
+
+START_TEST(test_decode_addr) {
+  // It should be ok
+  wzfile file = {.head = {.start = 0x3c}, .ver = {.hash = 0x713}};
+  wzaddr addr = {.pos = 0x51, .val = 0x49e34db3};
+  wz_decode_addr(&addr, &file);
+  ck_assert(addr.val == 0x2ed);
+} END_TEST
+
+START_TEST(test_read_addr) {
+  // It should be ok
+  char normal[] =
+    "\x01\x23\x45\x67""\x89\xab\xcd\xef"
+    "\x01\x23\x45\x67";
+  wzfile file;
+  create_file(&file, normal, strlen(normal));
+  wzaddr addr;
+  ck_assert_int_eq(wz_read_addr(&addr, &file), 0);
+  ck_assert(addr.val == 0x67452301 && addr.pos == 0);
+  ck_assert_int_eq(wz_read_addr(&addr, &file), 0);
+  ck_assert(addr.val == 0xefcdab89 && addr.pos == 4);
+
+  // It should decode address if hash is present
+  file.ver.hash = 0x89abcdef;
+  ck_assert_int_eq(wz_read_addr(&addr, &file), 0);
+  ck_assert(addr.val == 0xff77ee0c && addr.pos == 8);
   delete_file(&file);
 } END_TEST
 
@@ -300,6 +387,19 @@ START_TEST(test_free_obj) {
   delete_file(&file);
 } END_TEST
 
+START_TEST(test_decode_obj) {
+  // It should be ok
+  char ascii[] = "\x01\x23";
+  wzfile file = {.strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}};
+  wzobj obj = {.type = 3};
+  obj.name.bytes = ascii;
+  obj.name.len = strlen(ascii);
+  obj.name.enc = WZ_ENC_ASCII;
+  ck_assert_int_eq(wz_decode_obj(&obj, &file), 0);
+  ck_assert_int_eq(strncmp(obj.name.bytes, "\x88\x88", 2), 0);
+  ck_assert(obj.name.len == 2 && memused() == 0);
+} END_TEST
+
 START_TEST(test_read_dir) {
   // It should be ok
   char normal[] = "\x03"
@@ -341,6 +441,20 @@ START_TEST(test_free_dir) {
   wz_free_dir(&dir);
   ck_assert(memused() == 0);
   delete_file(&file);
+} END_TEST
+
+START_TEST(test_decode_dir) {
+  // It should be ok
+  char ascii[] = "\x01\x23";
+  wzfile file = {.strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}};
+  wzobj obj = {.type = 3};
+  obj.name.bytes = ascii;
+  obj.name.len = strlen(ascii);
+  obj.name.enc = WZ_ENC_ASCII;
+  wzdir dir = {.len = 1, .objs = &obj};
+  ck_assert_int_eq(wz_decode_dir(&dir, &file), 0);
+  ck_assert_int_eq(strncmp(obj.name.bytes, "\x88\x88", 2), 0);
+  ck_assert(obj.name.len == 2 && memused() == 0);
 } END_TEST
 
 START_TEST(test_read_head) {
@@ -391,15 +505,67 @@ START_TEST(test_free_head) {
   delete_file(&file);
 } END_TEST
 
+START_TEST(test_encode_ver) {
+  // It should be ok
+  wzver ver = {.dec = 0x0123};
+  ck_assert_int_eq(wz_encode_ver(&ver), 0);
+  ck_assert(ver.enc == 0x005e && ver.hash == 0xd372);
+} END_TEST
+
+START_TEST(test_valid_ver) {
+  // It should be ok
+  wzfile file = {
+    .size = 0x8a95328,
+    .head = {.start = 0x3c},
+    .root = {
+      .len = 1,
+      .objs = (wzobj[]) {{
+        .type = 3,
+        .addr = {.pos = 0x51, .val = 0x49e34db3}
+      }}
+    },
+    .ver = {.hash = 0x99}
+  };
+  wzver ver = {.hash = 0x713};
+  ck_assert_int_eq(wz_valid_ver(&ver, &file), 0);
+  ck_assert(file.ver.hash == 0x99);
+
+  // It should not change version hash if failed
+  ver.hash = 0x712;
+  ck_assert_int_eq(wz_valid_ver(&ver, &file), 1);
+  ck_assert(file.ver.hash == 0x99);
+} END_TEST
+
+START_TEST(test_decode_ver) {
+  // It should be ok
+  wzfile file = {
+    .size = 0x712e04f2,
+    .head = {.start = 0x3c},
+    .root = {
+      .len = 1,
+      .objs = (wzobj[]) {{
+        .type = 3,
+        .addr = {.pos = 0x56, .val = 0x5eb2cd05}
+      }}
+    },
+    .ver = {.hash = 0x99}
+  };
+  wzver ver = {.enc = 0x93};
+  ck_assert_int_eq(wz_decode_ver(&ver, &file), 0);
+  ck_assert(ver.enc == 0x93);
+  ck_assert(ver.dec == 0x153);
+  ck_assert(ver.hash == 0xd6ba);
+} END_TEST
+
 START_TEST(test_read_file) {
   // It should be ok
   char normal[] =
-    "\x01\x23\x45\x67"
-    "\x1F\x00\x00\x00\x00\x00\x00\x00"
-    "\x12\x00\x00\x00"
-    "ab"
-    "\x01\x23"
-    "\x01"
+    "\x01\x23\x45\x67"                 // ident
+    "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
+    "\x12\x00\x00\x00"                 // start
+    "ab"                               // copy
+    "\x01\x23"                         // ver
+    "\x01"                             // objs len
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   FILE * raw = fmemopen(normal, sizeof(normal) - 1, "rb");
@@ -407,9 +573,8 @@ START_TEST(test_read_file) {
   ck_assert_int_eq(wz_read_file(&file, raw), 0);
   ck_assert_int_eq(strncmp(file.head.copy.bytes, "ab", 2), 0);
   ck_assert(file.head.copy.len == 2);
-  ck_assert_int_eq(strncmp(file.root.objs[0].name.bytes, "\x01\x23", 2), 0);
   ck_assert(file.root.objs[0].name.len == 2);
-  ck_assert(memused() == sizeof(* file.root.objs) + 4);
+  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
   wz_free_file(&file);
   fclose(raw);
 
@@ -443,7 +608,7 @@ START_TEST(test_free_file) {
   FILE * raw = fmemopen(normal, sizeof(normal) - 1, "rb");
   ck_assert(raw != NULL);
   ck_assert_int_eq(wz_read_file(&file, raw), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + 4);
+  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
   wz_free_file(&file);
   ck_assert(memused() == 0);
   fclose(raw);
@@ -466,7 +631,7 @@ START_TEST(test_open_file) {
   ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + 4);
+  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
@@ -491,15 +656,10 @@ START_TEST(test_close_file) {
   ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename), 0);
-  ck_assert(memused() == sizeof(* file.root.objs) + 4);
+  ck_assert(memused() == sizeof(* file.root.objs) + file.strk.len * 2 + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
   ck_assert(memused() == 0);
-} END_TEST
-
-START_TEST(test_memory) {
-  // It should be ok
-  ck_assert(memerr() == 0);
 } END_TEST
 
 Suite *
@@ -518,17 +678,25 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_free_str);
   tcase_add_test(tcase, test_decode_chars);
   tcase_add_test(tcase, test_read_chars);
+  tcase_add_test(tcase, test_free_chars);
+  tcase_add_test(tcase, test_rotl32);
+  tcase_add_test(tcase, test_decode_addr);
+  tcase_add_test(tcase, test_read_addr);
   tcase_add_test(tcase, test_read_obj);
   tcase_add_test(tcase, test_free_obj);
+  tcase_add_test(tcase, test_decode_obj);
   tcase_add_test(tcase, test_read_dir);
   tcase_add_test(tcase, test_free_dir);
+  tcase_add_test(tcase, test_decode_dir);
   tcase_add_test(tcase, test_read_head);
   tcase_add_test(tcase, test_free_head);
+  tcase_add_test(tcase, test_encode_ver);
+  tcase_add_test(tcase, test_valid_ver);
+  tcase_add_test(tcase, test_decode_ver);
   tcase_add_test(tcase, test_read_file);
   tcase_add_test(tcase, test_free_file);
   tcase_add_test(tcase, test_open_file);
   tcase_add_test(tcase, test_close_file);
-  tcase_add_test(tcase, test_memory);
   suite_add_tcase(suite, tcase);
   return suite;
 }

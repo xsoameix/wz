@@ -71,14 +71,16 @@ wz_free_str(wzstr * buffer) {
   free(buffer->bytes);
 }
 
-void
+int
 wz_decode_chars(wzchr * buffer, wzfile * file) {
-  if (file->strk.ascii == NULL) return;
+  if (file->strk.ascii == NULL) return 0;
+  if (file->strk.len < buffer->len) return 1;
   uint8_t * strk = buffer->enc == WZ_ENC_ASCII ?
     file->strk.ascii : file->strk.unicode;
   size_t i;
   for (i = 0; i < buffer->len; i++)
     buffer->bytes[i] ^= strk[i];
+  return 0;
 }
 
 int // read characters (ascii or unicode)
@@ -104,8 +106,7 @@ wz_read_chars(wzchr * buffer, wzfile * file) {
   buffer->bytes = str.bytes;
   buffer->len = str.len;
   buffer->enc = ascii ? WZ_ENC_ASCII : WZ_ENC_UNICODE;
-  wz_decode_chars(buffer, file);
-  return 0;
+  return wz_decode_chars(buffer, file);
 }
 
 void
@@ -133,7 +134,7 @@ wz_read_addr(wzaddr * addr, wzfile * file) {
   if (wz_read_le32(&addr->val, file)) return 1;
   addr->pos = pos;
   if (file->ver.hash == 0) return 0;
-  return 0;
+  return wz_decode_addr(addr, file), 0;
 }
 
 int
@@ -160,13 +161,14 @@ wz_read_obj(wzobj * obj, wzfile * file) {
 
 void
 wz_free_obj(wzobj * obj) {
-  wz_free_chars(&obj->name);
+  if (obj->type == 3 || obj->type == 4)
+    wz_free_chars(&obj->name);
 }
 
 int
 wz_decode_obj(wzobj * obj, wzfile * file) {
   if (obj->type == 3 || obj->type == 4) {
-    wz_decode_chars(&obj->name, file);
+    if (wz_decode_chars(&obj->name, file)) return 1;
     printf(" type   %d\n", obj->type);
     printf(" name   %.*s\n", obj->name.len, obj->name.bytes);
     printf(" size   %"PRIu32"\n", obj->size);
@@ -235,7 +237,7 @@ wz_free_head(wzhead * head) {
 int
 wz_encode_ver(wzver * ver) {
   char chars[6]; // 0xffff.to_s.size + 1 == 6
-  if (snprintf(chars, sizeof(chars), "%"PRIu32, ver->dec) < 0) return 1;
+  if (snprintf(chars, sizeof(chars), "%"PRIu16, ver->dec) < 0) return 1;
   ver->hash = 0;
   size_t i, len = strlen(chars);
   for (i = 0; i < len; i++) ver->hash = (ver->hash << 5) + chars[i] + 1;
@@ -257,11 +259,11 @@ wz_valid_ver(wzver * ver, wzfile * file) {
     if (obj->type == 3 || obj->type == 4) {
       wzaddr addr = obj->addr;
       wz_decode_addr(&addr, file);
-      if (addr.val > file->size) break;
+      if (addr.val > file->size)
+        return file->ver.hash = copy, 1;
     }
   }
-  file->ver.hash = copy;
-  return i == len;
+  return file->ver.hash = copy, 0;
 }
 
 int
@@ -353,12 +355,11 @@ wz_valid_strk(wzstrk * strk, wzfile * file) {
   for (i = 0; i < file->root.len; i++) {
     wzobj * obj = &file->root.objs[i];
     if ((obj->type == 3 || obj->type == 4) && obj->name.enc == WZ_ENC_ASCII) {
-      wz_decode_chars(&obj->name, file);
+      if (wz_decode_chars(&obj->name, file)) return file->strk = copy, 1;
       for (j = 0; j < obj->name.len; j++)
-        if (!isprint(obj->name.bytes[j])) break;
+        if (!isprint(obj->name.bytes[j]))
+          return wz_decode_chars(&obj->name, file), file->strk = copy, 1;
       wz_decode_chars(&obj->name, file);
-      if (j != obj->name.len)
-        return file->strk = copy, 1;
     }
   }
   return file->strk = copy, 0;
@@ -375,6 +376,7 @@ wz_set_strk(wzstrk * strk, uint8_t * cipher, size_t len, wzfile * file) {
     ascii[j]   =         amask++  ^               cipher[j];
   for (j = 0; j < len / sizeof(umask); j++)
     unicode[j] = htobe16(umask++) ^ ((uint16_t *) cipher)[j];
+  strk->len = len;
   return wz_valid_strk(strk, file);
 }
 

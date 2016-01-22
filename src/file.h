@@ -41,8 +41,8 @@ typedef struct {
 } wzhead;
 
 typedef struct {
-  int16_t   enc;      // encoded version
-  int16_t   dec;      // decoded version
+  uint16_t  enc;      // encoded version
+  uint16_t  dec;      // decoded version
   uint32_t  hash;     // hash of the version
 } wzver;
 
@@ -57,6 +57,7 @@ typedef struct {
 typedef struct {
   uint8_t * ascii;
   uint8_t * unicode;
+  size_t    len;
 } wzstrk;
 
 typedef struct {
@@ -82,7 +83,7 @@ int      wz_read_bytes(uint8_t * buffer, size_t len, wzfile * file);
 void     wz_init_str(wzstr * buffer);
 int      wz_read_str(wzstr * buffer, size_t len, wzfile * file);
 void     wz_free_str(wzstr * buffer);
-void     wz_decode_chars(wzchr * buffer, wzfile * file);
+int      wz_decode_chars(wzchr * buffer, wzfile * file);
 int      wz_read_chars(wzchr * buffer, wzfile * file);
 uint32_t wz_rotl32(uint32_t x, uint32_t n);
 void     wz_decode_addr(wzaddr * addr, wzfile * file);
