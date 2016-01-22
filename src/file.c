@@ -169,6 +169,7 @@ int
 wz_decode_obj(wzobj * obj, wzfile * file) {
   if (obj->type == 3 || obj->type == 4) {
     if (wz_decode_chars(&obj->name, file)) return 1;
+    wz_decode_addr(&obj->addr, file);
     printf(" type   %d\n", obj->type);
     printf(" name   %.*s\n", obj->name.len, obj->name.bytes);
     printf(" size   %"PRIu32"\n", obj->size);

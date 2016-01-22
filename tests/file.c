@@ -390,13 +390,23 @@ START_TEST(test_free_obj) {
 START_TEST(test_decode_obj) {
   // It should be ok
   char ascii[] = "\x01\x23";
-  wzfile file = {.strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}};
-  wzobj obj = {.type = 3};
-  obj.name.bytes = ascii;
-  obj.name.len = strlen(ascii);
-  obj.name.enc = WZ_ENC_ASCII;
+  wzfile file = {
+    .head = {.start = 0x3c},
+    .ver = {.hash = 0x713},
+    .strk = {.ascii = "\x89\xab\xcd\xef", .len = 4}
+  };
+  wzobj obj = {
+    .type = 3,
+    .name = {
+      .bytes = ascii,
+      .len = strlen(ascii),
+      .enc = WZ_ENC_ASCII
+    },
+    .addr = {.pos = 0x51, .val = 0x49e34db3}
+  };
   ck_assert_int_eq(wz_decode_obj(&obj, &file), 0);
   ck_assert_int_eq(strncmp(obj.name.bytes, "\x88\x88", 2), 0);
+  ck_assert(obj.addr.val == 0x2ed);
   ck_assert(obj.name.len == 2 && memused() == 0);
 } END_TEST
 
