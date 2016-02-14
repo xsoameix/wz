@@ -601,7 +601,7 @@ wz_free_var(wzvar * var) {
 }
 
 int
-wz_read_prop(wzprop * prop, wznode * node, wzfile * file) {
+wz_read_list(wzlist * list, wznode * node, wzfile * file) {
   if (wz_seek(2, SEEK_CUR, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
@@ -613,14 +613,14 @@ wz_read_prop(wzprop * prop, wznode * node, wzfile * file) {
         wz_free_var(vars + j);
       return free(vars), 1;
     }
-  return prop->vars = vars, prop->len = len, 0;
+  return list->vars = vars, list->len = len, 0;
 }
 
 void
-wz_free_prop(wzprop * prop) {
-  for (uint32_t i = 0; i < prop->len; i++)
-    wz_free_var(prop->vars + i);
-  free(prop->vars);
+wz_free_list(wzlist * list) {
+  for (uint32_t i = 0; i < list->len; i++)
+    wz_free_var(list->vars + i);
+  free(list->vars);
 }
 
 int
@@ -837,10 +837,10 @@ wz_read_bitmap(wzcolor ** data,
 int
 wz_read_img(wzimg * img, wznode * node, wzfile * file) {
   if (wz_seek(1, SEEK_CUR, file)) return 1;
-  uint8_t prop;
-  if (wz_read_byte(&prop, file)) return 1;
+  uint8_t list;
+  if (wz_read_byte(&list, file)) return 1;
   img->len = 0, img->vars = NULL;
-  if (prop == 1 && wz_read_prop((wzprop *) img, node, file)) return 1;
+  if (list == 1 && wz_read_list((wzlist *) img, node, file)) return 1;
   uint32_t depth;
   uint8_t  scale;
   uint32_t size;
@@ -855,7 +855,7 @@ wz_read_img(wzimg * img, wznode * node, wzfile * file) {
       wz_read_byte(&blank2, file)  || blank2 ||
       wz_read_bitmap(&img->data,
                      img->w, img->h, depth, scale, size, node, file))
-    return wz_free_prop((wzprop *) img), 1;
+    return wz_free_list((wzlist *) img), 1;
   //static int id = 0;
   //char filename[100];
   //snprintf(filename, sizeof(filename), "out/%d-%"PRIu32"-%"PRIu32".data",
@@ -870,7 +870,7 @@ wz_read_img(wzimg * img, wznode * node, wzfile * file) {
 
 void
 wz_free_img(wzimg * img) {
-  wz_free_prop((wzprop *) img);
+  wz_free_list((wzlist *) img);
 }
 
 int
@@ -933,13 +933,13 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file) {
     return 1;
   }
   if (WZ_IS_OBJ_PROPERTY(&type)) {
-    wzprop * prop = malloc(sizeof(* prop));
-    if (prop == NULL) return wz_free_chars(&type), 1;
-    if (wz_read_prop(prop, node, file)) {
-      wz_error("Unable to read property\n");
-      return free(prop), wz_free_chars(&type), 1;
+    wzlist * list = malloc(sizeof(* list));
+    if (list == NULL) return wz_free_chars(&type), 1;
+    if (wz_read_list(list, node, file)) {
+      wz_error("Unable to read list\n");
+      return free(list), wz_free_chars(&type), 1;
     }
-    return prop->type = type, * buffer = (wzobj *) prop, 0;
+    return list->type = type, * buffer = (wzobj *) list, 0;
   } else if (WZ_IS_OBJ_CANVAS(&type)) {
     wzimg * img = malloc(sizeof(* img));
     if (img == NULL) return wz_free_chars(&type), 1;
@@ -982,7 +982,7 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file) {
 
 void
 wz_free_obj(wzobj * obj) {
-  if (WZ_IS_OBJ_PROPERTY(&obj->type)) wz_free_prop((wzprop *) obj);
+  if (WZ_IS_OBJ_PROPERTY(&obj->type)) wz_free_list((wzlist *) obj);
   else if (WZ_IS_OBJ_CANVAS(&obj->type)) wz_free_img((wzimg *) obj);
   else if (WZ_IS_OBJ_CONVEX(&obj->type)) wz_free_vex((wzvex *) obj);
   else if (WZ_IS_OBJ_SOUND(&obj->type)) {}
@@ -1018,9 +1018,9 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file) {
         if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
           stack[len++] = var;
           stack[len++] = NULL;
-          wzprop * prop = (wzprop *) obj;
-          for (uint32_t i = 0; i < prop->len; i++) {
-            wzvar * child = &prop->vars[prop->len - i - 1];
+          wzlist * list = (wzlist *) obj;
+          for (uint32_t i = 0; i < list->len; i++) {
+            wzvar * child = &list->vars[list->len - i - 1];
             child->parent = var;
             stack[len++] = child;
           }
@@ -1129,25 +1129,25 @@ wz_read_node_r(wznode * node, wzfile * file) {
       //if (wz_is_chars(&node->name, "Effect2.img")) { // multiple string key x
         debugging = 1;
       wz_read_obj_r(node->data.var, node, file);
-      //int64_t i = ((wzprop *) ((wzprop *) ((wzprop *) ((wzprop *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
+      //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
       // MapList/0/mapNo/0 => 211040300
       //printf("i = %ld\n", i);
-      // wzprop * prop = (wzprop *) node->data.var->val.obj;
-      // get_prop(prop, "MapList");
+      // wzlist * list = (wzlist *) node->data.var->val.obj;
+      // get_list(list, "MapList");
       //
-      // wzprop * ret;
-      // get_prop(&ret, prop, 2);
-      // # ((wzprop *) prop->vars[2].val.obj)
+      // wzlist * ret;
+      // get_list(&ret, list, 2);
+      // # ((wzlist *) list->vars[2].val.obj)
       //
-      // wzprop * ret;
-      // get_prop(&ret, prop, "MapList");
+      // wzlist * ret;
+      // get_list(&ret, list, "MapList");
       //
       // int64 ret;
-      // get_int(&ret, prop, "MapList/0/mapNo/0");
+      // get_int(&ret, list, "MapList/0/mapNo/0");
       // get_float
       // get_chars
       //
-      // get_prop
+      // get_list
       // get_img
       // get_vex
       // get_vec

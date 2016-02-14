@@ -43,7 +43,7 @@ typedef struct {
   wzchr     type;
   uint32_t  len;
   wzvar *   vars;
-} wzprop;
+} wzlist;
 
 typedef struct {
   uint8_t   b;
@@ -108,7 +108,7 @@ typedef struct wznode {
   uint32_t  check;  // checksum
   wzaddr    addr;
   wzdata    data;
-  wzkey *   key;    // decode object (property, image, convex, ...)
+  wzkey *   key;    // decode object (list, image, convex, ...)
 } wznode;
 
 typedef struct wzgrp {
