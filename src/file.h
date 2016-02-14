@@ -210,8 +210,9 @@ int      wz_read_head(wzhead * head, wzfile * file);
 void     wz_free_head(wzhead * head);
 
 int      wz_encode_ver(wzver * ver);
-int      wz_valid_ver(wzver * ver, wzfile * file);
-int      wz_decode_ver(wzver * ver, wzfile * file);
+int      wz_valid_ver(wzver * ver, wznode * node, wzfile * file);
+int      wz_guess_ver(wzver * ver, wznode * node, wzfile * file);
+int      wz_deduce_ver(wzver * ver, wzfile * file);
 
 int      wz_alloc_crypto(void);
 void     wz_dealloc_crypto(void);

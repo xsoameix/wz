@@ -37,3 +37,7 @@ add_executable(suite
 )
 target_link_libraries(suite ${LIBS})
 add_test(suite ${CMAKE_CURRENT_BINARY_DIR}/suite)
+
+# encode - encode version & address program
+add_executable(encode encode.c)
+target_link_libraries(encode testlib)

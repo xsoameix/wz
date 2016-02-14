@@ -296,6 +296,13 @@ wz_read_head(wzhead * head, wzfile * file) {
       wz_read_le64(&head->size, file) ||
       wz_read_le32(&head->start, file) ||
       wz_read_str(&head->copy, head->start - file->pos, file)) return 1;
+  file->root = (wznode) {
+    .parent = NULL,
+    .type = 0x03,
+    .name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII},
+    .data = {.grp = NULL},
+    .addr = {.val = head->start + sizeof(file->ver.enc)}
+  };
   printf("ident      %.4s\n",      head->ident);
   printf("size       %"PRIu64"\n", head->size);
   printf("start      %08X\n",      head->start);
@@ -324,12 +331,12 @@ wz_encode_ver(wzver * ver) {
 }
 
 int
-wz_valid_ver(wzver * ver, wzfile * file) {
+wz_valid_ver(wzver * ver, wznode * node, wzfile * file) {
   uint32_t copy = file->ver.hash;
   file->ver.hash = ver->hash;
-  uint32_t len = file->root.data.grp->len;
-  for (uint32_t i = 0; i < len; i++) {
-    wznode * node = &file->root.data.grp->nodes[i];
+  wzgrp * grp = node->data.grp;
+  for (uint32_t i = 0; i < grp->len; i++) {
+    wznode * node = &grp->nodes[i];
     if (WZ_IS_NODE_DIR(node->type) ||
         WZ_IS_NODE_FILE(node->type)) {
       wzaddr addr = node->addr;
@@ -342,14 +349,23 @@ wz_valid_ver(wzver * ver, wzfile * file) {
 }
 
 int
-wz_decode_ver(wzver * ver, wzfile * file) {
+wz_guess_ver(wzver * ver, wznode * node, wzfile * file) {
   wzver guess;
   for (guess.dec = 0; guess.dec < 512; guess.dec++) {
     if (wz_encode_ver(&guess)) return 1;
-    if (guess.enc == ver->enc && !wz_valid_ver(&guess, file))
+    if (guess.enc == ver->enc && !wz_valid_ver(&guess, node, file))
       return * ver = guess, 0;
   }
   return 1;
+}
+
+int
+wz_deduce_ver(wzver * ver, wzfile * file) {
+  wznode root = file->root;
+  if (wz_read_grp(&root.data.grp, &root, file)) return 1;
+  if (wz_guess_ver(ver, &root, file))
+    return wz_free_grp(&root.data.grp), 1;
+  return wz_free_grp(&root.data.grp), 0;
 }
 
 int
@@ -1110,8 +1126,10 @@ wz_read_node_r(wznode * node, wzfile * file) {
       debug(" < %.*s", parent->name.len, parent->name.bytes);
     debug("\n");
     if (WZ_IS_NODE_DIR(node->type)) {
-      if (wz_read_grp(&node->data.grp, node, file))
-        return printf("failed to read grp!\n"), 1;
+      if (wz_read_grp(&node->data.grp, node, file)) {
+        printf("failed to read group!\n");
+        continue;
+      }
       stack[len++] = node;
       stack[len++] = NULL;
       wzgrp * grp = node->data.grp;
@@ -1167,44 +1185,18 @@ wz_read_node_r(wznode * node, wzfile * file) {
 }
 
 int
-wz_read_root(wznode * root, wzfile * file) {
-  root->addr.val = file->head.start + sizeof(file->ver.enc);
-  return wz_read_grp(&root->data.grp, root, file);
-}
-
-int
-wz_decode_root(wznode * root, wzfile * file) {
-  return wz_decode_grp(root->data.grp, file);
-}
-
-void
-wz_free_root(wznode * root) {
-  wz_free_grp(&root->data.grp);
-}
-
-int
 wz_read_file(wzfile * file, FILE * raw) {
   file->raw = raw, file->pos = 0;
   if (fseek(raw, 0, SEEK_END) ||
       (file->size = ftell(raw)) < 0) return 1;
   rewind(raw);
+  if (wz_read_head(&file->head, file) ||
+      wz_read_le16(&file->ver.enc, file)) return 1;
   file->ver.hash = 0, file->key = NULL;
-  file->root = (wznode) {
-    .parent = NULL,
-    .type = 0x03,
-    .name = (wzchr) {.len = 0, .enc = WZ_ENC_ASCII},
-    .data = {.grp = NULL}
-  };
   wz_init_keys(file->keys);
+  if (wz_deduce_ver(&file->ver, file))
+    return wz_free_keys(file), wz_free_head(&file->head), 1;
   wz_init_palette(&file->palette);
-  if (wz_read_head(&file->head, file)) return wz_free_keys(file), 1;
-  if (wz_read_le16(&file->ver.enc, file) ||
-      wz_read_root(&file->root, file))
-    return wz_free_head(&file->head), wz_free_keys(file), 1;
-  if (wz_decode_ver(&file->ver, file) ||
-      wz_decode_root(&file->root, file))
-    return 0;
-    //return wz_free_root(&file->root), wz_free_head(&file->head), 2;
   //printf("memory used  %lu\n", memused());
   if (!wz_read_node_r(&file->root, file))
     printf("all read !\n");
@@ -1213,7 +1205,6 @@ wz_read_file(wzfile * file, FILE * raw) {
 
 void
 wz_free_file(wzfile * file) {
-  wz_free_root(&file->root);
   wz_free_head(&file->head);
   wz_free_keys(file);
 }
