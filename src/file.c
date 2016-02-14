@@ -186,12 +186,12 @@ wz_read_node_body(wznode * node, wzfile * file) {
   if (WZ_IS_NODE_DIR(node->type)) {
     return node->data.grp = NULL, 0;
   } else if (WZ_IS_NODE_FILE(node->type)) {
-    wzpair * pair = malloc(sizeof(* pair));
-    if (pair == NULL) return 1;
-    pair->parent = NULL;
-    pair->name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII};
-    pair->type = 0x09, pair->val.pos = node->addr.val;
-    return node->data.pair = pair, node->key = NULL, 0;
+    wzvar * var = malloc(sizeof(* var));
+    if (var == NULL) return 1;
+    var->parent = NULL;
+    var->name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII};
+    var->type = 0x09, var->val.pos = node->addr.val;
+    return node->data.var = var, node->key = NULL, 0;
   } else {
     return wz_error("Unsupported node type: 0x%02hhx\n", node->type), 1;
   }
@@ -232,14 +232,14 @@ wz_free_node(wznode * node) {
       WZ_IS_NODE_FILE(node->type))
     wz_free_chars(&node->name);
   if (WZ_IS_NODE_FILE(node->type))
-    free(node->data.pair);
+    free(node->data.var);
 }
 
 void
 wz_decode_node_body(wznode * node, wzfile * file) {
   wz_decode_addr(&node->addr, file);
   if (WZ_IS_NODE_FILE(node->type))
-    node->data.pair->val.pos = node->addr.val;
+    node->data.var->val.pos = node->addr.val;
 }
 
 int
@@ -538,7 +538,7 @@ pindent(void) {
 }
 
 int
-wz_read_var(wzvar * val, uint8_t type, wznode * node, wzfile * file) {
+wz_read_prim(wzprim * val, uint8_t type, wznode * node, wzfile * file) {
   if (WZ_IS_VAR_NONE(type)) {
     return 0;
   } else if (WZ_IS_VAR_INT16(type)) {
@@ -575,29 +575,29 @@ wz_read_var(wzvar * val, uint8_t type, wznode * node, wzfile * file) {
     val->pos = file->pos;
     return wz_seek(size, SEEK_CUR, file);
   } else {
-    return wz_error("Unsupported variant type: 0x%02hhx\n", type), 1;
+    return wz_error("Unsupported primitive type: 0x%02hhx\n", type), 1;
   }
 }
 
 void
-wz_free_var(wzvar * val, uint8_t type) {
+wz_free_prim(wzprim * val, uint8_t type) {
   if (WZ_IS_VAR_STRING(type))
     wz_free_chars(&val->str);
 }
 
 int
-wz_read_pair(wzpair * pair, wznode * node, wzfile * file) {
-  if (wz_read_pack_chars(&pair->name, node, file)) return 1;
-  if (wz_read_byte(&pair->type, file) ||
-      wz_read_var(&pair->val, pair->type, node, file))
-    return wz_free_chars(&pair->name), 1;
+wz_read_var(wzvar * var, wznode * node, wzfile * file) {
+  if (wz_read_pack_chars(&var->name, node, file)) return 1;
+  if (wz_read_byte(&var->type, file) ||
+      wz_read_prim(&var->val, var->type, node, file))
+    return wz_free_chars(&var->name), 1;
   return 0;
 }
 
 void
-wz_free_pair(wzpair * pair) {
-  wz_free_var(&pair->val, pair->type);
-  wz_free_chars(&pair->name);
+wz_free_var(wzvar * var) {
+  wz_free_prim(&var->val, var->type);
+  wz_free_chars(&var->name);
 }
 
 int
@@ -605,22 +605,22 @@ wz_read_prop(wzprop * prop, wznode * node, wzfile * file) {
   if (wz_seek(2, SEEK_CUR, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
-  wzpair * pairs = malloc(sizeof(* pairs) * len);
-  if (pairs == NULL) return 1;
+  wzvar * vars = malloc(sizeof(* vars) * len);
+  if (vars == NULL) return 1;
   for (uint32_t i = 0; i < len; i++)
-    if (wz_read_pair(pairs + i, node, file)) {
+    if (wz_read_var(vars + i, node, file)) {
       for (uint32_t j = 0; j < i; j++)
-        wz_free_pair(pairs + j);
-      return free(pairs), 1;
+        wz_free_var(vars + j);
+      return free(vars), 1;
     }
-  return prop->pairs = pairs, prop->len = len, 0;
+  return prop->vars = vars, prop->len = len, 0;
 }
 
 void
 wz_free_prop(wzprop * prop) {
   for (uint32_t i = 0; i < prop->len; i++)
-    wz_free_pair(prop->pairs + i);
-  free(prop->pairs);
+    wz_free_var(prop->vars + i);
+  free(prop->vars);
 }
 
 int
@@ -839,7 +839,7 @@ wz_read_img(wzimg * img, wznode * node, wzfile * file) {
   if (wz_seek(1, SEEK_CUR, file)) return 1;
   uint8_t prop;
   if (wz_read_byte(&prop, file)) return 1;
-  img->len = 0, img->pairs = NULL;
+  img->len = 0, img->vars = NULL;
   if (prop == 1 && wz_read_prop((wzprop *) img, node, file)) return 1;
   uint32_t depth;
   uint8_t  scale;
@@ -992,39 +992,39 @@ wz_free_obj(wzobj * obj) {
 }
 
 int // Non recursive DFS
-wz_read_obj_r(wzpair * buffer, wznode * node, wzfile * file) {
-  wzpair ** stack = malloc(100000 * sizeof(* stack));
+wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file) {
+  wzvar ** stack = malloc(100000 * sizeof(* stack));
   if (stack == NULL) return 1;
   stack[0] = buffer;
   for (uint32_t len = 1; len;) {
-    wzpair * pair = stack[--len];
-    if (pair == NULL) {
+    wzvar * var = stack[--len];
+    if (var == NULL) {
       wz_free_obj(stack[--len]->val.obj);
       continue;
     }
     indent = 0;
-    for (wzpair * parent = pair; parent != NULL; parent = parent->parent)
+    for (wzvar * parent = var; parent != NULL; parent = parent->parent)
       indent += 1;
     indent -= 1;
     //pindent();//, debug(" name   ");
-    //debug("%.*s\n", pair->name.len, pair->name.bytes);
-    if (WZ_IS_VAR_OBJECT(pair->type)) {
-      if (wz_seek(pair->val.pos, SEEK_SET, file))
+    //debug("%.*s\n", var->name.len, var->name.bytes);
+    if (WZ_IS_VAR_OBJECT(var->type)) {
+      if (wz_seek(var->val.pos, SEEK_SET, file))
         continue;
       wzobj * obj;
       if (wz_read_obj(&obj, node, file)) {
         printf("failed!\n");
       } else {
         if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
-          stack[len++] = pair;
+          stack[len++] = var;
           stack[len++] = NULL;
           wzprop * prop = (wzprop *) obj;
           for (uint32_t i = 0; i < prop->len; i++) {
-            wzpair * child = &prop->pairs[prop->len - i - 1];
-            child->parent = pair;
+            wzvar * child = &prop->vars[prop->len - i - 1];
+            child->parent = var;
             stack[len++] = child;
           }
-          pair->val.obj = obj;
+          var->val.obj = obj;
         } else if (WZ_IS_OBJ_CANVAS(&obj->type)) {
           wz_free_obj(obj);
         } else if (WZ_IS_OBJ_CONVEX(&obj->type)) {
@@ -1047,17 +1047,17 @@ wz_read_obj_r(wzpair * buffer, wznode * node, wzfile * file) {
         //pindent(), debug(" type   %.*s [%p]\n",
         //                 obj->type.len, obj->type.bytes, obj);
       }
-    } else if (WZ_IS_VAR_NONE(pair->type)) {
+    } else if (WZ_IS_VAR_NONE(var->type)) {
       //pindent(), debug(" (nil)\n");
-    } else if (WZ_IS_VAR_INT16(pair->type) ||
-               WZ_IS_VAR_INT32(pair->type) ||
-               WZ_IS_VAR_INT64(pair->type)) {
-      //pindent(), debug(" %"PRId64"\n", pair->val.i);
-    } else if (WZ_IS_VAR_FLOAT32(pair->type) ||
-               WZ_IS_VAR_FLOAT64(pair->type)) {
-      //pindent(), debug(" %f\n", pair->val.f);
-    } else if (WZ_IS_VAR_STRING(pair->type)) {
-      wzchr * val = &pair->val.str;
+    } else if (WZ_IS_VAR_INT16(var->type) ||
+               WZ_IS_VAR_INT32(var->type) ||
+               WZ_IS_VAR_INT64(var->type)) {
+      //pindent(), debug(" %"PRId64"\n", var->val.i);
+    } else if (WZ_IS_VAR_FLOAT32(var->type) ||
+               WZ_IS_VAR_FLOAT64(var->type)) {
+      //pindent(), debug(" %f\n", var->val.f);
+    } else if (WZ_IS_VAR_STRING(var->type)) {
+      wzchr * val = &var->val.str;
       if (val->enc == WZ_ENC_ASCII) {
         //pindent(), debug(" %.*s\n", val->len, val->bytes);
       } else if (val->len > 0) {
@@ -1128,16 +1128,16 @@ wz_read_node_r(wznode * node, wzfile * file) {
       //if (wz_is_chars(&node->name, "926120200.img")) { // multiple string key ? and minimap
       //if (wz_is_chars(&node->name, "Effect2.img")) { // multiple string key x
         debugging = 1;
-      wz_read_obj_r(node->data.pair, node, file);
-      //int64_t i = ((wzprop *) ((wzprop *) ((wzprop *) ((wzprop *) node->data.pair->val.obj)->pairs[2].val.obj)->pairs[0].val.obj)->pairs[2].val.obj)->pairs[0].val.i;
+      wz_read_obj_r(node->data.var, node, file);
+      //int64_t i = ((wzprop *) ((wzprop *) ((wzprop *) ((wzprop *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
       // MapList/0/mapNo/0 => 211040300
       //printf("i = %ld\n", i);
-      // wzprop * prop = (wzprop *) node->data.pair->val.obj;
+      // wzprop * prop = (wzprop *) node->data.var->val.obj;
       // get_prop(prop, "MapList");
       //
       // wzprop * ret;
       // get_prop(&ret, prop, 2);
-      // # ((wzprop *) prop->pairs[2].val.obj)
+      // # ((wzprop *) prop->vars[2].val.obj)
       //
       // wzprop * ret;
       // get_prop(&ret, prop, "MapList");

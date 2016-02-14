@@ -435,7 +435,7 @@ START_TEST(test_read_node) {
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
-  ck_assert(memused() == sizeof(* node.data.pair) + 2);
+  ck_assert(memused() == sizeof(* node.data.var) + 2);
   wz_free_node(&node);
 
   // It should not read type 5
@@ -490,7 +490,7 @@ START_TEST(test_read_grp) {
   ck_assert(memused() ==
             sizeof(* grp) +
             sizeof(* grp->nodes) * 3 +
-            sizeof(* grp->nodes[0].data.pair) +
+            sizeof(* grp->nodes[0].data.var) +
             2 * 2);
   wz_free_grp(&grp);
   delete_file(&file);

@@ -30,19 +30,19 @@ typedef union {
   wzchr     str;
   uint64_t  pos;
   wzobj *   obj;
-} wzvar;
+} wzprim;
 
-typedef struct wzpair {
-  struct wzpair * parent;
+typedef struct wzvar {
+  struct wzvar * parent;
   wzchr     name;
   uint8_t   type;
-  wzvar     val;
-} wzpair;
+  wzprim    val;
+} wzvar;
 
 typedef struct {
   wzchr     type;
   uint32_t  len;
-  wzpair *  pairs;
+  wzvar *   vars;
 } wzprop;
 
 typedef struct {
@@ -55,7 +55,7 @@ typedef struct {
 typedef struct {
   wzchr     type;
   uint32_t  len;
-  wzpair *  pairs;
+  wzvar *   vars;
   uint32_t  w;
   uint32_t  h;
   wzcolor * data; // size == w * h * sizeof(wzcolor)
@@ -83,8 +83,8 @@ typedef struct {
 } wzuol;
 
 typedef union {
-  struct wzpair * pair;
-  struct wzgrp *  grp;
+  struct wzvar * var;
+  struct wzgrp * grp;
 } wzdata;
 
 typedef struct {
