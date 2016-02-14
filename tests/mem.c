@@ -6,7 +6,7 @@ typedef struct {
   char   freed;
 } musage;
 
-musage mused[1000] = {0};
+musage mused[100000];
 size_t mused_len = 0;
 size_t mused_size = 0;
 size_t mused_err = 0;
@@ -26,9 +26,10 @@ __wrap_malloc(size_t size) {
 
 void
 __wrap_free(void * ptr) {
-  if (ptr == NULL) return;
-  musage * usage = NULL;
+  musage * usage;
   size_t i;
+  if (ptr == NULL) return;
+  usage = NULL;
   for (i = 0; i < mused_len; i++) {
     usage = &mused[mused_len - i - 1];
     if (usage->ptr == ptr && !usage->freed) break;
