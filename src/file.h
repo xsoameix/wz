@@ -84,7 +84,7 @@ typedef struct {
 
 typedef union {
   struct wzpair * pair;
-  struct wzdir *  dir;
+  struct wzgrp *  grp;
 } wzdata;
 
 typedef struct {
@@ -111,10 +111,10 @@ typedef struct wznode {
   wzkey *   key;    // decode object (property, image, convex, ...)
 } wznode;
 
-typedef struct wzdir {
+typedef struct wzgrp {
   uint32_t  len;
   wznode *  nodes;
-} wzdir;
+} wzgrp;
 
 typedef struct {
   uint8_t   ident[4];
@@ -142,7 +142,7 @@ typedef struct {
   wzhead    head;
   wznode    root;
   wzver     ver;
-  wzkey *   key;  // decode node (directory or file) name
+  wzkey *   key;  // decode node name
   wzkey     keys[3];
   wzpalette palette;
 } wzfile;
@@ -202,9 +202,9 @@ int      wz_read_node(wznode * node, wzfile * file);
 void     wz_free_node(wznode * node);
 int      wz_decode_node(wznode * node, wzfile * file);
 
-int      wz_read_dir(wzdir ** buffer, wznode * node, wzfile * file);
-void     wz_free_dir(wzdir ** buffer);
-int      wz_decode_dir(wzdir * dir, wzfile * file);
+int      wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file);
+void     wz_free_grp(wzgrp ** buffer);
+int      wz_decode_grp(wzgrp * grp, wzfile * file);
 
 int      wz_read_head(wzhead * head, wzfile * file);
 void     wz_free_head(wzhead * head);

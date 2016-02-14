@@ -473,7 +473,7 @@ START_TEST(test_decode_node) {
   ck_assert(memused() == 0);
 } END_TEST
 
-START_TEST(test_read_dir) {
+START_TEST(test_read_grp) {
   // It should be ok
   char normal[] = "\x03"
     "\x01""\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
@@ -481,18 +481,18 @@ START_TEST(test_read_dir) {
     "\x04""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
-  wzdir * dir = NULL;
-  ck_assert_int_eq(wz_read_dir(&dir, NULL, &file), 0);
-  ck_assert(dir->len == 3);
-  ck_assert(dir->nodes[0].type == 1);
-  ck_assert(dir->nodes[1].type == 3);
-  ck_assert(dir->nodes[2].type == 4);
+  wzgrp * grp = NULL;
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 0);
+  ck_assert(grp->len == 3);
+  ck_assert(grp->nodes[0].type == 1);
+  ck_assert(grp->nodes[1].type == 3);
+  ck_assert(grp->nodes[2].type == 4);
   ck_assert(memused() ==
-            sizeof(* dir) +
-            sizeof(* dir->nodes) * 3 +
-            sizeof(* dir->nodes[0].data.pair) +
+            sizeof(* grp) +
+            sizeof(* grp->nodes) * 3 +
+            sizeof(* grp->nodes[0].data.pair) +
             2 * 2);
-  wz_free_dir(&dir);
+  wz_free_grp(&grp);
   delete_file(&file);
 
   // It should not read invalid data
@@ -501,26 +501,26 @@ START_TEST(test_read_dir) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
     "\x02";
   create_file(&file, error, strlen(error));
-  ck_assert_int_eq(wz_read_dir(&dir, NULL, &file), 1);
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 1);
   ck_assert(memused() == 0);
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_free_dir) {
+START_TEST(test_free_grp) {
   // It should be ok
   char normal[] = "\x01"
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
-  wzdir * dir = NULL;
-  ck_assert_int_eq(wz_read_dir(&dir, NULL, &file), 0);
-  ck_assert(memused() == sizeof(* dir) + sizeof(* dir->nodes) + 2);
-  wz_free_dir(&dir);
+  wzgrp * grp = NULL;
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 0);
+  ck_assert(memused() == sizeof(* grp) + sizeof(* grp->nodes) + 2);
+  wz_free_grp(&grp);
   ck_assert(memused() == 0);
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_decode_dir) {
+START_TEST(test_decode_grp) {
   // It should be ok
   wzfile file = {
     .head = {.start = 0x3c},
@@ -530,8 +530,8 @@ START_TEST(test_decode_dir) {
     .type = 3,
     .addr = {.pos = 0x51, .val = 0x49e34db3}
   };
-  wzdir dir = {.len = 1, .nodes = &node};
-  ck_assert_int_eq(wz_decode_dir(&dir, &file), 0);
+  wzgrp grp = {.len = 1, .nodes = &node};
+  ck_assert_int_eq(wz_decode_grp(&grp, &file), 0);
   ck_assert(node.addr.val == 0x2ed);
   ck_assert(memused() == 0);
 } END_TEST
@@ -598,7 +598,7 @@ START_TEST(test_valid_ver) {
     .head = {.start = 0x3c},
     .root = {
       .data = {
-        .dir = (wzdir[]) {{
+        .grp = (wzgrp[]) {{
           .len = 1,
           .nodes = (wznode[]) {{
             .type = 3,
@@ -626,7 +626,7 @@ START_TEST(test_decode_ver) {
     .head = {.start = 0x3c},
     .root = {
       .data = {
-        .dir = (wzdir[]) {{
+        .grp = (wzgrp[]) {{
           .len = 1,
           .nodes = (wznode[]) {{
             .type = 3,
@@ -853,14 +853,14 @@ START_TEST(test_read_file) {
   ck_assert_int_eq(wz_read_file(&file, raw), 0);
   ck_assert_int_eq(memcmp(file.head.copy.bytes, "ab", 2), 0);
   ck_assert(file.head.copy.len == 2);
-  ck_assert(file.root.data.dir->nodes[0].name.len == 2);
+  ck_assert(file.root.data.grp->nodes[0].name.len == 2);
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
   ck_assert(memused() ==
             aes.len * 3 +
-            sizeof(* file.root.data.dir) +
-            sizeof(* file.root.data.dir->nodes) + 4);
+            sizeof(* file.root.data.grp) +
+            sizeof(* file.root.data.grp->nodes) + 4);
   wz_free_file(&file);
   delete_tmpfile(raw);
 
@@ -898,8 +898,8 @@ START_TEST(test_free_file) {
   wz_free_aes(&aes);
   ck_assert(memused() ==
             aes.len * 3 +
-            sizeof(* file.root.data.dir) +
-            sizeof(* file.root.data.dir->nodes) + 4);
+            sizeof(* file.root.data.grp) +
+            sizeof(* file.root.data.grp->nodes) + 4);
   wz_free_file(&file);
   ck_assert(memused() == 0);
   delete_tmpfile(raw);
@@ -927,8 +927,8 @@ START_TEST(test_open_file) {
   wz_free_aes(&aes);
   ck_assert(memused() ==
             aes.len * 3 +
-            sizeof(* file.root.data.dir) +
-            sizeof(* file.root.data.dir->nodes) + 4);
+            sizeof(* file.root.data.grp) +
+            sizeof(* file.root.data.grp->nodes) + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
@@ -958,8 +958,8 @@ START_TEST(test_close_file) {
   wz_free_aes(&aes);
   ck_assert(memused() ==
             aes.len * 3 +
-            sizeof(* file.root.data.dir) +
-            sizeof(* file.root.data.dir->nodes) + 4);
+            sizeof(* file.root.data.grp) +
+            sizeof(* file.root.data.grp->nodes) + 4);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
   ck_assert(memused() == 0);
@@ -990,9 +990,9 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_read_node);
   tcase_add_test(tcase, test_free_node);
   tcase_add_test(tcase, test_decode_node);
-  tcase_add_test(tcase, test_read_dir);
-  tcase_add_test(tcase, test_free_dir);
-  tcase_add_test(tcase, test_decode_dir);
+  tcase_add_test(tcase, test_read_grp);
+  tcase_add_test(tcase, test_free_grp);
+  tcase_add_test(tcase, test_decode_grp);
   tcase_add_test(tcase, test_read_head);
   tcase_add_test(tcase, test_free_head);
   tcase_add_test(tcase, test_encode_ver);

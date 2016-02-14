@@ -184,7 +184,7 @@ wz_read_node_body(wznode * node, wzfile * file) {
       wz_read_int(&node->check, file) ||
       wz_read_addr(&node->addr, file)) return 1;
   if (WZ_IS_NODE_DIR(node->type)) {
-    return node->data.dir = NULL, 0;
+    return node->data.grp = NULL, 0;
   } else if (WZ_IS_NODE_FILE(node->type)) {
     wzpair * pair = malloc(sizeof(* pair));
     if (pair == NULL) return 1;
@@ -255,37 +255,37 @@ wz_decode_node(wznode * node, wzfile * file) {
 }
 
 int
-wz_read_dir(wzdir ** buffer, wznode * node, wzfile * file) {
+wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file) {
   if (* buffer != NULL) return 0;
   if (node != NULL && wz_seek(node->addr.val, SEEK_SET, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
-  wzdir * dir = malloc(sizeof(* dir) + len * sizeof(* dir->nodes));
-  if (dir == NULL) return 1;
-  wznode * nodes = (wznode *) (dir + 1);
+  wzgrp * grp = malloc(sizeof(* grp) + len * sizeof(* grp->nodes));
+  if (grp == NULL) return 1;
+  wznode * nodes = (wznode *) (grp + 1);
   for (uint32_t i = 0; i < len; i++) {
     if (wz_read_node(nodes + i, file)) {
       for (uint32_t j = 0; j < i; j++)
         wz_free_node(nodes + j);
-      return free(dir), 1;
+      return free(grp), 1;
     }
     nodes[i].parent = node;
   }
-  return dir->nodes = nodes, dir->len = len, * buffer = dir, 0;
+  return grp->nodes = nodes, grp->len = len, * buffer = grp, 0;
 }
 
 void
-wz_free_dir(wzdir ** buffer) {
-  wzdir * dir = * buffer;
-  for (uint32_t i = 0; i < dir->len; i++)
-    wz_free_node(&dir->nodes[i]);
-  free(dir), * buffer = NULL;
+wz_free_grp(wzgrp ** buffer) {
+  wzgrp * grp = * buffer;
+  for (uint32_t i = 0; i < grp->len; i++)
+    wz_free_node(&grp->nodes[i]);
+  free(grp), * buffer = NULL;
 }
 
 int
-wz_decode_dir(wzdir * dir, wzfile * file) {
-  for (uint32_t i = 0; i < dir->len; i++)
-    if (wz_decode_node(dir->nodes + i, file)) return 1;
+wz_decode_grp(wzgrp * grp, wzfile * file) {
+  for (uint32_t i = 0; i < grp->len; i++)
+    if (wz_decode_node(grp->nodes + i, file)) return 1;
   return 0;
 }
 
@@ -327,9 +327,9 @@ int
 wz_valid_ver(wzver * ver, wzfile * file) {
   uint32_t copy = file->ver.hash;
   file->ver.hash = ver->hash;
-  uint32_t len = file->root.data.dir->len;
+  uint32_t len = file->root.data.grp->len;
   for (uint32_t i = 0; i < len; i++) {
-    wznode * node = &file->root.data.dir->nodes[i];
+    wznode * node = &file->root.data.grp->nodes[i];
     if (WZ_IS_NODE_DIR(node->type) ||
         WZ_IS_NODE_FILE(node->type)) {
       wzaddr addr = node->addr;
@@ -1096,7 +1096,7 @@ wz_read_node_r(wznode * node, wzfile * file) {
   for (uint32_t len = 1; len;) {
     wznode * node = stack[--len];
     if (node == NULL) {
-      wz_free_dir(&stack[--len]->data.dir);
+      wz_free_grp(&stack[--len]->data.grp);
       continue;
     }
     wznode * parent = node;
@@ -1110,14 +1110,14 @@ wz_read_node_r(wznode * node, wzfile * file) {
       debug(" < %.*s", parent->name.len, parent->name.bytes);
     debug("\n");
     if (WZ_IS_NODE_DIR(node->type)) {
-      if (wz_read_dir(&node->data.dir, node, file))
-        return printf("failed to read dir!\n"), 1;
+      if (wz_read_grp(&node->data.grp, node, file))
+        return printf("failed to read grp!\n"), 1;
       stack[len++] = node;
       stack[len++] = NULL;
-      wzdir * dir = node->data.dir;
-      for (uint32_t i = 0; i < dir->len; i++)
-        stack[len++] = &dir->nodes[dir->len - i - 1];
-      sizes[sizes_len++] = dir->len;
+      wzgrp * grp = node->data.grp;
+      for (uint32_t i = 0; i < grp->len; i++)
+        stack[len++] = &grp->nodes[grp->len - i - 1];
+      sizes[sizes_len++] = grp->len;
       if (max < len) max = len;
     } else if (WZ_IS_NODE_FILE(node->type)) {
       //if (wz_is_chars(&node->name, "WorldMap21.img")) {
@@ -1169,17 +1169,17 @@ wz_read_node_r(wznode * node, wzfile * file) {
 int
 wz_read_root(wznode * root, wzfile * file) {
   root->addr.val = file->head.start + sizeof(file->ver.enc);
-  return wz_read_dir(&root->data.dir, root, file);
+  return wz_read_grp(&root->data.grp, root, file);
 }
 
 int
 wz_decode_root(wznode * root, wzfile * file) {
-  return wz_decode_dir(root->data.dir, file);
+  return wz_decode_grp(root->data.grp, file);
 }
 
 void
 wz_free_root(wznode * root) {
-  wz_free_dir(&root->data.dir);
+  wz_free_grp(&root->data.grp);
 }
 
 int
@@ -1193,7 +1193,7 @@ wz_read_file(wzfile * file, FILE * raw) {
     .parent = NULL,
     .type = 0x03,
     .name = (wzchr) {.len = 0, .enc = WZ_ENC_ASCII},
-    .data = {.dir = NULL}
+    .data = {.grp = NULL}
   };
   wz_init_keys(file->keys);
   wz_init_palette(&file->palette);
