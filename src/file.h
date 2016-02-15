@@ -21,6 +21,7 @@ typedef struct {
 } wzaddr;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
 } wzobj;
 
@@ -28,7 +29,6 @@ typedef union {
   int64_t   i;
   double    f;
   wzchr     str;
-  uint64_t  pos;
   wzobj *   obj;
 } wzprim;
 
@@ -40,6 +40,7 @@ typedef struct wzvar {
 } wzvar;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
   uint32_t  len;
   wzvar *   vars;
@@ -53,6 +54,7 @@ typedef struct {
 } wzcolor;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
   uint32_t  len;
   wzvar *   vars;
@@ -67,17 +69,20 @@ typedef struct {
 } wz2d;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
   uint32_t  len;
   wz2d *    vals;
 } wzvex;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
   wz2d      val;     
 } wzvec;
 
 typedef struct {
+  uint32_t  pos;
   wzchr     type;
   wzchr     path;
 } wzuol;

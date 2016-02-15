@@ -190,7 +190,11 @@ wz_read_node_body(wznode * node, wzfile * file) {
     if (var == NULL) return 1;
     var->parent = NULL;
     var->name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII};
-    var->type = 0x09, var->val.pos = node->addr.val;
+    var->type = 0x09;
+    wzobj * obj = malloc(sizeof(* obj));
+    if (obj == NULL) return free(var), 1;
+    obj->pos = node->addr.val;
+    var->val.obj = obj;
     return node->data.var = var, node->key = NULL, 0;
   } else {
     return wz_error("Unsupported node type: 0x%02hhx\n", node->type), 1;
@@ -232,7 +236,7 @@ wz_free_node(wznode * node) {
       WZ_IS_NODE_FILE(node->type))
     wz_free_chars(&node->name);
   if (WZ_IS_NODE_FILE(node->type))
-    free(node->data.var);
+    free(node->data.var->val.obj), free(node->data.var);
 }
 
 int
@@ -563,8 +567,11 @@ wz_read_prim(wzprim * val, uint8_t type, wznode * node, wzfile * file) {
   } else if (WZ_IS_VAR_OBJECT(type)) {
     uint32_t size;
     if (wz_read_le32(&size, file)) return 1;
-    val->pos = file->pos;
-    return wz_seek(size, SEEK_CUR, file);
+    wzobj * obj = malloc(sizeof(* obj));
+    if (obj == NULL) return 1;
+    obj->pos = file->pos;
+    if (wz_seek(size, SEEK_CUR, file)) return free(obj), 1;
+    return val->obj = obj, 0;
   } else {
     return wz_error("Unsupported primitive type: 0x%02hhx\n", type), 1;
   }
@@ -572,8 +579,8 @@ wz_read_prim(wzprim * val, uint8_t type, wznode * node, wzfile * file) {
 
 void
 wz_free_prim(wzprim * val, uint8_t type) {
-  if (WZ_IS_VAR_STRING(type))
-    wz_free_chars(&val->str);
+  if (WZ_IS_VAR_STRING(type))      wz_free_chars(&val->str);
+  else if (WZ_IS_VAR_OBJECT(type)) free(val->obj);
 }
 
 int
@@ -916,12 +923,12 @@ wz_free_uol(wzuol * uol) {
 
 int
 wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
+  wzobj * obj = * buffer;
   wzchr type;
-  if (wz_read_pack_chars(&type, node, file) ||
-      wz_deduce_key(&node->key, &type, file, ctx)) {
-    debug(" x\n");
-    return 1;
-  }
+  if (wz_seek(obj->pos, SEEK_SET, file) ||
+      wz_read_pack_chars(&type, node, file)) return 1;
+  if (wz_deduce_key(&node->key, &type, file, ctx))
+    return wz_free_chars(&type), 1;
   if (WZ_IS_OBJ_PROPERTY(&type)) {
     wzlist * list = malloc(sizeof(* list));
     if (list == NULL) return wz_free_chars(&type), 1;
@@ -929,7 +936,8 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
       wz_error("Unable to read list\n");
       return free(list), wz_free_chars(&type), 1;
     }
-    return list->type = type, * buffer = (wzobj *) list, 0;
+    list->pos = obj->pos, list->type = type;
+    return * buffer = (wzobj *) list, free(obj), 0;
   } else if (WZ_IS_OBJ_CANVAS(&type)) {
     wzimg * img = malloc(sizeof(* img));
     if (img == NULL) return wz_free_chars(&type), 1;
@@ -937,7 +945,8 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
       wz_error("Unable to read canvas\n");
       return free(img), wz_free_chars(&type), 1;
     }
-    return img->type = type, * buffer = (wzobj *) img, 0;
+    img->pos = obj->pos, img->type = type;
+    return * buffer = (wzobj *) img, free(obj), 0;
   } else if (WZ_IS_OBJ_CONVEX(&type)) {
     wzvex * vex = malloc(sizeof(* vex));
     if (vex == NULL) return wz_free_chars(&type), 1;
@@ -945,7 +954,8 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
       wz_error("Unable to read convex\n");
       return free(vex), wz_free_chars(&type), 1;
     }
-    return vex->type = type, * buffer = (wzobj *) vex, 0;
+    vex->pos = obj->pos, vex->type = type;
+    return * buffer = (wzobj *) vex, free(obj), 0;
   } else if (WZ_IS_OBJ_VECTOR(&type)) {
     wzvec * vec = malloc(sizeof(* vec));
     if (vec == NULL) return wz_free_chars(&type), 1;
@@ -953,7 +963,8 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
       wz_error("Unable to read vector\n");
       return free(vec), wz_free_chars(&type), 1;
     }
-    return vec->type = type, * buffer = (wzobj *) vec, 0;
+    vec->pos = obj->pos, vec->type = type;
+    return * buffer = (wzobj *) vec, free(obj), 0;
   } else if (WZ_IS_OBJ_SOUND(&type)) {
     printf("Sound is unsupported\n");
     return wz_free_chars(&type), 1;
@@ -964,7 +975,8 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
       wz_error("Unable to read uol\n");
       return free(uol), wz_free_chars(&type), 1;
     }
-    return uol->type = type, * buffer = (wzobj *) uol, 0;
+    uol->pos = obj->pos, uol->type = type;
+    return * buffer = (wzobj *) uol, free(obj), 0;
   } else {
     return wz_error("Unsupported object type: %.*s\n", type.len, type.bytes), 1;
   }
@@ -978,7 +990,6 @@ wz_free_obj(wzobj * obj) {
   else if (WZ_IS_OBJ_SOUND(&obj->type)) {}
   else if (WZ_IS_OBJ_UOL(&obj->type)) wz_free_uol((wzuol *) obj);
   wz_free_chars(&obj->type);
-  free(obj);
 }
 
 int // Non recursive DFS
@@ -999,12 +1010,10 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
     //pindent();//, debug(" name   ");
     //debug("%.*s\n", var->name.len, var->name.bytes);
     if (WZ_IS_VAR_OBJECT(var->type)) {
-      if (wz_seek(var->val.pos, SEEK_SET, file))
-        continue;
-      wzobj * obj;
-      if (wz_read_obj(&obj, node, file, ctx)) {
+      if (wz_read_obj(&var->val.obj, node, file, ctx)) {
         printf("failed!\n");
       } else {
+        wzobj * obj = var->val.obj;
         if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
           stack[len++] = var;
           stack[len++] = NULL;
@@ -1014,7 +1023,6 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
             child->parent = var;
             stack[len++] = child;
           }
-          var->val.obj = obj;
         } else if (WZ_IS_OBJ_CANVAS(&obj->type)) {
           wz_free_obj(obj);
         } else if (WZ_IS_OBJ_CONVEX(&obj->type)) {
