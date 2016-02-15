@@ -623,7 +623,7 @@ wz_free_list(wzlist * list) {
 int
 wz_decode_bitmap(uint32_t * written,
                  uint8_t * out, uint8_t * in, uint32_t size, wzkey * key) {
-  uint32_t read = 0, write = 0; size--; // a null terminator
+  uint32_t read = 0, write = 0;
   while (read < size) {
     uint32_t len = wz_le32toh(* (uint32_t *) (in + read)); read += sizeof(len);
     if (len > key->len)
@@ -797,6 +797,7 @@ int
 wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
                uint32_t depth, uint8_t scale, uint32_t size,
                wznode * node, wzfile * file, wzctx * ctx) {
+  size--; // remove null terminator
   uint32_t pixels = w * h;
   uint32_t full_size = pixels * sizeof(wzcolor);
   uint32_t max_size = size > full_size ? size : full_size; // inflated > origin
@@ -814,17 +815,9 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   uint32_t depth_size, scale_size;
   if (wz_depth_size(&depth_size, depth) ||
       wz_scale_size(&scale_size, scale) ||
-      size != pixels * depth_size / scale_size) {
+      size != pixels * depth_size / (scale_size * scale_size) ||
+      wz_unpack_bitmap((wzcolor **) &in, &out, w, h, depth, ctx))
     return free(out), free(in), 1;
-  }
-  if (
-      wz_unpack_bitmap((wzcolor **) &in, &out, w, h, depth, ctx)) {
-    printf("w %"PRIu32" h %"PRIu32" size %"PRIu32" %"PRIu32" "
-           "depth %"PRIu32" scale %"PRIu8"\n",
-           w, h, size, pixels * depth_size / scale_size, depth, scale);
-    fflush(stdout);
-    return free(out), free(in), 1;
-  }
   wz_scale_bitmap(&out, &in, w / scale_size, h / scale_size, scale_size);
   if (full_size < max_size) out = realloc(out, full_size);
   return free(in), * data = (wzcolor *) out, 0;
@@ -1126,6 +1119,8 @@ wz_read_node_r(wznode * node, wzfile * file, wzctx * ctx) {
       //if (wz_is_chars(&node->name, "926120300.img")) { // multiple string key
       //if (wz_is_chars(&node->name, "926120200.img")) { // multiple string key ? and minimap
       //if (wz_is_chars(&node->name, "Effect2.img")) { // multiple string key x
+      //if (wz_is_chars(&node->name, "dryRock.img")) { // canvas, scale 4
+      //if (wz_is_chars(&node->name, "vicportTown.img")) { // last canvas
         debugging = 1;
       wz_read_obj_r(node->data.var, node, file, ctx);
       //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
