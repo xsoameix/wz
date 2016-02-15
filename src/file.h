@@ -204,12 +204,10 @@ int      wz_read_addr(wzaddr * addr, wzfile * file);
 int      wz_seek(uint64_t pos, int origin, wzfile * file);
 int      wz_read_node(wznode * node, wzfile * file, wzctx * ctx);
 void     wz_free_node(wznode * node);
-int      wz_decode_node(wznode * node, wzfile * file);
 
 int      wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file,
                      wzctx * ctx);
 void     wz_free_grp(wzgrp ** buffer);
-int      wz_decode_grp(wzgrp * grp, wzfile * file);
 
 int      wz_read_head(wzhead * head, wzfile * file);
 void     wz_free_head(wzhead * head);

@@ -476,21 +476,6 @@ START_TEST(test_free_node) {
   delete_ctx(&ctx);
 } END_TEST
 
-START_TEST(test_decode_node) {
-  // It should be ok
-  wzfile file = {
-    .head = {.start = 0x3c},
-    .ver = {.hash = 0x713}
-  };
-  wznode node = {
-    .type = 3,
-    .addr = {.pos = 0x51, .val = 0x49e34db3}
-  };
-  ck_assert_int_eq(wz_decode_node(&node, &file), 0);
-  ck_assert(node.addr.val == 0x2ed);
-  ck_assert(memused() == 0);
-} END_TEST
-
 START_TEST(test_read_grp) {
   // It should be ok
   wzctx ctx;
@@ -501,8 +486,9 @@ START_TEST(test_read_grp) {
     "\x04""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
+  wznode node = {.addr = {.val = 0}};
   wzgrp * grp = NULL;
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 0);
+  ck_assert_int_eq(wz_read_grp(&grp, &node, &file, &ctx), 0);
   ck_assert(grp->len == 3);
   ck_assert(grp->nodes[0].type == 1);
   ck_assert(grp->nodes[1].type == 3);
@@ -521,7 +507,7 @@ START_TEST(test_read_grp) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
     "\x02";
   create_file(&file, error, strlen(error));
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 1);
+  ck_assert_int_eq(wz_read_grp(&grp, &node, &file, &ctx), 1);
   ck_assert(memused() == 0);
   delete_file(&file);
   delete_ctx(&ctx);
@@ -535,29 +521,14 @@ START_TEST(test_free_grp) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
+  wznode node = {.addr = {.val = 0}};
   wzgrp * grp = NULL;
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 0);
+  ck_assert_int_eq(wz_read_grp(&grp, &node, &file, &ctx), 0);
   ck_assert(memused() == sizeof(* grp) + sizeof(* grp->nodes) + 2);
   wz_free_grp(&grp);
   ck_assert(memused() == 0);
   delete_file(&file);
   delete_ctx(&ctx);
-} END_TEST
-
-START_TEST(test_decode_grp) {
-  // It should be ok
-  wzfile file = {
-    .head = {.start = 0x3c},
-    .ver = {.hash = 0x713}
-  };
-  wznode node = {
-    .type = 3,
-    .addr = {.pos = 0x51, .val = 0x49e34db3}
-  };
-  wzgrp grp = {.len = 1, .nodes = &node};
-  ck_assert_int_eq(wz_decode_grp(&grp, &file), 0);
-  ck_assert(node.addr.val == 0x2ed);
-  ck_assert(memused() == 0);
 } END_TEST
 
 START_TEST(test_read_head) {
@@ -1018,10 +989,8 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_seek);
   tcase_add_test(tcase, test_read_node);
   tcase_add_test(tcase, test_free_node);
-  tcase_add_test(tcase, test_decode_node);
   tcase_add_test(tcase, test_read_grp);
   tcase_add_test(tcase, test_free_grp);
-  tcase_add_test(tcase, test_decode_grp);
   tcase_add_test(tcase, test_read_head);
   tcase_add_test(tcase, test_free_head);
   tcase_add_test(tcase, test_encode_ver);
