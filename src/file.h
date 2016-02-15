@@ -143,9 +143,13 @@ typedef struct {
   wznode    root;
   wzver     ver;
   wzkey *   key;  // decode node name
-  wzkey     keys[3];
-  wzpalette palette;
 } wzfile;
+
+typedef struct {
+  size_t    klen; // keys length
+  wzkey *   keys;
+  wzpalette palette;
+} wzctx;
 
 #define WZ_ENC_ASCII   0
 #define WZ_ENC_UTF16LE 1
@@ -198,11 +202,12 @@ void     wz_decode_addr(wzaddr * addr, wzfile * file);
 int      wz_read_addr(wzaddr * addr, wzfile * file);
 
 int      wz_seek(uint64_t pos, int origin, wzfile * file);
-int      wz_read_node(wznode * node, wzfile * file);
+int      wz_read_node(wznode * node, wzfile * file, wzctx * ctx);
 void     wz_free_node(wznode * node);
 int      wz_decode_node(wznode * node, wzfile * file);
 
-int      wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file);
+int      wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file,
+                     wzctx * ctx);
 void     wz_free_grp(wzgrp ** buffer);
 int      wz_decode_grp(wzgrp * grp, wzfile * file);
 
@@ -212,7 +217,7 @@ void     wz_free_head(wzhead * head);
 int      wz_encode_ver(wzver * ver);
 int      wz_valid_ver(wzver * ver, wznode * node, wzfile * file);
 int      wz_guess_ver(wzver * ver, wznode * node, wzfile * file);
-int      wz_deduce_ver(wzver * ver, wzfile * file);
+int      wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx);
 
 int      wz_alloc_crypto(void);
 void     wz_dealloc_crypto(void);
@@ -226,11 +231,15 @@ void     wz_free_aes(wzaes * aes);
 int      wz_init_key(wzkey * key, wzaes * aes);
 void     wz_set_key(wzkey * key, wzaes * aes);
 void     wz_free_key(wzkey * key);
-int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzfile * file);
+int      wz_deduce_key(wzkey ** buffer, wzchr * name,
+                       wzfile * file, wzctx * ctx);
 
-int      wz_read_file(wzfile * file, FILE * raw);
+int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);
-int      wz_open_file(wzfile * file, char * filename);
+int      wz_open_file(wzfile * file, char * filename, wzctx * ctx);
 int      wz_close_file(wzfile * file);
+
+int      wz_init_ctx(wzctx * ctx);
+void     wz_free_ctx(wzctx * ctx);
 
 #endif

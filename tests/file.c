@@ -28,11 +28,6 @@ create_file(wzfile * file, char * buffer, size_t len) {
   file->pos = 0;
   file->size = len;
   file->ver.hash = 0;
-  // decoded == encoded    ^ mask       ^ key
-  // 'ab'    == "\x01\x23" ^ "\xaa\xab" ^ "\xca\xea"
-  file->keys[0] = (wzkey) {.bytes = (uint8_t *) "\xca\xea", .len = 2};
-  file->keys[1] = file->keys[0];
-  file->keys[2] = file->keys[0];
   file->key = NULL;
 }
 
@@ -40,6 +35,22 @@ void
 delete_file(wzfile * file) {
   ck_assert(memerr() == 0);
   delete_tmpfile(file->raw);
+}
+
+void
+create_ctx(wzctx * ctx) {
+  size_t len = 1;
+  wzkey * keys = malloc(sizeof(* keys) * len);
+  ck_assert(keys != NULL);
+  // decoded == encoded    ^ mask       ^ key
+  // 'ab'    == "\x01\x23" ^ "\xaa\xab" ^ "\xca\xea"
+  keys[0] = (wzkey) {.bytes = (uint8_t *) "\xca\xea", .len = 2};
+  ctx->keys = keys, ctx->klen = len;
+}
+
+void
+delete_ctx(wzctx * ctx) {
+  free(ctx->keys);
 }
 
 START_TEST(test_read_data) {
@@ -240,10 +251,8 @@ START_TEST(test_free_str) {
 START_TEST(test_decode_chars) {
   // It should decode ascii
   char ascii[] = "\x01\x23";
-  wzfile file = {
-    .key = &file.keys[0],
-    .keys = {{.bytes = (uint8_t *) "\x89\xab\xcd\xef", .len = 4}}
-  };
+  wzkey key = {.bytes = (uint8_t *) "\x89\xab\xcd\xef", .len = 4};
+  wzfile file = {.key = &key};
   wzchr buffer;
   buffer.bytes = (uint8_t *) ascii;
   buffer.len = strlen(ascii);
@@ -306,7 +315,9 @@ START_TEST(test_read_chars) {
 
   // It should decode if string key is set
   create_file(&file, normal, sizeof(normal) - 1);
-  file.key = &file.keys[0];
+  wzctx ctx;
+  create_ctx(&ctx);
+  file.key = &ctx.keys[0];
   file.key->bytes = (uint8_t *) "\x01\x23\x45\x67\x89\xab";
   file.key->len = 6;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
@@ -325,6 +336,7 @@ START_TEST(test_read_chars) {
   ck_assert_int_eq(memcmp(buffer.bytes, "\x66\x66\xef\xee\x60\x66", 6), 0);
   ck_assert(buffer.len == 6 && memused() == 6);
   wz_free_chars(&buffer);
+  delete_ctx(&ctx);
   delete_file(&file);
 } END_TEST
 
@@ -394,6 +406,8 @@ START_TEST(test_seek) {
 
 START_TEST(test_read_node) {
   // It should read type 1
+  wzctx ctx;
+  create_ctx(&ctx);
   char normal[] =
     "\x01""\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
     "\x02""\x29\x00\x00\x00""\x01""\x02""\x01\x23\x45\x67"
@@ -404,13 +418,13 @@ START_TEST(test_read_node) {
   wzfile file;
   create_file(&file, normal, sizeof(normal) - 1);
   wznode node;
-  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
   ck_assert(memused() == 0);
 
   // It should read type 2
   file.head.start = 0x2;
   ck_assert(memused() == 0);
-  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
   ck_assert(node.type == 3);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
@@ -420,7 +434,7 @@ START_TEST(test_read_node) {
 
   // It should read type 3
   ck_assert(memused() == 0);
-  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
   ck_assert(node.type == 3);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
@@ -430,7 +444,7 @@ START_TEST(test_read_node) {
 
   // It should read type 4
   ck_assert(memused() == 0);
-  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
   ck_assert(node.type == 4);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
@@ -439,23 +453,27 @@ START_TEST(test_read_node) {
   wz_free_node(&node);
 
   // It should not read type 5
-  ck_assert_int_eq(wz_read_node(&node, &file), 1);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 1);
   ck_assert(node.type == 5);
   ck_assert(memused() == 0);
   delete_file(&file);
+  delete_ctx(&ctx);
 } END_TEST
 
 START_TEST(test_free_node) {
   // It should be ok
+  wzctx ctx;
+  create_ctx(&ctx);
   char normal[] = "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
   wznode node;
-  ck_assert_int_eq(wz_read_node(&node, &file), 0);
+  ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
   ck_assert(memused() == 2);
   wz_free_node(&node);
   ck_assert(memused() == 0);
   delete_file(&file);
+  delete_ctx(&ctx);
 } END_TEST
 
 START_TEST(test_decode_node) {
@@ -475,6 +493,8 @@ START_TEST(test_decode_node) {
 
 START_TEST(test_read_grp) {
   // It should be ok
+  wzctx ctx;
+  create_ctx(&ctx);
   char normal[] = "\x03"
     "\x01""\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
@@ -482,7 +502,7 @@ START_TEST(test_read_grp) {
   wzfile file;
   create_file(&file, normal, strlen(normal));
   wzgrp * grp = NULL;
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 0);
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 0);
   ck_assert(grp->len == 3);
   ck_assert(grp->nodes[0].type == 1);
   ck_assert(grp->nodes[1].type == 3);
@@ -501,23 +521,27 @@ START_TEST(test_read_grp) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
     "\x02";
   create_file(&file, error, strlen(error));
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 1);
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 1);
   ck_assert(memused() == 0);
   delete_file(&file);
+  delete_ctx(&ctx);
 } END_TEST
 
 START_TEST(test_free_grp) {
   // It should be ok
+  wzctx ctx;
+  create_ctx(&ctx);
   char normal[] = "\x01"
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, strlen(normal));
   wzgrp * grp = NULL;
-  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file), 0);
+  ck_assert_int_eq(wz_read_grp(&grp, NULL, &file, &ctx), 0);
   ck_assert(memused() == sizeof(* grp) + sizeof(* grp->nodes) + 2);
   wz_free_grp(&grp);
   ck_assert(memused() == 0);
   delete_file(&file);
+  delete_ctx(&ctx);
 } END_TEST
 
 START_TEST(test_decode_grp) {
@@ -621,27 +645,25 @@ START_TEST(test_valid_ver) {
 
 START_TEST(test_deduce_ver) {
   // It should be ok
-  wzfile file = {
-    .size = 0x712e04f2,
-    .head = {.start = 0x3c},
-    .root = {
-      .data = {
-        .grp = (wzgrp[]) {{
-          .len = 1,
-          .nodes = (wznode[]) {{
-            .type = 3,
-            .addr = {.pos = 0x56, .val = 0x5eb2cd05}
-          }}
-        }}
-      }
-    },
-    .ver = {.hash = 0x99}
-  };
-  wzver ver = {.enc = 0x93};
-  ck_assert_int_eq(wz_deduce_ver(&ver, &file), 0);
-  ck_assert(ver.enc == 0x93);
-  ck_assert(ver.dec == 0x153);
-  ck_assert(ver.hash == 0xd6ba);
+  char normal[] =
+    "\x01"                             // nodes len
+    "\x03""\xfe\x01\x23""\x01""\x02""\x6e\xe9\x3e\xdd";
+  // encoded version and address is generated by 'encode' program with:
+  //   start:    0
+  //   version:  0x00ce
+  //   position: 7
+  //   address:  0x00000000
+  wzctx ctx;
+  create_ctx(&ctx);
+  wzfile file = {.head = {.start = 0}, .root = {.addr = {.val = 0}}};
+  create_file(&file, normal, sizeof(normal) - 1);
+  wzver ver = {.enc = 0x007a};
+  ck_assert_int_eq(wz_deduce_ver(&ver, &file, &ctx), 0);
+  ck_assert(ver.dec == 0x00ce);
+  ck_assert(ver.enc == 0x007a);
+  ck_assert(ver.hash == 0xd257);
+  delete_file(&file);
+  delete_ctx(&ctx);
 } END_TEST
 
 START_TEST(test_alloc_crypto) {
@@ -838,8 +860,8 @@ START_TEST(test_free_key) {
 //  wz_free_strk(&strk);
 //} END_TEST
 
-START_TEST(test_read_file) {
-  // It should be ok
+void
+create_content(char ** buffer, size_t * len, wzctx * ctx) {
   char normal[] =
     "\x01\x23\x45\x67"                 // ident
     "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
@@ -848,17 +870,43 @@ START_TEST(test_read_file) {
     "\x7a\x00"                         // ver
     "\x01"                             // nodes len
     "\x03""\xfe\x5d\x67""\x01""\x02""\x27\x4b\xda\x8e";
-  // "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
-  // version and address is generated by 'encode' program
+  // node name: "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
+  // encoded version and address is generated by 'encode' program with:
+  //   start:    18
+  //   version:  0x00ce
+  //   position: 27
+  //   address:  0x00000000
+  char * content = malloc(sizeof(normal) - 1);
+  ck_assert(content != NULL);
+  memcpy(content, normal, sizeof(normal) - 1);
+  * buffer = content, * len = sizeof(normal) - 1;
+  wzkey * key = malloc(sizeof(* key));
+  ck_assert(key != NULL);
+  key->bytes = (uint8_t *) "\x96\xae", key->len = 2;
+  ctx->keys = key, ctx->klen = 1;
+}
+
+void
+delete_content(char * content, wzctx * ctx) {
+  free(ctx->keys);
+  free(content);
+}
+
+START_TEST(test_read_file) {
+  // It should be ok
+  char * normal;
+  size_t len;
+  wzctx ctx;
+  create_content(&normal, &len, &ctx);
   wzfile file;
-  FILE * raw = create_tmpfile(normal, sizeof(normal) - 1);
-  ck_assert_int_eq(wz_read_file(&file, raw), 0);
+  FILE * raw = create_tmpfile(normal, len);
+  ck_assert_int_eq(wz_read_file(&file, raw, &ctx), 0);
   ck_assert_int_eq(memcmp(file.head.copy.bytes, "ab", 2), 0);
   ck_assert(file.head.copy.len == 2);
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == aes.len * 3 + 2);
+  ck_assert(memused() == 2);
   wz_free_file(&file);
   delete_tmpfile(raw);
 
@@ -873,33 +921,29 @@ START_TEST(test_read_file) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45";
   raw = create_tmpfile(error, sizeof(error) - 1);
   ck_assert(raw != NULL);
-  ck_assert_int_eq(wz_read_file(&file, raw), 1);
+  ck_assert_int_eq(wz_read_file(&file, raw, &ctx), 1);
   ck_assert(memused() == 0);
   delete_tmpfile(raw);
+  delete_content(normal, &ctx);
 } END_TEST
 
 START_TEST(test_free_file) {
   // It should be ok
-  char normal[] =
-    "\x01\x23\x45\x67"                 // ident
-    "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
-    "\x12\x00\x00\x00"                 // start
-    "ab"                               // copy
-    "\x7a\x00"                         // ver
-    "\x01"                             // nodes len
-    "\x03""\xfe\x5d\x67""\x01""\x02""\x27\x4b\xda\x8e";
-  // "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
-  // version and address is generated by 'encode' program
+  char * normal;
+  size_t len;
+  wzctx ctx;
+  create_content(&normal, &len, &ctx);
   wzfile file;
-  FILE * raw = create_tmpfile(normal, sizeof(normal) - 1);
-  ck_assert_int_eq(wz_read_file(&file, raw), 0);
+  FILE * raw = create_tmpfile(normal, len);
+  ck_assert_int_eq(wz_read_file(&file, raw, &ctx), 0);
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == aes.len * 3 + 2);
+  ck_assert(memused() == 2);
   wz_free_file(&file);
   ck_assert(memused() == 0);
   delete_tmpfile(raw);
+  delete_content(normal, &ctx);
 } END_TEST
 
 START_TEST(test_open_file) {
@@ -908,28 +952,23 @@ START_TEST(test_open_file) {
   FILE * raw = fopen(filename, "wb");
   ck_assert(raw != NULL);
   wzfile file;
-  char normal[] =
-    "\x01\x23\x45\x67"                 // ident
-    "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
-    "\x12\x00\x00\x00"                 // start
-    "ab"                               // copy
-    "\x7a\x00"                         // ver
-    "\x01"                             // nodes len
-    "\x03""\xfe\x5d\x67""\x01""\x02""\x27\x4b\xda\x8e";
-  // "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
-  // version and address is generated by 'encode' program
-  ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
+  char * normal;
+  size_t len;
+  wzctx ctx;
+  create_content(&normal, &len, &ctx);
+  ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
-  ck_assert_int_eq(wz_open_file(&file, filename), 0);
+  ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == aes.len * 3 + 2);
+  ck_assert(memused() == 2);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
   // It should not read the file which does not exist
-  ck_assert_int_eq(wz_open_file(&file, "not-exist-file"), 1);
+  ck_assert_int_eq(wz_open_file(&file, "not-exist-file", &ctx), 1);
+  delete_content(normal, &ctx);
 } END_TEST
 
 START_TEST(test_close_file) {
@@ -938,26 +977,21 @@ START_TEST(test_close_file) {
   FILE * raw = fopen(filename, "wb");
   ck_assert(raw != NULL);
   wzfile file;
-  char normal[] =
-    "\x01\x23\x45\x67"                 // ident
-    "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
-    "\x12\x00\x00\x00"                 // start
-    "ab"                               // copy
-    "\x7a\x00"                         // ver
-    "\x01"                             // nodes len
-    "\x03""\xfe\x5d\x67""\x01""\x02""\x27\x4b\xda\x8e";
-  // "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
-  // version and address is generated by 'encode' program
-  ck_assert(fwrite(normal, 1, sizeof(normal) - 1, raw) == sizeof(normal) - 1);
+  char * normal;
+  size_t len;
+  wzctx ctx;
+  create_content(&normal, &len, &ctx);
+  ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
-  ck_assert_int_eq(wz_open_file(&file, filename), 0);
+  ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == aes.len * 3 + 2);
+  ck_assert(memused() == 2);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
   ck_assert(memused() == 0);
+  delete_content(normal, &ctx);
 } END_TEST
 
 Suite *

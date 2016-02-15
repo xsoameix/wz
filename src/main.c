@@ -11,9 +11,13 @@ main(int argc, char ** argv) {
            "\n"
            "Written by Lien Chiang.\n");
   } else if (argc == 2) {
+    wzctx ctx;
+    if (wz_init_ctx(&ctx)) return 1;
     wzfile file;
-    if (wz_open_file(&file, argv[1]) ||
-        wz_close_file(&file)) return 1;
+    if (wz_open_file(&file, argv[1], &ctx) ||
+        wz_close_file(&file))
+      return wz_free_ctx(&ctx), 1;
+    wz_free_ctx(&ctx);
   }
   return 0;
 }
