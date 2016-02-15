@@ -241,7 +241,6 @@ wz_free_node(wznode * node) {
 
 int
 wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
-  if (* buffer != NULL) return 0;
   if (wz_seek(node->addr.val, SEEK_SET, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
