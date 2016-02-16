@@ -47,3 +47,4 @@ $ ctest
 * [C](https://code.google.com/p/cmsc/source/browse/trunk/wzlibc/wzlibc.c)
 * [C++](https://github.com/NoLifeDev/NoLifeStory/blob/master/src/wz/wzmain.cpp)
 * [C#](https://github.com/haha01haha01/MapleLib/blob/master/WzLib/WzFile.cs)
+* [C#](https://github.com/Kagamia/WzComparerR2/blob/master/WzComparerR2.WzLib/Wz_Sound.cs)

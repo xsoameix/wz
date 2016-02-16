@@ -82,6 +82,50 @@ typedef struct {
 } wzvec;
 
 typedef struct {
+  uint16_t  format;
+  uint16_t  channels;
+  uint32_t  sample_rate;
+  uint32_t  byte_rate;
+  uint16_t  block_align;
+  uint16_t  bits_per_sample;
+  uint16_t  extra_size;
+} wzwav;  // microsoft WAVEFORMATEX structure
+
+typedef struct {
+  wzwav     wav;
+  uint16_t  id;
+  uint32_t  flags;
+  uint16_t  block_size;
+  uint16_t  frames_per_block;
+  uint16_t  codec_delay;
+} wzmp3;  // microsoft MPEGLAYER3WAVEFORMAT structure
+
+typedef struct {
+  uint32_t  chunk_id;
+  uint32_t  chunk_size;
+  uint32_t  format;
+  uint32_t  subchunk1_id;
+  uint32_t  subchunk1_size;
+  uint16_t  audio_format;
+  uint16_t  channels;
+  uint32_t  sample_rate;
+  uint32_t  byte_rate;
+  uint16_t  block_align;
+  uint16_t  bits_per_sample;
+  uint32_t  subchunk2_id;
+  uint32_t  subchunk2_size;
+} wzpcm;
+
+typedef struct {
+  uint32_t  pos;
+  wzchr     type;
+  uint32_t  size;
+  uint32_t  ms;
+  uint8_t   format;
+  uint8_t * data;
+} wzao;  // audio
+
+typedef struct {
   uint32_t  pos;
   wzchr     type;
   wzchr     path;
@@ -163,6 +207,14 @@ typedef struct {
 #define WZ_COLOR_8888    2
 #define WZ_COLOR_565   513
 #define WZ_COLOR_DXT3 1026
+
+// microsoft define these values in Mmreg.h
+#define WZ_AUDIO_PCM 0x0001
+#define WZ_AUDIO_MP3 0x0055
+
+#define WZ_AUDIO_WAV_SIZE 18 // sizeof(packed wzwav)
+#define WZ_AUDIO_MP3_SIZE 30 // sizeof(packed wzmp3)
+#define WZ_AUDIO_PCM_SIZE 44 // sizeof(packed wzpcm)
 
 #define WZ_IS_VAR_NONE(x)    ((x) == 0)
 #define WZ_IS_VAR_INT16(x)   ((x) == 0x02 || (x) == 0x0b)
