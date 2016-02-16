@@ -198,6 +198,8 @@ typedef struct {
   size_t    klen; // keys length
   wzkey *   keys;
   wzpalette palette;
+  uint8_t   wav_guid[16];
+  uint8_t   empty_guid[16];
 } wzctx;
 
 #define WZ_ENC_ASCII   0

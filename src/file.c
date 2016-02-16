@@ -937,47 +937,59 @@ wz_write_pcm(uint8_t * pcm, wzwav * wav, uint32_t size) {
 }
 
 int
-wz_read_ao(wzao * ao, wznode * node, wzfile * file) {
+wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
   uint32_t size;
   uint32_t ms;
+  uint8_t  guid[16];
   if (wz_seek(1, SEEK_CUR, file) ||
       wz_read_int(&size, file) ||
-      wz_read_int(&ms, file)) return 1;
-  for (size_t i = 0; i < 3; i++) {
-    uint8_t glen;       // number of GUIDs
-    uint8_t gsize = 16; // GUID is 16 bytes
-    if (wz_read_byte(&glen, file) ||
-        wz_seek(glen * gsize, SEEK_CUR, file)) return 1;
-  }
-  uint8_t hsize; // header size
-  if (wz_read_byte(&hsize, file)) return 1;
-  uint8_t * header = malloc(hsize);
-  if (header == NULL) return 1;
-  if (wz_read_bytes(header, hsize, file)) return free(header), 1;
-  wzwav wav;
-  wz_read_wav(&wav, header);
-  if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) {
-    wz_decode_wav(header, hsize, node->key), wz_read_wav(&wav, header);
-    if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE)
-      return free(header), 1;
-  }
-  free(header);
-  if (wav.sample_rate == hsize && ms == 1000) {
-    return wz_error("Unsupported: Binary data is stored in audio\n"), 1;
-  } else if (wav.format == WZ_AUDIO_PCM) {
-    uint8_t * pcm = malloc(WZ_AUDIO_PCM_SIZE + size);
-    if (pcm == NULL) return 1;
-    wz_write_pcm(pcm, &wav, size);
-    if (wz_read_bytes(pcm + WZ_AUDIO_PCM_SIZE, size, file)) return free(pcm), 1;
-    ao->data = pcm, ao->size = WZ_AUDIO_PCM_SIZE + size;
-    //static int id = 0;
-    //char filename[100];
-    //snprintf(filename, sizeof(filename), "out/%d.wav", id++);
-    //FILE * outfile = fopen(filename, "wb");
-    //fwrite(ao->data, 1, ao->size, outfile);
-    //fclose(outfile);
-    return ao->ms = ms, ao->format = wav.format, 0;
-  } else if (wav.format == WZ_AUDIO_MP3) {
+      wz_read_int(&ms, file) ||
+      wz_seek(1 + 16 * 2 + 2, SEEK_CUR, file) || // major GUID and subtype GUID
+      wz_read_bytes(guid, sizeof(guid), file)) return 1;
+  if (memcmp(guid, ctx->wav_guid, sizeof(guid)) == 0) {
+    uint8_t  hsize; // header size
+    if (wz_read_byte(&hsize, file)) return 1;
+    uint8_t * header = malloc(hsize);
+    if (header == NULL) return 1;
+    if (wz_read_bytes(header, hsize, file)) return free(header), 1;
+    wzwav wav;
+    wz_read_wav(&wav, header);
+    if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) {
+      wz_decode_wav(header, hsize, node->key), wz_read_wav(&wav, header);
+      if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE)
+        return free(header), 1;
+    }
+    free(header);
+    if (wav.format == WZ_AUDIO_PCM) {
+      uint8_t * pcm = malloc(WZ_AUDIO_PCM_SIZE + size);
+      if (pcm == NULL) return 1;
+      wz_write_pcm(pcm, &wav, size);
+      if (wz_read_bytes(pcm + WZ_AUDIO_PCM_SIZE, size, file))
+        return free(pcm), 1;
+      ao->data = pcm, ao->size = WZ_AUDIO_PCM_SIZE + size;
+      //static int id = 0;
+      //char filename[100];
+      //snprintf(filename, sizeof(filename), "out/%d.wav", id++);
+      //FILE * outfile = fopen(filename, "wb");
+      //fwrite(ao->data, 1, ao->size, outfile);
+      //fclose(outfile);
+      return ao->ms = ms, ao->format = wav.format, 0;
+    } else if (wav.format == WZ_AUDIO_MP3) {
+      uint8_t * data = malloc(size);
+      if (data == NULL) return 1;
+      if (wz_read_bytes(data, size, file)) return free(data), 1;
+      ao->data = data, ao->size = size;
+      //static int id = 0;
+      //char filename[100];
+      //snprintf(filename, sizeof(filename), "out/%d.mp3", id++);
+      //FILE * outfile = fopen(filename, "wb");
+      //fwrite(ao->data, 1, ao->size, outfile);
+      //fclose(outfile);
+      return ao->ms = ms, ao->format = wav.format, 0;
+    } else {
+      return wz_error("Unsupported audio format: 0x%hhx\n", wav.format), 1;
+    }
+  } else if (memcmp(guid, ctx->empty_guid, sizeof(guid)) == 0) {
     uint8_t * data = malloc(size);
     if (data == NULL) return 1;
     if (wz_read_bytes(data, size, file)) return free(data), 1;
@@ -988,9 +1000,9 @@ wz_read_ao(wzao * ao, wznode * node, wzfile * file) {
     //FILE * outfile = fopen(filename, "wb");
     //fwrite(ao->data, 1, ao->size, outfile);
     //fclose(outfile);
-    return ao->ms = ms, ao->format = wav.format, 0;
+    return ao->ms = ms, ao->format = WZ_AUDIO_MP3, 0;
   } else {
-    return wz_error("Unsupported audio format: 0x%02"PRIx8"\n", wav.format), 1;
+    return wz_error("Unsupport audio GUID type: %.16s\n", guid), 1;
   }
 }
 
@@ -1057,7 +1069,7 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
   } else if (WZ_IS_OBJ_SOUND(&type)) {
     wzao * ao = malloc(sizeof(* ao));
     if (ao == NULL) return wz_free_chars(&type), 1;
-    if (wz_read_ao(ao, node, file)) {
+    if (wz_read_ao(ao, node, file, ctx)) {
       wz_error("Unable to read audio\n");
       return free(ao), wz_free_chars(&type), 1;
     }
@@ -1133,6 +1145,8 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
           //wzvec * vec = (wzvec *) obj;
           //pindent(), debug(" %"PRId32"\n", vec->val.x);
           //pindent(), debug(" %"PRId32"\n", vec->val.y);
+          wz_free_obj(obj);
+        } else if (WZ_IS_OBJ_SOUND(&obj->type)) {
           wz_free_obj(obj);
         } else if (WZ_IS_OBJ_UOL(&obj->type)) {
           wz_free_obj(obj);
@@ -1224,7 +1238,8 @@ wz_read_node_r(wznode * node, wzfile * file, wzctx * ctx) {
       //if (wz_is_chars(&node->name, "Effect2.img")) { // multiple string key x
       //if (wz_is_chars(&node->name, "dryRock.img")) { // canvas, scale 4
       //if (wz_is_chars(&node->name, "vicportTown.img")) { // last canvas
-      if (wz_is_chars(&node->name, "MapHelper.img")) { // audio
+      //if (wz_is_chars(&node->name, "MapHelper.img")) { // audio
+      //if (wz_is_chars(&node->name, "BgmGL.img")) { // audio
         debugging = 1;
       wz_read_obj_r(node->data.var, node, file, ctx);
       //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
@@ -1252,7 +1267,7 @@ wz_read_node_r(wznode * node, wzfile * file, wzctx * ctx) {
       // get_snd
       // get_uol
         debugging = 0;
-      }
+      //}
     }
   }
   printf("max node: %"PRIu32"\n", max);
@@ -1303,7 +1318,12 @@ wz_close_file(wzfile * file) {
 int
 wz_init_ctx(wzctx * ctx) {
   if (wz_init_keys(&ctx->keys, &ctx->klen)) return 1;
-  return wz_init_palette(&ctx->palette), 0;
+  wz_init_palette(&ctx->palette);
+  memcpy(&ctx->wav_guid,
+         "\x81\x9f\x58\x05""\x56\xc3""\xce\x11""\xbf\x01"
+         "\x00\xaa\x00\x55\x59\x5a", 16);
+  memset(&ctx->empty_guid, 0, 16);
+  return 0;
 }
 
 void
