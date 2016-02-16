@@ -815,11 +815,12 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   uint32_t depth_size, scale_size;
   if (wz_depth_size(&depth_size, depth) ||
       wz_scale_size(&scale_size, scale) ||
-      size != pixels * depth_size / (scale_size * scale_size) ||
-      wz_unpack_bitmap((wzcolor **) &in, &out, w, h, depth, ctx))
+      size != pixels * depth_size / (scale_size * scale_size))
     return free(out), free(in), 1;
-  wz_scale_bitmap(&out, &in, w / scale_size, h / scale_size, scale_size);
-  if (full_size < max_size) out = realloc(out, full_size);
+  uint32_t pw = w / scale_size, ph = h / scale_size;
+  if (wz_unpack_bitmap((wzcolor **) &in, &out, pw, ph, depth, ctx))
+    return free(out), free(in), 1;
+  wz_scale_bitmap(&out, &in, pw, ph, scale_size);
   return free(in), * data = (wzcolor *) out, 0;
 }
 
@@ -955,19 +956,16 @@ wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
       wz_seek(1 + 16 * 2 + 2, SEEK_CUR, file) || // major GUID and subtype GUID
       wz_read_bytes(guid, sizeof(guid), file)) return 1;
   if (memcmp(guid, ctx->guid.wav, sizeof(guid)) == 0) {
-    uint8_t  hsize; // header size
+    uint8_t hsize; // header size
     if (wz_read_byte(&hsize, file)) return 1;
-    uint8_t * header = malloc(hsize);
-    if (header == NULL) return 1;
-    if (wz_read_bytes(header, hsize, file)) return free(header), 1;
+    uint8_t header[hsize];
+    if (wz_read_bytes(header, hsize, file)) return 1;
     wzwav wav;
     wz_read_wav(&wav, header);
     if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) {
       wz_decode_wav(header, hsize, node->key), wz_read_wav(&wav, header);
-      if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE)
-        return free(header), 1;
+      if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) return 1;
     }
-    free(header);
     if (wav.format == WZ_AUDIO_PCM) {
       uint8_t * pcm = malloc(WZ_AUDIO_PCM_SIZE + size);
       if (pcm == NULL) return 1;
