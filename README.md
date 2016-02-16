@@ -1,4 +1,4 @@
-# WZlib
+# wz
 
 A C library can read \*.wz files.
 
