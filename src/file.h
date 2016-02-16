@@ -195,11 +195,15 @@ typedef struct {
 } wzfile;
 
 typedef struct {
+  uint8_t   wav[16];
+  uint8_t   empty[16];
+} wzguid;
+
+typedef struct {
   size_t    klen; // keys length
   wzkey *   keys;
   wzpalette palette;
-  uint8_t   wav_guid[16];
-  uint8_t   empty_guid[16];
+  wzguid    guid;
 } wzctx;
 
 #define WZ_ENC_ASCII   0

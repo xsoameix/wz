@@ -903,6 +903,14 @@ wz_read_vec(wzvec * vec, wznode * node, wzfile * file) {
 }
 
 void
+wz_init_guid(wzguid * guid) {
+  memcpy(guid->wav,
+         "\x81\x9f\x58\x05""\x56\xc3""\xce\x11""\xbf\x01"
+         "\x00\xaa\x00\x55\x59\x5a", sizeof(guid->wav));
+  memset(guid->empty, 0, sizeof(guid->wav));
+}
+
+void
 wz_read_wav(wzwav * wav, uint8_t * data) {
   wav->format          = wz_le16toh(* (uint16_t *) data), data += 2;
   wav->channels        = wz_le16toh(* (uint16_t *) data), data += 2;
@@ -946,7 +954,7 @@ wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
       wz_read_int(&ms, file) ||
       wz_seek(1 + 16 * 2 + 2, SEEK_CUR, file) || // major GUID and subtype GUID
       wz_read_bytes(guid, sizeof(guid), file)) return 1;
-  if (memcmp(guid, ctx->wav_guid, sizeof(guid)) == 0) {
+  if (memcmp(guid, ctx->guid.wav, sizeof(guid)) == 0) {
     uint8_t  hsize; // header size
     if (wz_read_byte(&hsize, file)) return 1;
     uint8_t * header = malloc(hsize);
@@ -989,7 +997,7 @@ wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
     } else {
       return wz_error("Unsupported audio format: 0x%hhx\n", wav.format), 1;
     }
-  } else if (memcmp(guid, ctx->empty_guid, sizeof(guid)) == 0) {
+  } else if (memcmp(guid, ctx->guid.empty, sizeof(guid)) == 0) {
     uint8_t * data = malloc(size);
     if (data == NULL) return 1;
     if (wz_read_bytes(data, size, file)) return free(data), 1;
@@ -1319,10 +1327,7 @@ int
 wz_init_ctx(wzctx * ctx) {
   if (wz_init_keys(&ctx->keys, &ctx->klen)) return 1;
   wz_init_palette(&ctx->palette);
-  memcpy(&ctx->wav_guid,
-         "\x81\x9f\x58\x05""\x56\xc3""\xce\x11""\xbf\x01"
-         "\x00\xaa\x00\x55\x59\x5a", 16);
-  memset(&ctx->empty_guid, 0, 16);
+  wz_init_guid(&ctx->guid);
   return 0;
 }
 
