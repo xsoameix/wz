@@ -974,16 +974,16 @@ wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
   if (memcmp(guid, ctx->guid.wav, sizeof(guid)) == 0) {
     uint8_t hsize; // header size
     if (wz_read_byte(&hsize, file)) return 1;
-    uint8_t * header = malloc(hsize);
-    if (header == NULL) return 1;
-    if (wz_read_bytes(header, hsize, file)) return free(header), 1;
+    uint8_t * hdr = malloc(hsize); // header
+    if (hdr == NULL) return 1;
+    if (wz_read_bytes(hdr, hsize, file)) return free(hdr), 1;
     wzwav wav;
-    wz_read_wav(&wav, header);
+    wz_read_wav(&wav, hdr);
     if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) {
-      wz_decode_wav(header, hsize, node->key), wz_read_wav(&wav, header);
-      if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) return free(header), 1;
+      wz_decode_wav(hdr, hsize, node->key), wz_read_wav(&wav, hdr);
+      if (wav.extra_size != hsize - WZ_AUDIO_WAV_SIZE) return free(hdr), 1;
     }
-    free(header);
+    free(hdr);
     if (wav.format == WZ_AUDIO_PCM) {
       uint8_t * pcm = malloc(WZ_AUDIO_PCM_SIZE + size);
       if (pcm == NULL) return 1;
