@@ -1,54 +1,45 @@
-# - Try to find the CHECK libraries
+# - Try to find the Check libraries
 #  Once done this will define
 #
-#  CHECK_FOUND - system has check
-#  CHECK_INCLUDE_DIRS - the check include directory
-#  CHECK_LIBRARIES - check library
+#  CHECK_FOUND       - system has Check
+#  CHECK_INCLUDE_DIR - the Check include directory
+#  CHECK_LIBRARY     - the Check library
+#  CHECK_LIBRARIES   - the libraries needed to use Check
 #
 #  Copyright (c) 2007 Daniel Gollub <gollub@b1-systems.de>
 #  Copyright (c) 2007-2009 Bjoern Ricks  <bjoern.ricks@gmail.com>
+#  Copyright (c) 2016 Lien Chiang  <xsoameix@gmail.com>
 #
 #  Redistribution and use is allowed according to the terms of the New
 #  BSD license.
-#  For details see the accompanying COPYING-CMAKE-SCRIPTS file.
 
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(_CHECK_ROOT_HINTS ${CHECK_ROOT_DIR} ENV CHECK_ROOT_DIR)
+  find_path(CHECK_INCLUDE_DIR
+    NAMES check.h
+    HINTS ${_CHECK_ROOT_HINTS}
+    PATH_SUFFIXES "include")
+  find_library(CHECK_COMPAT_LIBRARY
+    NAMES compat
+    HINTS ${_CHECK_ROOT_HINTS}
+    PATH_SUFFIXES "lib")
+  find_library(CHECK_LIBRARY
+    NAMES check
+    HINTS ${_CHECK_ROOT_HINTS}
+    PATH_SUFFIXES "lib")
+  set(CHECK_LIBRARY ${CHECK_LIBRARY} ${CHECK_COMPAT_LIBRARY})
+  find_package_handle_standard_args(Check "Could NOT find Check, try to set the path to Check root folder in the system variable CHECK_ROOT_DIR"
+    CHECK_LIBRARY CHECK_INCLUDE_DIR)
+else()
+  find_package(PkgConfig QUIET REQUIRED)
+  pkg_search_module(CHECK QUIET check)
+  set(CHECK_LIBRARIES ${CHECK_LIBRARIES} ${CHECK_CFLAGS})
+  find_path(CHECK_INCLUDE_DIR NAMES check.h HINTS ${CHECK_INCLUDE_DIRS})
+  find_library(CHECK_LIBRARY NAMES check HINTS ${CHECK_LIBRARY_DIRS})
+  find_package(PackageHandleStandardArgs QUIET REQUIRED)
+  find_package_handle_standard_args(Check
+    REQUIRED_VARS CHECK_LIBRARY CHECK_LIBRARIES CHECK_INCLUDE_DIR
+    VERSION_VAR CHECK_VERSION)
+endif()
 
-INCLUDE( FindPkgConfig )
-
-IF ( Check_FIND_REQUIRED )
-	SET( _pkgconfig_REQUIRED "REQUIRED" )
-ELSE( Check_FIND_REQUIRED )
-	SET( _pkgconfig_REQUIRED "" )
-ENDIF ( Check_FIND_REQUIRED )
-
-IF ( CHECK_MIN_VERSION )
-	PKG_SEARCH_MODULE( CHECK ${_pkgconfig_REQUIRED} check>=${CHECK_MIN_VERSION} )
-ELSE ( CHECK_MIN_VERSION )
-	PKG_SEARCH_MODULE( CHECK ${_pkgconfig_REQUIRED} check )
-ENDIF ( CHECK_MIN_VERSION )
-
-# Look for CHECK include dir and libraries
-IF( NOT CHECK_FOUND AND NOT PKG_CONFIG_FOUND )
-
-	FIND_PATH( CHECK_INCLUDE_DIRS check.h )
-
-	FIND_LIBRARY( CHECK_LIBRARIES NAMES check )
-
-	IF ( CHECK_INCLUDE_DIRS AND CHECK_LIBRARIES )
-		SET( CHECK_FOUND 1 )
-		IF ( NOT Check_FIND_QUIETLY )
-			MESSAGE ( STATUS "Found CHECK: ${CHECK_LIBRARIES}" )
-		ENDIF ( NOT Check_FIND_QUIETLY )
-	ELSE ( CHECK_INCLUDE_DIRS AND CHECK_LIBRARIES )
-		IF ( Check_FIND_REQUIRED )
-			MESSAGE( FATAL_ERROR "Could NOT find CHECK" )
-		ELSE ( Check_FIND_REQUIRED )
-			IF ( NOT Check_FIND_QUIETLY )
-				MESSAGE( STATUS "Could NOT find CHECK" )
-			ENDIF ( NOT Check_FIND_QUIETLY )
-		ENDIF ( Check_FIND_REQUIRED )
-	ENDIF ( CHECK_INCLUDE_DIRS AND CHECK_LIBRARIES )
-ENDIF( NOT CHECK_FOUND AND NOT PKG_CONFIG_FOUND )
-
-# Hide advanced variables from CMake GUIs
-MARK_AS_ADVANCED( CHECK_INCLUDE_DIRS CHECK_LIBRARIES )
+mark_as_advanced(CHECK_INCLUDE_DIR CHECK_LIBRARY CHECK_LIBRARIES)

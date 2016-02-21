@@ -32,7 +32,7 @@ wz_swap64(uint64_t in) {
   return out;
 }
 
-#define WZ_IS_BIG_ENDIAN (* (uint16_t *) "\x00\xff" == 0x00ff)
+#define WZ_IS_BIG_ENDIAN (* (const uint16_t *) "\x00\xff" == 0x00ff)
 
 uint16_t wz_htole16(uint16_t x) { return WZ_IS_BIG_ENDIAN ? wz_swap16(x) : x; }
 uint32_t wz_htole32(uint32_t x) { return WZ_IS_BIG_ENDIAN ? wz_swap32(x) : x; }

@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
-#include <check.h>
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <file.h>
+#include "check_portable.h"
 #include "mem.h"
 
 FILE *

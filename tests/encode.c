@@ -18,7 +18,7 @@ main(void) {
   wzfile file = {.head = {.start = start}, .ver = ver};
   wzaddr addr = {.pos = position};
   for (uint64_t encoded = 0; encoded <= UINT32_MAX; encoded++) {
-    addr.val = encoded;
+    addr.val = (uint32_t) encoded;
     wz_decode_addr(&addr, &file);
     if (addr.val == address) {
       printf("encoded address: 0x%08"PRIx32"\n", (uint32_t) encoded);

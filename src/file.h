@@ -4,6 +4,13 @@
 #include <stdio.h>
 #include <stdint.h>
 
+// Structures
+
+#ifdef _WIN32
+#pragma warning(disable: 4820) // C89: struct padding
+#pragma warning(push, 1)
+#endif
+
 typedef struct {
   uint8_t * bytes;
   uint32_t  len;
@@ -121,7 +128,7 @@ typedef struct {
   wzchr     type;
   uint32_t  size;
   uint32_t  ms;
-  uint8_t   format;
+  uint16_t  format;
   uint8_t * data;
 } wzao;  // audio
 
@@ -141,7 +148,7 @@ typedef struct {
   uint8_t   iv[16];
   uint8_t * plain;
   uint8_t * cipher;
-  size_t    len;
+  uint32_t  len;
 } wzaes;
 
 typedef struct {
@@ -167,7 +174,7 @@ typedef struct wzgrp {
 
 typedef struct {
   uint8_t   ident[4];
-  uint64_t  size;
+  uint32_t  size;
   uint32_t  start;
   wzstr     copy;  // copyright
 } wzhead;
@@ -186,8 +193,8 @@ typedef struct {
 
 typedef struct {
   FILE *    raw;
-  uint64_t  size;
-  uint64_t  pos;
+  uint32_t  size;
+  uint32_t  pos;
   wzhead    head;
   wznode    root;
   wzver     ver;
@@ -206,8 +213,17 @@ typedef struct {
   wzguid    guid;
 } wzctx;
 
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
+
+// Macro Definitions
+
 #define WZ_ENC_ASCII   0
 #define WZ_ENC_UTF16LE 1
+
+#define WZ_UTF16LE_MAX_LEN 4
+#define WZ_UTF8_MAX_LEN    4
 
 #define WZ_COLOR_4444    1
 #define WZ_COLOR_8888    2
@@ -243,17 +259,17 @@ typedef struct {
 #define WZ_IS_NODE_DIR(type)  ((type) == 0x03)
 #define WZ_IS_NODE_FILE(type) ((type) == 0x04)
 
-int      wz_read_data(void * buffer, size_t len, wzfile * file);
+int      wz_read_data(void * buffer, uint32_t len, wzfile * file);
 int      wz_read_byte(uint8_t * buffer, wzfile * file);
 int      wz_read_le16(uint16_t * buffer, wzfile * file);
 int      wz_read_le32(uint32_t * buffer, wzfile * file);
 int      wz_read_le64(uint64_t * buffer, wzfile * file);
 int      wz_read_int(uint32_t * buffer, wzfile * file);
 int      wz_read_long(uint64_t * buffer, wzfile * file);
-int      wz_read_bytes(uint8_t * buffer, size_t len, wzfile * file);
+int      wz_read_bytes(uint8_t * buffer, uint32_t len, wzfile * file);
 
 void     wz_init_str(wzstr * buffer);
-int      wz_read_str(wzstr * buffer, size_t len, wzfile * file);
+int      wz_read_str(wzstr * buffer, uint32_t len, wzfile * file);
 void     wz_free_str(wzstr * buffer);
 
 int      wz_decode_chars(wzchr * buffer, wzkey * key);
@@ -264,7 +280,7 @@ uint32_t wz_rotl32(uint32_t x, uint32_t n);
 void     wz_decode_addr(wzaddr * addr, wzfile * file);
 int      wz_read_addr(wzaddr * addr, wzfile * file);
 
-int      wz_seek(uint64_t pos, int origin, wzfile * file);
+int      wz_seek(uint32_t pos, int origin, wzfile * file);
 int      wz_read_node(wznode * node, wzfile * file, wzctx * ctx);
 void     wz_free_node(wznode * node);
 
@@ -276,8 +292,8 @@ int      wz_read_head(wzhead * head, wzfile * file);
 void     wz_free_head(wzhead * head);
 
 int      wz_encode_ver(wzver * ver);
-int      wz_valid_ver(wzver * ver, wznode * node, wzfile * file);
-int      wz_guess_ver(wzver * ver, wznode * node, wzfile * file);
+int      wz_valid_ver(wzver * ver, wznode * root, wzfile * file);
+int      wz_guess_ver(wzver * ver, wznode * root, wzfile * file);
 int      wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx);
 
 int      wz_alloc_crypto(void);
@@ -292,8 +308,7 @@ void     wz_free_aes(wzaes * aes);
 int      wz_init_key(wzkey * key, wzaes * aes);
 void     wz_set_key(wzkey * key, wzaes * aes);
 void     wz_free_key(wzkey * key);
-int      wz_deduce_key(wzkey ** buffer, wzchr * name,
-                       wzfile * file, wzctx * ctx);
+int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx);
 
 int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);

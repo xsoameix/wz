@@ -1,5 +1,5 @@
-find_package(OpenSSL)
-find_package(ZLIB)
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
 
 # OpenSSL
 include_directories(${OPENSSL_INCLUDE_DIR})
@@ -9,24 +9,42 @@ set(LIBS ${LIBS} ${OPENSSL_LIBRARIES})
 include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
-# libwz.so - shared library
+# libwz.so or wz.dll - shared library
 include_directories(.)
-add_library(lib SHARED
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+set(SOURCES
   byteorder.c
+  unicode.c
   file.c
-  #../tests/mem.c
 )
+add_library(lib SHARED ${SOURCES})
 set_target_properties(lib PROPERTIES OUTPUT_NAME wz)
 target_link_libraries(lib ${LIBS})
-#set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-wrap,malloc -Wl,-wrap,free")
-set(CMAKE_C_FLAGS "-Wall -Werror -std=c99 -pedantic -g")
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
+    "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
+  set(CMAKE_C_FLAGS
+    "-std=c99 -pedantic -g"
+    "-Wall -Wextra -Werror -Wconversion -Wshadow -Wwrite-strings")
+  string(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(CMAKE_C_FLAGS
+    "/wd4204" # C99
+    "/wd4710" # C89: inline function
+    "/wd4820" # C89: struct padding
+    "/wd4996" # C89: sprintf & fopen
+    "/WX /Wall")
+  string(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif()
 
 # wz/*.h - headers
-install(TARGETS lib DESTINATION lib)
+install(TARGETS lib
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
 install(
-  FILES
-  wz.h
-  file.h
+  FILES file.h
   DESTINATION include/wz
 )
 

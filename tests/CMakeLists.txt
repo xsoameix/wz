@@ -1,8 +1,7 @@
-find_package(OpenSSL)
-find_package(ZLIB)
-enable_testing()
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
 find_package(Check REQUIRED)
-find_package(Threads)
+enable_testing()
 
 # OpenSSL
 include_directories(${OPENSSL_INCLUDE_DIR})
@@ -12,22 +11,32 @@ set(LIBS ${LIBS} ${OPENSSL_LIBRARIES})
 include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
-# libwz.so - shared library
+# libwz.so or wz.dll - shared library
 include_directories(../src)
-add_library(testlib SHARED
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+set(SOURCES
   ../src/byteorder.c
+  ../src/unicode.c
   ../src/file.c
-  mem.c
 )
+add_library(testlib SHARED ${SOURCES} mem.c)
+set_source_files_properties(${SOURCES} PROPERTIES
+  COMPILE_DEFINITIONS "WZ_WRAP=1")
 set_target_properties(testlib PROPERTIES OUTPUT_NAME wz)
 target_link_libraries(testlib ${LIBS})
-set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-wrap,malloc -Wl,-wrap,free")
-set(CMAKE_C_FLAGS "-Wall -Werror -std=c99 -pedantic")
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
+    "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
+  set(CMAKE_C_FLAGS "-Wall -Werror -std=c99 -pedantic")
+elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(CMAKE_C_FLAGS "/WX")
+endif()
 set(LIBS testlib)
 
 # Check
-include_directories(${CHECK_INCLUDE_DIRS})
-set(LIBS ${LIBS} ${CHECK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+include_directories(${CHECK_INCLUDE_DIR})
+set(LIBS ${LIBS} ${CHECK_LIBRARY} ${CHECK_LIBRARIES})
 
 # suite - testing program
 include_directories(.)

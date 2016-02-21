@@ -4,24 +4,31 @@ A C library can read \*.wz files.
 
 ## Environment
 
-* Supported Platforms: \*nix, Windows
-* Supported Compilers: >= GCC 3.1, >= MSVC 12 (Visual Studio 2013)
-* Dependencies: iconv, openssl, zlib
+* Supported Platforms: Windows and \*nix
+* Supported Compilers: >= GCC 3.1 or >= MSVC 12 (Visual Studio 2013)
+* Dependencies: openssl and zlib
 * Development Dependencies: check
 * Using C Standard Revision: C99
 
 ## Getted Started
 
+#### Windows
+
+```shell
+> mkdir build && cd build
+> cmake -DCMAKE_INSTALL_PREFIX="X:\path\to\install" -DOPENSSL_ROOT_DIR="X:\path\to\openssl" -DZLIB_ROOT="X:\path\to\zlib" -DCHECK_ROOT_DIR="X:\path\to\check" -G "Visual Studio 12" ..
+```
+
+Open `build\wz.sln` and build the project
+
 #### \*nix
 
 ```shell
-$ mkdir bin && cd bin
+$ mkdir build && cd build
 $ cmake .. && make && sudo make install
 ```
 
 ## Unit Test
-
-#### \*nix
 
 ```shell
 $ ctest
