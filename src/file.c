@@ -90,9 +90,10 @@ wz_init_str(wzstr * buffer) {
 int // read string with malloc
 wz_read_str(wzstr * buffer, uint32_t len, wzfile * file) {
   if (len > INT32_MAX) return wz_error("String length > INT32_MAX"), 1;
-  uint8_t * bytes = malloc(len);
+  uint8_t * bytes = malloc(len + 1);
   if (bytes == NULL) return 1;
   if (wz_read_bytes(bytes, len, file)) return free(bytes), 1;
+  bytes[len] = '\0';
   return buffer->bytes = bytes, buffer->len = len, 0;
 }
 
