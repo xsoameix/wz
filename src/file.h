@@ -310,6 +310,12 @@ void     wz_set_key(wzkey * key, wzaes * aes);
 void     wz_free_key(wzkey * key);
 int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx);
 
+int      wz_is_chars(wzchr * actual, const char * expected);
+
+int      wz_read_obj(wzobj ** buffer, wznode * node,
+                     wzfile * file, wzctx * ctx);
+void     wz_free_obj(wzobj * obj);
+
 int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);
 int      wz_open_file(wzfile * file, char * filename, wzctx * ctx);
