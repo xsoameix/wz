@@ -121,6 +121,7 @@ typedef struct {
   uint16_t  bits_per_sample;
   uint32_t  subchunk2_id;
   uint32_t  subchunk2_size;
+  uint8_t * data;
 } wzpcm;
 
 typedef struct {
@@ -311,6 +312,8 @@ void     wz_free_key(wzkey * key);
 int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx);
 
 int      wz_is_chars(wzchr * actual, const char * expected);
+
+void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
 
 int      wz_read_obj(wzobj ** buffer, wznode * node,
                      wzfile * file, wzctx * ctx);

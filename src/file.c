@@ -962,6 +962,24 @@ wz_write_pcm(uint8_t * pcm, wzwav * wav, uint32_t size) {
   * (uint32_t *) pcm = wz_htole32(size),                 pcm += 4;
 }
 
+void
+wz_read_pcm(wzpcm * out, uint8_t * pcm) {
+  out->chunk_id        = wz_htobe32(* (uint32_t *) pcm), pcm += 4; // "RIFF"
+  out->chunk_size      = wz_htole32(* (uint32_t *) pcm), pcm += 4; // following
+  out->format          = wz_htobe32(* (uint32_t *) pcm), pcm += 4; // "WAVE"
+  out->subchunk1_id    = wz_htobe32(* (uint32_t *) pcm), pcm += 4; // "fmt "
+  out->subchunk1_size  = wz_htole32(* (uint32_t *) pcm), pcm += 4; // PCM = 16
+  out->audio_format    = wz_htole16(* (uint16_t *) pcm), pcm += 2;
+  out->channels        = wz_htole16(* (uint16_t *) pcm), pcm += 2;
+  out->sample_rate     = wz_htole32(* (uint32_t *) pcm), pcm += 4;
+  out->byte_rate       = wz_htole32(* (uint32_t *) pcm), pcm += 4;
+  out->block_align     = wz_htole16(* (uint16_t *) pcm), pcm += 2;
+  out->bits_per_sample = wz_htole16(* (uint16_t *) pcm), pcm += 2;
+  out->subchunk2_id    = wz_htobe32(* (uint32_t *) pcm), pcm += 4; // "data"
+  out->subchunk2_size  = wz_htole32(* (uint32_t *) pcm), pcm += 4;
+  out->data            = pcm;
+}
+
 int
 wz_read_ao(wzao * ao, wznode * node, wzfile * file, wzctx * ctx) {
   uint32_t size;
