@@ -882,8 +882,8 @@ wz_free_img(wzimg * img) {
 
 int
 wz_read_2d(wz2d * val, wzfile * file) {
-  return (wz_read_int(&val->x, file) ||
-          wz_read_int(&val->y, file));
+  return (wz_read_int((uint32_t *) &val->x, file) ||
+          wz_read_int((uint32_t *) &val->y, file));
 }
 
 int
