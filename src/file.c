@@ -870,13 +870,13 @@ wz_read_img(wzimg * img, wznode * node, wzfile * file, wzctx * ctx) {
   //FILE * outfile = fopen(filename, "wb");
   //fwrite(img->data, 1, img->w * img->h * 4, outfile);
   //fclose(outfile);
-  free(img->data);
   //printf("img raw size %"PRIu32"\n", size);
   return 0;
 }
 
 void
 wz_free_img(wzimg * img) {
+  free(img->data);
   wz_free_list((wzlist *) img);
 }
 
