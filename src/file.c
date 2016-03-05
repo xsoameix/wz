@@ -1164,7 +1164,8 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
         printf("failed!\n");
       } else {
         wzobj * obj = var->val.obj;
-        if (WZ_IS_OBJ_PROPERTY(&obj->type)) {
+        if (WZ_IS_OBJ_PROPERTY(&obj->type) ||
+            WZ_IS_OBJ_CANVAS(&obj->type)) {
           stack[len++] = var;
           stack[len++] = NULL;
           wzlist * list = (wzlist *) obj;
@@ -1173,8 +1174,6 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
             child->parent = var;
             stack[len++] = child;
           }
-        } else if (WZ_IS_OBJ_CANVAS(&obj->type)) {
-          wz_free_obj(obj);
         } else if (WZ_IS_OBJ_CONVEX(&obj->type)) {
           //wzvex * vex = (wzvex *) obj;
           //for (uint32_t i = 0; i < vex->len; i++) {
