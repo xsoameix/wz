@@ -1,11 +1,14 @@
-find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
+# thread
+find_package(Threads REQUIRED)
+set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 # OpenSSL
+find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 set(LIBS ${LIBS} ${OPENSSL_LIBRARIES})
 
 # zlib
+find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
@@ -25,7 +28,7 @@ target_link_libraries(lib ${LIBS})
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
     "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
   set(CMAKE_C_FLAGS
-    "-std=c99 -pedantic -g"
+    "-std=c99 -pthread -pedantic -g"
     "-Wall -Wextra -Werror -Wconversion -Wshadow -Wwrite-strings")
   string(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")

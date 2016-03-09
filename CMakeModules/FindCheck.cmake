@@ -3,7 +3,6 @@
 #
 #  CHECK_FOUND       - system has Check
 #  CHECK_INCLUDE_DIR - the Check include directory
-#  CHECK_LIBRARY     - the Check library
 #  CHECK_LIBRARIES   - the libraries needed to use Check
 #
 #  Copyright (c) 2007 Daniel Gollub <gollub@b1-systems.de>
@@ -19,27 +18,25 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
     NAMES check.h
     HINTS ${_CHECK_ROOT_HINTS}
     PATH_SUFFIXES "include")
-  find_library(CHECK_COMPAT_LIBRARY
+  find_library(_CHECK_COMPAT_LIBRARY
     NAMES compat
     HINTS ${_CHECK_ROOT_HINTS}
     PATH_SUFFIXES "lib")
-  find_library(CHECK_LIBRARY
+  find_library(_CHECK_LIBRARY
     NAMES check
     HINTS ${_CHECK_ROOT_HINTS}
     PATH_SUFFIXES "lib")
-  set(CHECK_LIBRARY ${CHECK_LIBRARY} ${CHECK_COMPAT_LIBRARY})
+  set(CHECK_LIBRARIES ${_CHECK_LIBRARY} ${_CHECK_COMPAT_LIBRARY})
   find_package_handle_standard_args(Check "Could NOT find Check, try to set the path to Check root folder in the system variable CHECK_ROOT_DIR"
-    CHECK_LIBRARY CHECK_INCLUDE_DIR)
+    CHECK_LIBRARIES CHECK_INCLUDE_DIR)
 else()
   find_package(PkgConfig QUIET REQUIRED)
   pkg_search_module(CHECK REQUIRED QUIET check)
-  set(CHECK_LIBRARIES ${CHECK_LIBRARIES} ${CHECK_CFLAGS_OTHER})
   find_path(CHECK_INCLUDE_DIR NAMES check.h HINTS ${CHECK_INCLUDE_DIRS})
-  find_library(CHECK_LIBRARY NAMES check HINTS ${CHECK_LIBRARY_DIRS})
   find_package(PackageHandleStandardArgs QUIET REQUIRED)
   find_package_handle_standard_args(Check
-    REQUIRED_VARS CHECK_LIBRARY CHECK_LIBRARIES CHECK_INCLUDE_DIR
+    REQUIRED_VARS CHECK_LIBRARIES CHECK_INCLUDE_DIR
     VERSION_VAR CHECK_VERSION)
 endif()
 
-mark_as_advanced(CHECK_INCLUDE_DIR CHECK_LIBRARY CHECK_LIBRARIES)
+mark_as_advanced(CHECK_INCLUDE_DIR CHECK_LIBRARIES)
