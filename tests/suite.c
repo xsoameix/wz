@@ -1,4 +1,4 @@
-#include "check_portable.h"
+#include "check.h"
 #include "file.h"
 
 int
