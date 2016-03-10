@@ -44,14 +44,18 @@ target_link_libraries(lib ${LIBS})
 target_compile_options(lib PRIVATE ${TARGET_FLAGS})
 
 # wz/*.h - headers
-install(TARGETS lib
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib)
-install(
-  FILES file.h
-  DESTINATION include/wz
-)
+set(INSTALL_BINARY_DIR    ${CMAKE_INSTALL_PREFIX}/bin)
+set(INSTALL_LIBRARY_DIR   ${CMAKE_INSTALL_PREFIX}/lib)
+set(INSTALL_INCLUDE_DIR   ${CMAKE_INSTALL_PREFIX}/include/wz)
+set(INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)
+set(WZ_PC ${CMAKE_CURRENT_BINARY_DIR}/wz.pc)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/wz.pc.cmake ${WZ_PC})
+install(TARGETS aes256 lib
+  RUNTIME DESTINATION ${INSTALL_BINARY_DIR}
+  LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR}
+  ARCHIVE DESTINATION ${INSTALL_LIBRARY_DIR})
+install(FILES file.h DESTINATION ${INSTALL_INCLUDE_DIR})
+install(FILES ${WZ_PC} DESTINATION ${INSTALL_PKGCONFIG_DIR})
 
 # wz - main program
 add_executable(wz main.c)
