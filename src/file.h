@@ -316,6 +316,8 @@ int      wz_read_obj(wzobj ** buffer, wznode * node,
                      wzfile * file, wzctx * ctx);
 void     wz_free_obj(wzobj * obj);
 
+int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
+
 int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);
 int      wz_open_file(wzfile * file, char * filename, wzctx * ctx);

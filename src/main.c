@@ -14,9 +14,11 @@ main(int argc, char ** argv) {
     wzctx ctx;
     if (wz_init_ctx(&ctx)) return 1;
     wzfile file;
-    if (wz_open_file(&file, argv[1], &ctx) ||
-        wz_close_file(&file))
+    if (wz_open_file(&file, argv[1], &ctx))
       return wz_free_ctx(&ctx), 1;
+    if (!wz_read_node_r(&file.root, &file, &ctx))
+      printf("all read !\n");
+    wz_close_file(&file);
     wz_free_ctx(&ctx);
   }
   return 0;

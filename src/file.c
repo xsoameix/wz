@@ -1317,8 +1317,6 @@ wz_read_file(wzfile * file, FILE * raw, wzctx * ctx) {
   if (wz_deduce_ver(&file->ver, file, ctx))
     return wz_free_head(&file->head), 1;
   //printf("memory used  %lu\n", memused());
-  if (!wz_read_node_r(&file->root, file, ctx))
-    printf("all read !\n");
   return 0;
 }
 
