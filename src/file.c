@@ -1329,7 +1329,7 @@ wz_free_file(wzfile * file) {
 }
 
 int
-wz_open_file(wzfile * file, char * filename, wzctx * ctx) {
+wz_open_file(wzfile * file, const char * filename, wzctx * ctx) {
   file->raw = fopen(filename, "rb");
   if (file->raw == NULL) return perror(filename), 1;
   if (wz_read_file(file, file->raw, ctx)) return fclose(file->raw) != 0;
