@@ -28,6 +28,7 @@ typedef struct {
 } wzaddr;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
 } wzobj;
@@ -47,6 +48,7 @@ typedef struct wzvar {
 } wzvar;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   uint32_t  len;
@@ -61,6 +63,7 @@ typedef struct {
 } wzcolor;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   uint32_t  len;
@@ -76,6 +79,7 @@ typedef struct {
 } wz2d;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   uint32_t  len;
@@ -83,6 +87,7 @@ typedef struct {
 } wzvex;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   wz2d      val;     
@@ -125,6 +130,7 @@ typedef struct {
 } wzpcm;
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   uint32_t  size;
@@ -134,6 +140,7 @@ typedef struct {
 } wzao;  // audio
 
 typedef struct {
+  uint8_t   alloc;
   uint32_t  pos;
   wzchr     type;
   wzchr     path;
