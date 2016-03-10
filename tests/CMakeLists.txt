@@ -4,53 +4,61 @@ enable_testing()
 find_package(Threads REQUIRED)
 set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
-# OpenSSL
-find_package(OpenSSL REQUIRED)
-include_directories(${OPENSSL_INCLUDE_DIR})
-set(LIBS ${LIBS} ${OPENSSL_LIBRARIES})
-
 # zlib
 find_package(ZLIB REQUIRED)
-include_directories(${ZLIB_INCLUDE_DIRS})
+set(DIRS ${DIRS} ${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
-# libwz.so or wz.dll - shared library
-include_directories(../src)
+# aes256
+set(DIRS ${DIRS} ../src/lib)
+set(LIBS ${LIBS} aes256)
+
+# exports all symbols
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
+
+# flags
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
+    "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
+  set(FLAGS "-Wall -Werror -std=c99 -pthread -pedantic")
+elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  set(FLAGS "/WX")
+endif()
+string(REPLACE ";" " " SOURCE_FLAGS "${FLAGS}")
+string(REPLACE " " ";" TARGET_FLAGS "${FLAGS}")
+
+# libwz.so or wz.dll - shared library
 set(SOURCES
   ../src/byteorder.c
   ../src/unicode.c
-  ../src/file.c
-)
-add_library(testlib SHARED ${SOURCES} mem.c)
+  ../src/file.c)
 set_source_files_properties(${SOURCES} PROPERTIES
   COMPILE_DEFINITIONS "WZ_WRAP=1")
+set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS ${SOURCE_FLAGS})
+add_library(testlib SHARED ${SOURCES} mem.c)
 set_target_properties(testlib PROPERTIES OUTPUT_NAME wz)
+target_include_directories(testlib PRIVATE ${DIRS})
 target_link_libraries(testlib ${LIBS})
-if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
-    "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
-  set(CMAKE_C_FLAGS "-Wall -Werror -std=c99 -pthread -pedantic")
-elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-  set(CMAKE_C_FLAGS "/WX")
-endif()
+set(DIRS ../src)
 set(LIBS testlib)
-
-# Check
-find_package(Check REQUIRED)
-include_directories(${CHECK_INCLUDE_DIR})
-set(LIBS ${LIBS} ${CHECK_LIBRARIES})
-
-# suite - testing program
-include_directories(.)
-add_executable(suite
-  file.c
-  suite.c
-)
-target_link_libraries(suite ${LIBS})
-add_test(suite ${CMAKE_CURRENT_BINARY_DIR}/suite)
 
 # encode - encode version & address program
 add_executable(encode encode.c)
+target_include_directories(encode PRIVATE ${DIRS})
 target_link_libraries(encode testlib)
+target_compile_options(encode PRIVATE ${TARGET_FLAGS})
+
+# Check
+find_package(Check REQUIRED)
+set(DIRS ${DIRS} ${CHECK_INCLUDE_DIR})
+set(LIBS ${LIBS} ${CHECK_LIBRARIES})
+
+# suite - testing program
+add_executable(suite
+  file.c
+  suite.c)
+target_include_directories(suite PRIVATE ${DIRS})
+target_link_libraries(suite ${LIBS})
+target_compile_options(suite PRIVATE ${TARGET_FLAGS})
+add_test(suite ${CMAKE_CURRENT_BINARY_DIR}/suite)

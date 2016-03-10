@@ -11,9 +11,7 @@
 
 // Third Party Library
 
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
+#include <aes256.h>
 #include <zlib.h>
 
 // This Library
@@ -358,48 +356,37 @@ wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx) {
   return wz_free_grp(&root.data.grp), 0;
 }
 
-int
-wz_alloc_crypto(void) {
-  ERR_load_crypto_strings();
-  OpenSSL_add_all_algorithms();
-  return CONF_modules_load_file(NULL, NULL,
-                                CONF_MFLAGS_DEFAULT_SECTION |
-                                CONF_MFLAGS_IGNORE_MISSING_FILE) != 1;
+void
+wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
+              uint8_t * key, uint8_t * iv) {
+  aes256_context ctx;
+  aes256_init(&ctx, key);
+  for (uint32_t i = 0; i < len; i += 16) {
+    memcpy(plain, cipher, 16);
+    for (uint8_t j = 0; j < 16; j++)
+      plain[j] ^= iv[j];
+    aes256_decrypt_ecb(&ctx, plain);
+    plain += 16, iv = cipher, cipher += 16;
+  }
+  aes256_done(&ctx);
 }
 
 void
-wz_dealloc_crypto(void) {
-  CONF_modules_unload(1);
-  CRYPTO_cleanup_all_ex_data();
-  EVP_cleanup();
-  ERR_remove_state(0);
-  ERR_free_strings();
-}
-
-int
-wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
-              uint8_t * key, uint8_t * iv) {
-  EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
-  if (ctx == NULL) return ERR_print_errors_fp(stderr), 1;
-  const EVP_CIPHER * impl = EVP_aes_256_cbc();
-  int size;
-  if (EVP_DecryptInit_ex(ctx, impl, NULL, key, iv) != 1 ||
-      EVP_DecryptUpdate(ctx, plain, &size, cipher, (int) len) != 1)
-    return ERR_print_errors_fp(stderr), EVP_CIPHER_CTX_free(ctx), 1;
-  return EVP_CIPHER_CTX_free(ctx), 0;
-}
-
-int
 wz_encode_aes(wzaes * aes) {
-  EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
-  if (ctx == NULL) return ERR_print_errors_fp(stderr), 1;
-  const EVP_CIPHER * impl = EVP_aes_256_cbc();
-  int size;
-  if (EVP_EncryptInit_ex(ctx, impl, NULL, aes->key, aes->iv) != 1 ||
-      EVP_EncryptUpdate(ctx, aes->cipher, &size,
-                        aes->plain, (int) aes->len) != 1)
-    return ERR_print_errors_fp(stderr), EVP_CIPHER_CTX_free(ctx), 1;
-  return EVP_CIPHER_CTX_free(ctx), 0;
+  uint8_t * plain = aes->plain;
+  uint8_t * cipher = aes->cipher;
+  uint8_t * iv = aes->iv;
+  uint32_t len = aes->len;
+  aes256_context ctx;
+  aes256_init(&ctx, aes->key);
+  for (uint32_t i = 0; i < len; i += 16) {
+    memcpy(cipher, plain, 16);
+    for (uint8_t j = 0; j < 16; j++)
+      cipher[j] ^= iv[j];
+    aes256_encrypt_ecb(&ctx, cipher);
+    plain += 16, iv = cipher, cipher += 16;
+  }
+  aes256_done(&ctx);
 }
 
 int
@@ -412,13 +399,11 @@ wz_init_aes(wzaes * aes) {
   if ((aes->plain = malloc(aes->len * 2)) == NULL) return 1;
   memset(aes->plain, 0, aes->len);
   aes->cipher = aes->plain + aes->len;
-  wz_alloc_crypto();
   return 0;
 }
 
 void
 wz_free_aes(wzaes * aes) {
-  wz_dealloc_crypto();
   free(aes->plain);
 }
 
@@ -459,11 +444,7 @@ wz_init_keys(wzkey ** buffer, size_t * len) {
         wz_free_key(keys + k);
       return wz_free_aes(&aes), free(keys), 1;
     }
-    if (wz_encode_aes(&aes)) {
-      for (size_t k = 0; k <= i; k++)
-        wz_free_key(keys + k);
-      return wz_free_aes(&aes), free(keys), 1;
-    }
+    wz_encode_aes(&aes);
     wz_set_key(key, &aes);
   }
   wzkey * key = &keys[vlen];

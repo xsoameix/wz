@@ -297,12 +297,9 @@ int      wz_valid_ver(wzver * ver, wznode * root, wzfile * file);
 int      wz_guess_ver(wzver * ver, wznode * root, wzfile * file);
 int      wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx);
 
-int      wz_alloc_crypto(void);
-void     wz_dealloc_crypto(void);
-
-int      wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
+void     wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
                        uint8_t * key, uint8_t * iv);
-int      wz_encode_aes(wzaes * aes);
+void     wz_encode_aes(wzaes * aes);
 int      wz_init_aes(wzaes * aes);
 void     wz_free_aes(wzaes * aes);
 

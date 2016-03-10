@@ -1,8 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
 #include <file.h>
 #include "check.h"
 #include "mem.h"
@@ -639,32 +637,8 @@ START_TEST(test_deduce_ver) {
   delete_ctx(&ctx);
 } END_TEST
 
-START_TEST(test_alloc_crypto) {
-  // It shoule be ok
-  ck_assert_int_eq(wz_alloc_crypto(), 0);
-  EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
-  ck_assert(ctx != NULL);
-  EVP_CIPHER_CTX_free(ctx);
-  wz_dealloc_crypto();
-} END_TEST
-
-START_TEST(test_dealloc_crypto) {
-  // It shoule be ok
-  ck_assert_int_eq(wz_alloc_crypto(), 0);
-  EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
-  ck_assert(ctx != NULL);
-  EVP_CIPHER_CTX_free(ctx);
-  wz_dealloc_crypto();
-  ck_assert_int_eq(wz_alloc_crypto(), 0);
-  ctx = EVP_CIPHER_CTX_new();
-  ck_assert(ctx != NULL);
-  EVP_CIPHER_CTX_free(ctx);
-  wz_dealloc_crypto();
-} END_TEST
-
 START_TEST(test_decode_aes) {
   // It shoule be ok
-  ck_assert_int_eq(wz_alloc_crypto(), 0);
   uint8_t key[32] =
     "\x13\x00\x00\x00\x08\x00\x00\x00""\x06\x00\x00\x00\xb4\x00\x00\x00"
     "\x1b\x00\x00\x00\x0f\x00\x00\x00""\x33\x00\x00\x00\x52\x00\x00\x00";
@@ -674,15 +648,13 @@ START_TEST(test_decode_aes) {
     "\x96\xae\x3f\xa4\x48\xfa\xdd\x90""\x46\x76\x05\x61\x97\xce\x78\x68";
   uint8_t plain[16];
   memset(plain, 0x11, sizeof(plain));
-  ck_assert_int_eq(wz_decode_aes(plain, cipher, 16, key, iv), 0);
+  wz_decode_aes(plain, cipher, 16, key, iv);
   uint8_t expected[16] = {0};
   ck_assert_int_eq(memcmp(plain, expected, 16), 0);
-  wz_dealloc_crypto();
 } END_TEST
 
 START_TEST(test_encode_aes) {
   // It shoule be ok
-  ck_assert_int_eq(wz_alloc_crypto(), 0);
   uint8_t plain[32] =
     "\x00\x00\x00\x00\x00\x00\x00\x00""\x00\x00\x00\x00\x00\x00\x00\x00"
     "\x00\x00\x00\x00\x00\x00\x00\x00""\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -695,12 +667,11 @@ START_TEST(test_encode_aes) {
       "\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b""\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b",
     .plain = plain, .cipher = cipher, .len = 32
   };
-  ck_assert_int_eq(wz_encode_aes(&aes), 0);
+  wz_encode_aes(&aes);
   uint8_t expected[32] =
     "\x96\xae\x3f\xa4\x48\xfa\xdd\x90""\x46\x76\x05\x61\x97\xce\x78\x68"
     "\x2b\xa0\x44\x8f\xc1\x56\x7e\x32""\xfc\xe1\xf5\xb3\x14\x14\xc5\x22";
   ck_assert_int_eq(memcmp(cipher, expected, 32), 0);
-  wz_dealloc_crypto();
 } END_TEST
 
 START_TEST(test_init_aes) {
@@ -998,8 +969,6 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_encode_ver);
   tcase_add_test(tcase, test_valid_ver);
   tcase_add_test(tcase, test_deduce_ver);
-  tcase_add_test(tcase, test_alloc_crypto);
-  tcase_add_test(tcase, test_dealloc_crypto);
   tcase_add_test(tcase, test_decode_aes);
   tcase_add_test(tcase, test_encode_aes);
   tcase_add_test(tcase, test_init_aes);
