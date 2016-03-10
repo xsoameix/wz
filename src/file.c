@@ -251,6 +251,7 @@ wz_free_node(wznode * node) {
 
 int
 wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
+  if (node->alloc) return 0;
   if (wz_seek(node->addr.val, SEEK_SET, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
@@ -263,7 +264,7 @@ wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
         wz_free_node(nodes + j);
       return free(grp), 1;
     }
-    nodes[i].parent = node;
+    nodes[i].parent = node, nodes[i].alloc = 0;
   }
   return grp->nodes = nodes, grp->len = len, * buffer = grp, 0;
 }
@@ -286,6 +287,7 @@ wz_read_head(wzhead * head, wzfile * file) {
       wz_read_str(&head->copy, head->start - file->pos, file)) return 1;
   file->root = (wznode) {
     .parent = NULL,
+    .alloc = 0,
     .type = 0x03,
     .name = {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII},
     .data = {.grp = NULL},

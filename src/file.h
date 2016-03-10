@@ -166,6 +166,7 @@ typedef struct {
 
 typedef struct wznode {
   struct wznode * parent;
+  uint8_t   alloc;
   uint8_t   type;
   wzchr     name;
   uint32_t  size;
