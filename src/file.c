@@ -198,7 +198,7 @@ wz_read_node_body(wznode * node, wzfile * file) {
   } else if (WZ_IS_NODE_FILE(node->type)) {
     wzvar * var = malloc(sizeof(* var));
     if (var == NULL) return 1;
-    var->parent = NULL;
+    var->parent = NULL, var->node = node;
     var->name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII};
     var->type = 0x09;
     wzobj * obj = malloc(sizeof(* obj));
@@ -264,7 +264,7 @@ wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
         wz_free_node(nodes + j);
       return free(grp), 1;
     }
-    nodes[i].parent = node, nodes[i].alloc = 0;
+    nodes[i].parent = node, nodes[i].file = file, nodes[i].alloc = 0;
   }
   return grp->nodes = nodes, grp->len = len, * buffer = grp, 0;
 }
@@ -287,6 +287,7 @@ wz_read_head(wzhead * head, wzfile * file) {
       wz_read_str(&head->copy, head->start - file->pos, file)) return 1;
   file->root = (wznode) {
     .parent = NULL,
+    .file = file,
     .alloc = 0,
     .type = 0x03,
     .name = {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII},
@@ -504,9 +505,13 @@ wz_read_pack_chars(wzchr * buffer, wznode * node, wzfile * file) {
 }
 
 int
-wz_is_chars(wzchr * actual, const char * expected) {
-  return (actual->len == strlen(expected) &&
-          !memcmp(actual->bytes, expected, actual->len));
+wz_strcmp(wzchr * a, const char * b) {
+  return strncmp((char *) a->bytes, b, a->len);
+}
+
+int
+wz_strncmp(wzchr * a, const char * b, size_t blen) {
+  return a->len != blen || strncmp((char *) a->bytes, b, blen);
 }
 
 size_t indent = 0;
@@ -607,7 +612,7 @@ wz_read_list(wzlist * list, wzvar * var, wznode * node, wzfile * file) {
         wz_free_var(vars + j);
       return free(vars), 1;
     }
-    vars[i].parent = var;
+    vars[i].parent = var, vars[i].node = node;
   }
   return list->vars = vars, list->len = len, 0;
 }
@@ -1261,17 +1266,17 @@ wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx) {
       sizes[sizes_len++] = grp->len;
       if (max < len) max = len;
     } else if (WZ_IS_NODE_FILE(node->type)) {
-      //if (wz_is_chars(&node->name, "WorldMap21.img")) {
-      //if (wz_is_chars(&node->name, "000020000.img")) {
-      //if (wz_is_chars(&node->name, "NightMarketTW.img")) { // convex and image
-      //if (wz_is_chars(&node->name, "acc8.img")) { // vector
-      //if (wz_is_chars(&node->name, "926120300.img")) { // multiple string key
-      //if (wz_is_chars(&node->name, "926120200.img")) { // multiple string key ? and minimap
-      //if (wz_is_chars(&node->name, "Effect2.img")) { // multiple string key x
-      //if (wz_is_chars(&node->name, "dryRock.img")) { // canvas, scale 4
-      //if (wz_is_chars(&node->name, "vicportTown.img")) { // last canvas
-      //if (wz_is_chars(&node->name, "MapHelper.img")) { // audio
-      //if (wz_is_chars(&node->name, "BgmGL.img")) { // audio
+      //if (!wz_strcmp(&node->name, "WorldMap21.img")) {
+      //if (!wz_strcmp(&node->name, "000020000.img")) {
+      //if (!wz_strcmp(&node->name, "NightMarketTW.img")) { // convex and image
+      //if (!wz_strcmp(&node->name, "acc8.img")) { // vector
+      //if (!wz_strcmp(&node->name, "926120300.img")) { // multiple string key
+      //if (!wz_strcmp(&node->name, "926120200.img")) { // multiple string key ? and minimap
+      //if (!wz_strcmp(&node->name, "Effect2.img")) { // multiple string key x
+      //if (!wz_strcmp(&node->name, "dryRock.img")) { // canvas, scale 4
+      //if (!wz_strcmp(&node->name, "vicportTown.img")) { // last canvas
+      //if (!wz_strcmp(&node->name, "MapHelper.img")) { // audio
+      //if (!wz_strcmp(&node->name, "BgmGL.img")) { // audio
         debugging = 1;
       wz_read_obj_r(node->data.var, node, file, ctx);
       //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
@@ -1311,6 +1316,314 @@ wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx) {
   return 0;
 }
 
+size_t // [^\0{delim}]+
+wz_next_tok(const char * str, const char ** begin, const char ** end,
+            const char delim) {
+  while (1) {
+    const char c = * str;
+    if (c == '\0') return * begin = NULL, * end = NULL, (size_t) 0;
+    if (c != delim) break;
+    str++;
+  }
+  * begin = str++;
+  while (1) {
+    const char c = * str;
+    if (c == '\0') return * end = str, (size_t) (str - * begin);
+    if (c == delim) return * end = str + 1, (size_t) (str - * begin);
+    str++;
+  }
+}
+
+int64_t
+wz_get_int(wzvar * var) {
+  if (!(WZ_IS_VAR_INT16(var->type) ||
+        WZ_IS_VAR_INT32(var->type) ||
+        WZ_IS_VAR_INT64(var->type))) return 0;
+  return var->val.i;
+}
+
+double
+wz_get_flt(wzvar * var) {
+  if (!(WZ_IS_VAR_FLOAT32(var->type) ||
+        WZ_IS_VAR_FLOAT64(var->type))) return 0;
+  return var->val.f;
+}
+
+char *
+wz_get_str(wzvar * var) {
+  if (!WZ_IS_VAR_STRING(var->type)) return NULL;
+  return (char *) var->val.str.bytes;
+}
+
+wzvar *
+wz_resolve_uol(wzvar * var) {
+  if (!WZ_IS_VAR_OBJECT(var->type)) return NULL;
+  if (!WZ_IS_OBJ_UOL(&var->val.obj->type)) return var;
+  wzuol * uol = (wzuol *) var->val.obj;
+  const char * name, * next = (char *) uol->path.bytes;
+  for (var = var->parent;;) {
+    size_t len = wz_next_tok(next, &name, &next, '/');
+    if (name == NULL) return var;
+    if (!strncmp(name, "..", len)) { var = var->parent; continue; }
+    return wz_open_var(var, name);
+  }
+}
+
+wzimg *
+wz_get_img(wzvar * var) {
+  var = wz_resolve_uol(var);
+  if (var == NULL) return NULL;
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !WZ_IS_OBJ_CANVAS(&var->val.obj->type)) return NULL;
+  return (wzimg *) var->val.obj;
+}
+
+wzvex *
+wz_get_vex(wzvar * var) {
+  var = wz_resolve_uol(var);
+  if (var == NULL) return NULL;
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !WZ_IS_OBJ_CONVEX(&var->val.obj->type)) return NULL;
+  return (wzvex *) var->val.obj;
+}
+
+wzvec *
+wz_get_vec(wzvar * var) {
+  var = wz_resolve_uol(var);
+  if (var == NULL) return NULL;
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !WZ_IS_OBJ_VECTOR(&var->val.obj->type)) return NULL;
+  return (wzvec *) var->val.obj;
+}
+
+wzao *
+wz_get_ao(wzvar * var) {
+  var = wz_resolve_uol(var);
+  if (var == NULL) return NULL;
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !WZ_IS_OBJ_SOUND(&var->val.obj->type)) return NULL;
+  return (wzao *) var->val.obj;
+}
+
+wzvar *
+wz_open_var(wzvar * var, const char * path) {
+  const char * name, * next = path;
+  wznode * node = var->node;
+  wzfile * file = node->file;
+  while (1) {
+    size_t len = wz_next_tok(next, &name, &next, '/');
+    if (name == NULL) {
+      if (WZ_IS_VAR_OBJECT(var->type)) {
+        if (wz_read_obj(&var->val.obj, var, node, file, file->ctx)) {
+          while (var = var->parent, var != NULL && !var->val.obj->alloc)
+            wz_free_obj(var->val.obj);
+          return NULL;
+        }
+        wzvar * found = var;
+        for (; var != NULL && !var->val.obj->alloc; var = var->parent)
+          var->val.obj->alloc = 1;
+        return found;
+      } else {
+        return var;
+      }
+    }
+    if (!WZ_IS_VAR_OBJECT(var->type) ||
+        wz_read_obj(&var->val.obj, var, node, file, file->ctx)) {
+      while (var = var->parent, var != NULL && !var->val.obj->alloc)
+        wz_free_obj(var->val.obj);
+      return NULL;
+    }
+    if (!(WZ_IS_OBJ_PROPERTY(&var->val.obj->type) ||
+          WZ_IS_OBJ_CANVAS(&var->val.obj->type))) {
+      for (; var != NULL && !var->val.obj->alloc; var = var->parent)
+        wz_free_obj(var->val.obj);
+      return NULL;
+    }
+    wzlist * list = (wzlist *) var->val.obj;
+    wzvar * found = NULL;
+    for (uint32_t i = 0; i < list->len; i++) {
+      wzvar * child = &list->vars[i];
+      if (wz_strncmp(&child->name, name, len)) continue;
+      found = child; break;
+    }
+    if (found == NULL) {
+      for (; var != NULL && !var->val.obj->alloc; var = var->parent)
+        wz_free_obj(var->val.obj);
+      return NULL;
+    }
+    var = found;
+  }
+}
+
+void
+wz_close_var(wzvar * var) {
+  uint32_t capa = 2;
+  wzvar ** stack = malloc(capa * sizeof(* stack));
+  if (stack == NULL) return;
+  uint32_t len = 0;
+  stack[len++] = var;
+  while (len) {
+    var = stack[--len];
+    if (var == NULL) {
+      wzvar * child = stack[--len];
+      wz_free_obj(child->val.obj), child->val.obj->alloc = 0;
+      continue;
+    }
+    if (!WZ_IS_VAR_OBJECT(var->type) ||
+        !var->val.obj->alloc) continue;
+    if (!(WZ_IS_OBJ_PROPERTY(&var->val.obj->type) ||
+          WZ_IS_OBJ_CANVAS(&var->val.obj->type))) {
+      wz_free_obj(var->val.obj), var->val.obj->alloc = 0;
+      continue;
+    }
+    wzlist * list = (wzlist *) var->val.obj;
+    uint32_t need = len + 2 + list->len;
+    if (need > capa) {
+      wzvar ** fit = realloc(stack, need * sizeof(* stack));
+      if (fit == NULL) { free(stack); return; }
+      stack = fit, capa = need;
+    }
+    len++, stack[len++] = NULL;
+    for (uint32_t i = 0; i < list->len; i++)
+      stack[len++] = &list->vars[i];
+  }
+  free(stack);
+}
+
+wzvar *
+wz_open_root_var(wznode * node) {
+  return wz_open_var(node->data.var, "");
+}
+
+uint32_t
+wz_get_vars_len(wzvar * var) {
+  uint32_t len = 0;
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !(WZ_IS_OBJ_PROPERTY(&var->val.obj->type) ||
+        WZ_IS_OBJ_CANVAS(&var->val.obj->type))) return len;
+  return ((wzlist *) var->val.obj)->len;
+}
+
+wzvar *
+wz_open_var_at(wzvar * var, uint32_t i) {
+  if (!WZ_IS_VAR_OBJECT(var->type) ||
+      !(WZ_IS_OBJ_PROPERTY(&var->val.obj->type) ||
+        WZ_IS_OBJ_CANVAS(&var->val.obj->type))) return NULL;
+  wzvar * child = &((wzlist *) var->val.obj)->vars[i];
+  return wz_open_var(child, "");
+}
+
+char *
+wz_get_var_name(wzvar * var) {
+  return (char *) var->name.bytes;
+}
+
+wznode *
+wz_open_node(wznode * node, const char * path) {
+  const char * name, * next = path;
+  wzfile * file = node->file;
+  while (1) {
+    size_t len = wz_next_tok(next, &name, &next, '/');
+    if (name == NULL) {
+      if (WZ_IS_NODE_DIR(node->type)) {
+        if (wz_read_grp(&node->data.grp, node, file, file->ctx)) {
+          while (node = node->parent, node != NULL && !node->alloc)
+            wz_free_grp(&node->data.grp);
+          return NULL;
+        }
+        wznode * found = node;
+        for (; node != NULL && !node->alloc; node = node->parent)
+          node->alloc = 1;
+        return found;
+      } else if (WZ_IS_NODE_FILE(node->type)) {
+        wznode * found = node;
+        for (; node != NULL && !node->alloc; node = node->parent)
+          node->alloc = 1;
+        return found;
+      } else {
+        return node;
+      }
+    }
+    if (!WZ_IS_NODE_DIR(node->type) ||
+        wz_read_grp(&node->data.grp, node, file, file->ctx)) {
+      while (node = node->parent, node != NULL && !node->alloc)
+        wz_free_grp(&node->data.grp);
+      return NULL;
+    }
+    wzgrp * grp = node->data.grp;
+    wznode * found = NULL;
+    for (uint32_t i = 0; i < grp->len; i++) {
+      wznode * child = &grp->nodes[i];
+      if (wz_strncmp(&child->name, name, len)) continue;
+      found = child; break;
+    }
+    if (found == NULL) {
+      for (; node != NULL && !node->alloc; node = node->parent)
+        wz_free_grp(&node->data.grp);
+      return NULL;
+    }
+    node = found;
+  }
+}
+
+void
+wz_close_node(wznode * node) {
+  uint32_t capa = 2;
+  wznode ** stack = malloc(capa * sizeof(* stack));
+  if (stack == NULL) return;
+  uint32_t len = 0;
+  stack[len++] = node;
+  while (len) {
+    node = stack[--len];
+    if (node == NULL) {
+      wznode * child = stack[--len];
+      wz_free_grp(&child->data.grp), child->alloc = 0;
+      continue;
+    }
+    if (!node->alloc) continue;
+    if (WZ_IS_NODE_NONE(node->type)) continue;
+    if (WZ_IS_NODE_FILE(node->type)) {
+      wz_close_var(node->data.var), node->alloc = 0;
+      continue;
+    }
+    wzgrp * grp = node->data.grp;
+    uint32_t need = len + 2 + grp->len;
+    if (need > capa) {
+      wznode ** fit = realloc(stack, need * sizeof(* stack));
+      if (fit == NULL) { free(stack); return; }
+      stack = fit, capa = need;
+    }
+    len++, stack[len++] = NULL;
+    for (uint32_t i = 0; i < grp->len; i++)
+      stack[len++] = &grp->nodes[i];
+  }
+  free(stack);
+}
+
+wznode *
+wz_open_root_node(wzfile * file) {
+  return wz_open_node(&file->root, "");
+}
+
+uint32_t
+wz_get_nodes_len(wznode * node) {
+  uint32_t len = 0;
+  if (!WZ_IS_NODE_DIR(node->type)) return len;
+  return node->data.grp->len;
+}
+
+wznode *
+wz_open_node_at(wznode * node, uint32_t i) {
+  if (!WZ_IS_NODE_DIR(node->type)) return NULL;
+  wznode * child = &node->data.grp->nodes[i];
+  return wz_open_node(child, "");
+}
+
+char *
+wz_get_node_name(wznode * node) {
+  return (char *) node->name.bytes;
+}
+
 int
 wz_read_file(wzfile * file, FILE * raw, wzctx * ctx) {
   file->raw = raw, file->pos = 0;
@@ -1324,11 +1637,12 @@ wz_read_file(wzfile * file, FILE * raw, wzctx * ctx) {
   if (wz_deduce_ver(&file->ver, file, ctx))
     return wz_free_head(&file->head), 1;
   //printf("memory used  %lu\n", memused());
-  return 0;
+  return file->ctx = ctx, 0;
 }
 
 void
 wz_free_file(wzfile * file) {
+  wz_close_node(&file->root);
   wz_free_head(&file->head);
 }
 

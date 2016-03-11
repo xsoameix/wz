@@ -41,7 +41,8 @@ typedef union {
 } wzprim;
 
 typedef struct wzvar {
-  struct wzvar * parent;
+  struct wzvar *  parent;
+  struct wznode * node;
   wzchr     name;
   uint8_t   type;
   wzprim    val;
@@ -166,6 +167,7 @@ typedef struct {
 
 typedef struct wznode {
   struct wznode * parent;
+  struct wzfile * file;
   uint8_t   alloc;
   uint8_t   type;
   wzchr     name;
@@ -200,7 +202,7 @@ typedef struct {
   uint8_t   table6[0x40];  // scale 6 bit color to 8 bit color
 } wzpalette;
 
-typedef struct {
+typedef struct wzfile {
   FILE *    raw;
   uint32_t  size;
   uint32_t  pos;
@@ -208,6 +210,7 @@ typedef struct {
   wznode    root;
   wzver     ver;
   wzkey *   key;  // decode node name
+  struct wzctx * ctx;
 } wzfile;
 
 typedef struct {
@@ -215,7 +218,7 @@ typedef struct {
   uint8_t   empty[16];
 } wzguid;
 
-typedef struct {
+typedef struct wzctx {
   size_t    klen; // keys length
   wzkey *   keys;
   wzpalette palette;
@@ -256,12 +259,12 @@ typedef struct {
 #define WZ_IS_VAR_STRING(x)  ((x) == 0x08)
 #define WZ_IS_VAR_OBJECT(x)  ((x) == 0x09)
 
-#define WZ_IS_OBJ_PROPERTY(type) wz_is_chars((type), "Property")
-#define WZ_IS_OBJ_CANVAS(type)   wz_is_chars((type), "Canvas")
-#define WZ_IS_OBJ_CONVEX(type)   wz_is_chars((type), "Shape2D#Convex2D")
-#define WZ_IS_OBJ_VECTOR(type)   wz_is_chars((type), "Shape2D#Vector2D")
-#define WZ_IS_OBJ_SOUND(type)    wz_is_chars((type), "Sound_DX8")
-#define WZ_IS_OBJ_UOL(type)      wz_is_chars((type), "UOL")
+#define WZ_IS_OBJ_PROPERTY(type) (!wz_strcmp((type), "Property"))
+#define WZ_IS_OBJ_CANVAS(type)   (!wz_strcmp((type), "Canvas"))
+#define WZ_IS_OBJ_CONVEX(type)   (!wz_strcmp((type), "Shape2D#Convex2D"))
+#define WZ_IS_OBJ_VECTOR(type)   (!wz_strcmp((type), "Shape2D#Vector2D"))
+#define WZ_IS_OBJ_SOUND(type)    (!wz_strcmp((type), "Sound_DX8"))
+#define WZ_IS_OBJ_UOL(type)      (!wz_strcmp((type), "UOL"))
 
 #define WZ_IS_NODE_NONE(type) ((type) == 0x01)
 #define WZ_IS_NODE_LINK(type) ((type) == 0x02)
@@ -316,7 +319,7 @@ void     wz_set_key(wzkey * key, wzaes * aes);
 void     wz_free_key(wzkey * key);
 int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx);
 
-int      wz_is_chars(wzchr * actual, const char * expected);
+int      wz_strcmp(wzchr * a, const char * b);
 
 void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
 
@@ -325,6 +328,30 @@ int      wz_read_obj(wzobj ** buffer, wzvar * var,
 void     wz_free_obj(wzobj * obj);
 
 int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
+
+int64_t  wz_get_int(wzvar * var);
+double   wz_get_flt(wzvar * var);
+char *   wz_get_str(wzvar * var);
+wzimg *  wz_get_img(wzvar * var);
+wzvex *  wz_get_vex(wzvar * var);
+wzvec *  wz_get_vec(wzvar * var);
+wzao *   wz_get_ao(wzvar * var);
+
+wzvar *  wz_open_var(wzvar * var, const char * path);
+void     wz_close_var(wzvar * var);
+wzvar *  wz_open_root_var(wznode * node);
+
+uint32_t wz_get_vars_len(wzvar * var);
+wzvar *  wz_open_var_at(wzvar * var, uint32_t i);
+char *   wz_get_var_name(wzvar * var);
+
+wznode * wz_open_node(wznode * node, const char * path);
+void     wz_close_node(wznode * node);
+wznode * wz_open_root_node(wzfile * file);
+
+uint32_t wz_get_nodes_len(wznode * node);
+wznode * wz_open_node_at(wznode * node, uint32_t i);
+char *   wz_get_node_name(wznode * node);
 
 int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);
