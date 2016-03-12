@@ -218,7 +218,7 @@ START_TEST(test_read_str) {
   ck_assert_int_eq(wz_read_str(&buffer, strlen(normal), &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, normal, strlen(normal)), 0);
   ck_assert(buffer.len == strlen(normal));
-  ck_assert(memused() == strlen(normal));
+  ck_assert(memused() == sizeof(normal));
 
   // It should not change data if position + len > size
   wzstr copy = buffer;
@@ -227,7 +227,7 @@ START_TEST(test_read_str) {
   ck_assert(buffer.len == copy.len);
 
   // It should not allocate memory if position + len > size
-  ck_assert(memused() == strlen(normal));
+  ck_assert(memused() == sizeof(normal));
   wz_free_str(&buffer);
   delete_file(&file);
 } END_TEST
@@ -240,7 +240,7 @@ START_TEST(test_free_str) {
   wzstr buffer;
   wz_init_str(&buffer);
   ck_assert_int_eq(wz_read_str(&buffer, strlen(normal), &file), 0);
-  ck_assert(memused() == strlen(normal));
+  ck_assert(memused() == sizeof(normal));
   wz_free_str(&buffer);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -294,20 +294,20 @@ START_TEST(test_read_chars) {
   wzchr buffer;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x01\x23", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x45\x67", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x89\xab", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   char * expected = "\xcd\xef\x01\x23\x45\x67";
   ck_assert_int_eq(memcmp(buffer.bytes, expected, 6), 0);
-  ck_assert(buffer.len == 6 && memused() == 6);
+  ck_assert(buffer.len == 6 && memused() == 6 + 1);
   wz_free_chars(&buffer);
   delete_file(&file);
 
@@ -320,19 +320,19 @@ START_TEST(test_read_chars) {
   file.key->len = 6;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\xaa\xab", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\xee\xef", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x22\x22", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2);
+  ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x66\x66\xef\xee\x60\x66", 6), 0);
-  ck_assert(buffer.len == 6 && memused() == 6);
+  ck_assert(buffer.len == 6 && memused() == 6 + 1);
   wz_free_chars(&buffer);
   delete_ctx(&ctx);
   delete_file(&file);
@@ -345,7 +345,7 @@ START_TEST(test_free_chars) {
   create_file(&file, normal, sizeof(normal) - 1);
   wzchr buffer;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -427,7 +427,7 @@ START_TEST(test_read_node) {
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_node(&node);
 
   // It should read type 3
@@ -437,7 +437,7 @@ START_TEST(test_read_node) {
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_node(&node);
 
   // It should read type 4
@@ -448,7 +448,7 @@ START_TEST(test_read_node) {
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
   ck_assert(memused() ==
-            sizeof(* node.data.var) + sizeof(* node.data.var->val.obj) + 2);
+            sizeof(* node.data.var) + sizeof(* node.data.var->val.obj) + 2 + 1);
   wz_free_node(&node);
 
   // It should not read type 5
@@ -468,7 +468,7 @@ START_TEST(test_free_node) {
   create_file(&file, normal, strlen(normal));
   wznode node;
   ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_node(&node);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -497,7 +497,7 @@ START_TEST(test_read_grp) {
             sizeof(* grp->nodes) * 3 +
             sizeof(* grp->nodes[0].data.var) +
             sizeof(* grp->nodes[0].data.var->val.obj) +
-            2 * 2);
+            2 * (2 + 1));
   wz_free_grp(&grp);
   delete_file(&file);
 
@@ -524,7 +524,7 @@ START_TEST(test_free_grp) {
   wznode node = {.addr = {.val = 0}};
   wzgrp * grp = NULL;
   ck_assert_int_eq(wz_read_grp(&grp, &node, &file, &ctx), 0);
-  ck_assert(memused() == sizeof(* grp) + sizeof(* grp->nodes) + 2);
+  ck_assert(memused() == sizeof(* grp) + sizeof(* grp->nodes) + 2 + 1);
   wz_free_grp(&grp);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -546,7 +546,7 @@ START_TEST(test_read_head) {
   ck_assert(head.size == 18 && head.start == 18);
   ck_assert_int_eq(memcmp(head.copy.bytes, "ab", 2), 0);
   ck_assert(head.copy.len == 2);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_head(&head);
   delete_file(&file);
 
@@ -573,7 +573,7 @@ START_TEST(test_free_head) {
   create_file(&file, normal, sizeof(normal) - 1);
   wzhead head;
   ck_assert_int_eq(wz_read_head(&head, &file), 0);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_head(&head);
   ck_assert(memused() == 0);
   delete_file(&file);
@@ -850,7 +850,7 @@ START_TEST(test_read_file) {
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_file(&file);
   delete_tmpfile(raw);
 
@@ -883,7 +883,7 @@ START_TEST(test_free_file) {
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   wz_free_file(&file);
   ck_assert(memused() == 0);
   delete_tmpfile(raw);
@@ -906,7 +906,7 @@ START_TEST(test_open_file) {
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
@@ -931,7 +931,7 @@ START_TEST(test_close_file) {
   wzaes aes;
   ck_assert_int_eq(wz_init_aes(&aes), 0);
   wz_free_aes(&aes);
-  ck_assert(memused() == 2);
+  ck_assert(memused() == 2 + 1);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
   ck_assert(memused() == 0);
