@@ -365,9 +365,9 @@ wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
   aes256_init(&ctx, key);
   for (uint32_t i = 0; i < len; i += 16) {
     memcpy(plain, cipher, 16);
+    aes256_decrypt_ecb(&ctx, plain);
     for (uint8_t j = 0; j < 16; j++)
       plain[j] ^= iv[j];
-    aes256_decrypt_ecb(&ctx, plain);
     plain += 16, iv = cipher, cipher += 16;
   }
   aes256_done(&ctx);
