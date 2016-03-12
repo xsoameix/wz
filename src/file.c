@@ -595,18 +595,20 @@ wz_free_var(wzvar * var) {
 }
 
 int
-wz_read_list(wzlist * list, wznode * node, wzfile * file) {
+wz_read_list(wzlist * list, wzvar * var, wznode * node, wzfile * file) {
   if (wz_seek(2, SEEK_CUR, file)) return 1;
   uint32_t len;
   if (wz_read_int(&len, file)) return 1;
   wzvar * vars = malloc(sizeof(* vars) * len);
   if (vars == NULL) return 1;
-  for (uint32_t i = 0; i < len; i++)
+  for (uint32_t i = 0; i < len; i++) {
     if (wz_read_var(vars + i, node, file)) {
       for (uint32_t j = 0; j < i; j++)
         wz_free_var(vars + j);
       return free(vars), 1;
     }
+    vars[i].parent = var;
+  }
   return list->vars = vars, list->len = len, 0;
 }
 
@@ -825,12 +827,13 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
 }
 
 int
-wz_read_img(wzimg * img, wznode * node, wzfile * file, wzctx * ctx) {
+wz_read_img(wzimg * img, wzvar * var,
+            wznode * node, wzfile * file, wzctx * ctx) {
   if (wz_seek(1, SEEK_CUR, file)) return 1;
   uint8_t list;
   if (wz_read_byte(&list, file)) return 1;
   img->len = 0, img->vars = NULL;
-  if (list == 1 && wz_read_list((wzlist *) img, node, file)) return 1;
+  if (list == 1 && wz_read_list((wzlist *) img, var, node, file)) return 1;
   uint32_t depth;
   uint8_t  scale;
   uint32_t size;
@@ -1049,8 +1052,9 @@ wz_free_uol(wzuol * uol) {
 }
 
 int
-wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
-  wzobj * obj = * buffer;
+wz_read_obj(wzobj ** buffer, wzvar * var,
+            wznode * node, wzfile * file, wzctx * ctx) {
+  wzobj * obj = var->val.obj;
   if (obj->alloc) return 0;
   wzchr type;
   if (wz_seek(obj->pos, SEEK_SET, file) ||
@@ -1060,7 +1064,7 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
   if (WZ_IS_OBJ_PROPERTY(&type)) {
     wzlist * list = malloc(sizeof(* list));
     if (list == NULL) return wz_free_chars(&type), 1;
-    if (wz_read_list(list, node, file)) {
+    if (wz_read_list(list, var, node, file)) {
       wz_error("Unable to read list\n");
       return free(list), wz_free_chars(&type), 1;
     }
@@ -1069,7 +1073,7 @@ wz_read_obj(wzobj ** buffer, wznode * node, wzfile * file, wzctx * ctx) {
   } else if (WZ_IS_OBJ_CANVAS(&type)) {
     wzimg * img = malloc(sizeof(* img));
     if (img == NULL) return wz_free_chars(&type), 1;
-    if (wz_read_img(img, node, file, ctx)) {
+    if (wz_read_img(img, var, node, file, ctx)) {
       wz_error("Unable to read canvas\n");
       return free(img), wz_free_chars(&type), 1;
     }
@@ -1144,7 +1148,7 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
     //pindent();//, debug(" name   ");
     //debug("%.*s\n", var->name.len, var->name.bytes);
     if (WZ_IS_VAR_OBJECT(var->type)) {
-      if (wz_read_obj(&var->val.obj, node, file, ctx)) {
+      if (wz_read_obj(&var->val.obj, var, node, file, ctx)) {
         printf("failed!\n");
       } else {
         wzobj * obj = var->val.obj;

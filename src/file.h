@@ -320,8 +320,8 @@ int      wz_is_chars(wzchr * actual, const char * expected);
 
 void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
 
-int      wz_read_obj(wzobj ** buffer, wznode * node,
-                     wzfile * file, wzctx * ctx);
+int      wz_read_obj(wzobj ** buffer, wzvar * var,
+                     wznode * node, wzfile * file, wzctx * ctx);
 void     wz_free_obj(wzobj * obj);
 
 int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
