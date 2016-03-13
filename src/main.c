@@ -32,7 +32,7 @@ main(int argc, char ** argv) {
     for (uint32_t i = 0; i < len; i++) {
       wznode * node = wz_open_node_at(root, i);
       printf(" %s\n", wz_get_node_name(node));
-      if (WZ_IS_NODE_FILE(node->type)) continue;
+      if (node->type != WZ_NODE_DIR) continue;
       uint32_t node_len = wz_get_nodes_len(node);
       for (uint32_t j = 0; j < node_len; j++) {
         wznode * child = wz_open_node_at(node, j);

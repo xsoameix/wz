@@ -29,8 +29,8 @@ typedef struct {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
 } wzobj;
 
 typedef union {
@@ -50,8 +50,8 @@ typedef struct wzvar {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   uint32_t  len;
   wzvar *   vars;
 } wzlist;
@@ -65,8 +65,8 @@ typedef struct {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   uint32_t  len;
   wzvar *   vars;
   uint32_t  w;
@@ -81,16 +81,16 @@ typedef struct {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   uint32_t  len;
   wz2d *    vals;
 } wzvex;
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   wz2d      val;     
 } wzvec;
 
@@ -132,8 +132,8 @@ typedef struct {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   uint32_t  size;
   uint32_t  ms;
   uint16_t  format;
@@ -142,8 +142,8 @@ typedef struct {
 
 typedef struct {
   uint8_t   alloc;
+  uint8_t   type;
   uint32_t  pos;
-  wzchr     type;
   wzchr     path;
 } wzuol;
 
@@ -250,26 +250,25 @@ typedef struct wzctx {
 #define WZ_AUDIO_MP3_SIZE 30 // sizeof(packed wzmp3)
 #define WZ_AUDIO_PCM_SIZE 44 // sizeof(packed wzpcm)
 
-#define WZ_IS_VAR_NONE(x)    ((x) == 0)
-#define WZ_IS_VAR_INT16(x)   ((x) == 0x02 || (x) == 0x0b)
-#define WZ_IS_VAR_INT32(x)   ((x) == 0x03 || (x) == 0x13)
-#define WZ_IS_VAR_INT64(x)   ((x) == 0x14)
-#define WZ_IS_VAR_FLOAT32(x) ((x) == 0x04)
-#define WZ_IS_VAR_FLOAT64(x) ((x) == 0x05)
-#define WZ_IS_VAR_STRING(x)  ((x) == 0x08)
-#define WZ_IS_VAR_OBJECT(x)  ((x) == 0x09)
+#define WZ_VAR_NIL   0x00
+#define WZ_VAR_INT16 0x01
+#define WZ_VAR_INT32 0x02
+#define WZ_VAR_INT64 0x03
+#define WZ_VAR_FLT32 0x04
+#define WZ_VAR_FLT64 0x05
+#define WZ_VAR_STR   0x06
+#define WZ_VAR_OBJ   0x07
 
-#define WZ_IS_OBJ_PROPERTY(type) (!wz_strcmp((type), "Property"))
-#define WZ_IS_OBJ_CANVAS(type)   (!wz_strcmp((type), "Canvas"))
-#define WZ_IS_OBJ_CONVEX(type)   (!wz_strcmp((type), "Shape2D#Convex2D"))
-#define WZ_IS_OBJ_VECTOR(type)   (!wz_strcmp((type), "Shape2D#Vector2D"))
-#define WZ_IS_OBJ_SOUND(type)    (!wz_strcmp((type), "Sound_DX8"))
-#define WZ_IS_OBJ_UOL(type)      (!wz_strcmp((type), "UOL"))
+#define WZ_OBJ_LIST 0x00 // "Property"
+#define WZ_OBJ_IMG  0x01 // "Canvas"
+#define WZ_OBJ_VEX  0x02 // "Shape2D#Convex2D"
+#define WZ_OBJ_VEC  0x03 // "Shape2D#Vector2D"
+#define WZ_OBJ_AO   0x04 // "Sound_DX8"
+#define WZ_OBJ_UOL  0x05 // "UOL"
 
-#define WZ_IS_NODE_NONE(type) ((type) == 0x01)
-#define WZ_IS_NODE_LINK(type) ((type) == 0x02)
-#define WZ_IS_NODE_DIR(type)  ((type) == 0x03)
-#define WZ_IS_NODE_FILE(type) ((type) == 0x04)
+#define WZ_NODE_NIL  0x00
+#define WZ_NODE_DIR  0x01
+#define WZ_NODE_FILE 0x02
 
 int      wz_read_data(void * buffer, uint32_t len, wzfile * file);
 int      wz_read_byte(uint8_t * buffer, wzfile * file);

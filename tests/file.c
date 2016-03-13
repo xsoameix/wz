@@ -412,7 +412,7 @@ START_TEST(test_read_node) {
     "\x03""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
     "\x04""\xfe\x01\x23""\x01""\x02""\x01\x23\x45\x67"
     "\x05"
-    "\x03""\xfe\x01\x23"; // type 2 string
+    "\x04""\xfe\x01\x23"; // type 2 string
   wzfile file;
   create_file(&file, normal, sizeof(normal) - 1);
   wznode node;
@@ -423,17 +423,18 @@ START_TEST(test_read_node) {
   file.head.start = 0x2;
   ck_assert(memused() == 0);
   ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
-  ck_assert(node.type == 3);
+  ck_assert(node.type == WZ_NODE_FILE);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
-  ck_assert(memused() == 2 + 1);
+  ck_assert(memused() ==
+            sizeof(* node.data.var) + sizeof(* node.data.var->val.obj) + 2 + 1);
   wz_free_node(&node);
 
   // It should read type 3
   ck_assert(memused() == 0);
   ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
-  ck_assert(node.type == 3);
+  ck_assert(node.type == WZ_NODE_DIR);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
@@ -443,7 +444,7 @@ START_TEST(test_read_node) {
   // It should read type 4
   ck_assert(memused() == 0);
   ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 0);
-  ck_assert(node.type == 4);
+  ck_assert(node.type == WZ_NODE_FILE);
   ck_assert_int_eq(memcmp(node.name.bytes, "ab", 2), 0);
   ck_assert(node.name.len == 2);
   ck_assert(node.size == 1 && node.check == 2 && node.addr.val == 0x67452301);
@@ -453,7 +454,6 @@ START_TEST(test_read_node) {
 
   // It should not read type 5
   ck_assert_int_eq(wz_read_node(&node, &file, &ctx), 1);
-  ck_assert(node.type == 5);
   ck_assert(memused() == 0);
   delete_file(&file);
   delete_ctx(&ctx);
@@ -489,9 +489,9 @@ START_TEST(test_read_grp) {
   wzgrp * grp = NULL;
   ck_assert_int_eq(wz_read_grp(&grp, &node, &file, &ctx), 0);
   ck_assert(grp->len == 3);
-  ck_assert(grp->nodes[0].type == 1);
-  ck_assert(grp->nodes[1].type == 3);
-  ck_assert(grp->nodes[2].type == 4);
+  ck_assert(grp->nodes[0].type == WZ_NODE_NIL);
+  ck_assert(grp->nodes[1].type == WZ_NODE_DIR);
+  ck_assert(grp->nodes[2].type == WZ_NODE_FILE);
   ck_assert(memused() ==
             sizeof(* grp) +
             sizeof(* grp->nodes) * 3 +
@@ -596,7 +596,7 @@ START_TEST(test_valid_ver) {
         .grp = (wzgrp[]) {{
           .len = 1,
           .nodes = (wznode[]) {{
-            .type = 3,
+            .type = WZ_NODE_DIR,
             .addr = {.pos = 0x51, .val = 0x49e34db3}
           }}
         }}
