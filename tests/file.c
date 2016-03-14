@@ -251,33 +251,32 @@ START_TEST(test_decode_chars) {
   char ascii[] = "\x01\x23";
   wzkey key = {.bytes = (uint8_t *) "\x89\xab\xcd\xef", .len = 4};
   wzfile file = {.key = &key};
-  wzchr buffer;
+  wzstr buffer;
   buffer.bytes = (uint8_t *) ascii;
   buffer.len = strlen(ascii);
-  buffer.enc = WZ_ENC_ASCII;
-  ck_assert_int_eq(wz_decode_chars(&buffer, file.key), 0);
+  ck_assert_int_eq(wz_decode_chars(&buffer, 1, file.key), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x22\x23", 2), 0);
   ck_assert(buffer.len == 2 && memused() == 0);
 
   // It should decode utf16le
-  char utf16le[] = "\x45\x67";
+  char utf16le[] = "\x45\x67"; // decode => \x66\x66  utf8 => \xe6\x99\xa6
   buffer.bytes = (uint8_t *) utf16le;
   buffer.len = strlen(utf16le);
-  buffer.enc = WZ_ENC_UTF16LE;
-  ck_assert_int_eq(wz_decode_chars(&buffer, file.key), 0);
-  ck_assert_int_eq(memcmp(buffer.bytes, "\x66\x66", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 0);
+  ck_assert_int_eq(wz_decode_chars(&buffer, 0, file.key), 0);
+  ck_assert_int_eq(memcmp(buffer.bytes, "\xe6\x99\xa6", 3), 0);
+  ck_assert(buffer.len == 3 && memused() == 3 + 1);
+  free(buffer.bytes);
 
   // It should not decode if key == NULL
-  wzchr copy = buffer;
-  ck_assert_int_eq(wz_decode_chars(&buffer, NULL), 0);
+  wzstr copy = buffer;
+  ck_assert_int_eq(wz_decode_chars(&buffer, 1, NULL), 0);
   ck_assert(buffer.bytes == copy.bytes);
   ck_assert(buffer.len == copy.len);
 
   // It should not decode if string key is too short
   file.key->bytes = (uint8_t *) "\xcd";
   file.key->len = 1;
-  ck_assert_int_eq(wz_decode_chars(&buffer, file.key), 1);
+  ck_assert_int_eq(wz_decode_chars(&buffer, 1, file.key), 1);
   ck_assert(buffer.bytes == copy.bytes);
   ck_assert(buffer.len == copy.len);
 } END_TEST
@@ -291,7 +290,7 @@ START_TEST(test_read_chars) {
     "\x7f""\x03\x00\x00\x00""\xcd\xef\x01\x23\x45\x67";
   wzfile file;
   create_file(&file, normal, sizeof(normal) - 1);
-  wzchr buffer;
+  wzstr buffer;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\x01\x23", 2), 0);
   ck_assert(buffer.len == 2 && memused() == 2 + 1);
@@ -327,12 +326,13 @@ START_TEST(test_read_chars) {
   ck_assert(buffer.len == 2 && memused() == 2 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
-  ck_assert_int_eq(memcmp(buffer.bytes, "\x22\x22", 2), 0);
-  ck_assert(buffer.len == 2 && memused() == 2 + 1);
+  ck_assert_int_eq(memcmp(buffer.bytes, "\xe2\x88\xa2", 2), 0);
+  ck_assert(buffer.len == 3 && memused() == 3 + 1);
   wz_free_chars(&buffer);
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
-  ck_assert_int_eq(memcmp(buffer.bytes, "\x66\x66\xef\xee\x60\x66", 6), 0);
-  ck_assert(buffer.len == 6 && memused() == 6 + 1);
+  expected = "\xe6\x99\xa6\xee\xbb\xaf\xe6\x99\xa0";
+  ck_assert_int_eq(memcmp(buffer.bytes, expected, 9), 0);
+  ck_assert(buffer.len == 9 && memused() == 9 + 1);
   wz_free_chars(&buffer);
   delete_ctx(&ctx);
   delete_file(&file);
@@ -343,7 +343,7 @@ START_TEST(test_free_chars) {
   char normal[] = "\xfe\x01\x23";
   wzfile file;
   create_file(&file, normal, sizeof(normal) - 1);
-  wzchr buffer;
+  wzstr buffer;
   ck_assert_int_eq(wz_read_chars(&buffer, file.key, &file), 0);
   ck_assert(memused() == 2 + 1);
   wz_free_chars(&buffer);

@@ -17,12 +17,6 @@ typedef struct {
 } wzstr;
 
 typedef struct {
-  uint8_t * bytes;
-  uint32_t  len;
-  uint8_t   enc;  // encoding
-} wzchr;
-
-typedef struct {
   uint32_t  val;
   uint32_t  pos;
 } wzaddr;
@@ -36,14 +30,14 @@ typedef struct {
 typedef union {
   int64_t   i;
   double    f;
-  wzchr     str;
+  wzstr     str;
   wzobj *   obj;
 } wzprim;
 
 typedef struct wzvar {
   struct wzvar *  parent;
   struct wznode * node;
-  wzchr     name;
+  wzstr     name;
   uint8_t   type;
   wzprim    val;
 } wzvar;
@@ -144,7 +138,7 @@ typedef struct {
   uint8_t   alloc;
   uint8_t   type;
   uint32_t  pos;
-  wzchr     path;
+  wzstr     path;
 } wzuol;
 
 typedef union {
@@ -170,7 +164,7 @@ typedef struct wznode {
   struct wzfile * file;
   uint8_t   alloc;
   uint8_t   type;
-  wzchr     name;
+  wzstr     name;
   uint32_t  size;
   uint32_t  check;  // checksum
   wzaddr    addr;
@@ -231,12 +225,6 @@ typedef struct wzctx {
 
 // Macro Definitions
 
-#define WZ_ENC_ASCII   0
-#define WZ_ENC_UTF16LE 1
-
-#define WZ_UTF16LE_MAX_LEN 4
-#define WZ_UTF8_MAX_LEN    4
-
 #define WZ_COLOR_4444    1
 #define WZ_COLOR_8888    2
 #define WZ_COLOR_565   513
@@ -283,9 +271,9 @@ void     wz_init_str(wzstr * buffer);
 int      wz_read_str(wzstr * buffer, uint32_t len, wzfile * file);
 void     wz_free_str(wzstr * buffer);
 
-int      wz_decode_chars(wzchr * buffer, wzkey * key);
-int      wz_read_chars(wzchr * buffer, wzkey * key, wzfile * file);
-void     wz_free_chars(wzchr * buffer);
+int      wz_decode_chars(wzstr * buffer, int ascii, wzkey * key);
+int      wz_read_chars(wzstr * buffer, wzkey * key, wzfile * file);
+void     wz_free_chars(wzstr * buffer);
 
 uint32_t wz_rotl32(uint32_t x, uint32_t n);
 void     wz_decode_addr(wzaddr * addr, wzfile * file);
@@ -316,9 +304,7 @@ void     wz_free_aes(wzaes * aes);
 int      wz_init_key(wzkey * key, wzaes * aes);
 void     wz_set_key(wzkey * key, wzaes * aes);
 void     wz_free_key(wzkey * key);
-int      wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx);
-
-int      wz_strcmp(wzchr * a, const char * b);
+int      wz_deduce_key(wzkey ** buffer, wzstr * name, wzctx * ctx);
 
 void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
 

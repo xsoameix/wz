@@ -26,14 +26,14 @@
 #define WZ_IS_NODE_DIR(type)  ((type) == 0x03)
 #define WZ_IS_NODE_FILE(type) ((type) == 0x04)
 
-#define WZ_IS_VAR_NIL(x)   ((x) == 0)
-#define WZ_IS_VAR_INT16(x) ((x) == 0x02 || (x) == 0x0b)
-#define WZ_IS_VAR_INT32(x) ((x) == 0x03 || (x) == 0x13)
-#define WZ_IS_VAR_INT64(x) ((x) == 0x14)
-#define WZ_IS_VAR_FLT32(x) ((x) == 0x04)
-#define WZ_IS_VAR_FLT64(x) ((x) == 0x05)
-#define WZ_IS_VAR_STR(x)   ((x) == 0x08)
-#define WZ_IS_VAR_OBJ(x)   ((x) == 0x09)
+#define WZ_IS_VAR_NIL(type)   ((type) == 0x00)
+#define WZ_IS_VAR_INT16(type) ((type) == 0x02 || (type) == 0x0b)
+#define WZ_IS_VAR_INT32(type) ((type) == 0x03 || (type) == 0x13)
+#define WZ_IS_VAR_INT64(type) ((type) == 0x14)
+#define WZ_IS_VAR_FLT32(type) ((type) == 0x04)
+#define WZ_IS_VAR_FLT64(type) ((type) == 0x05)
+#define WZ_IS_VAR_STR(type)   ((type) == 0x08)
+#define WZ_IS_VAR_OBJ(type)   ((type) == 0x09)
 
 #define WZ_IS_OBJ_PROPERTY(type) (!wz_strcmp((type), "Property"))
 #define WZ_IS_OBJ_CANVAS(type)   (!wz_strcmp((type), "Canvas"))
@@ -122,40 +122,78 @@ wz_free_str(wzstr * buffer) {
 }
 
 int
-wz_decode_chars(wzchr * buffer, wzkey * key) {
+wz_utf16le_to_utf8(wzstr * val) {
+  uint32_t len = 0;
+  for (uint32_t i = 0; i < val->len;) {
+    uint8_t  utf16le[WZ_UTF16LE_MAX_LEN] = {0};
+    uint8_t  utf16le_len;
+    uint32_t code;
+    uint8_t  utf8_len;
+    memcpy(utf16le, val->bytes + i,
+           val->len - i < sizeof(utf16le) ?
+           val->len - i : sizeof(utf16le));
+    if (wz_utf16le_len(&utf16le_len, utf16le) ||
+        wz_utf16le_to_code(&code, utf16le) ||
+        wz_code_to_utf8_len(&utf8_len, code)) return 1;
+    i += utf16le_len;
+    len += utf8_len;
+  }
+  uint8_t * bytes = malloc(len + 1);
+  uint8_t * utf8 = bytes;
+  for (uint32_t i = 0; i < val->len;) {
+    uint8_t   utf16le[WZ_UTF16LE_MAX_LEN] = {0};
+    uint8_t   utf16le_len;
+    uint32_t  code;
+    uint8_t   utf8_len;
+    memcpy(utf16le, val->bytes + i,
+           val->len - i < sizeof(utf16le) ?
+           val->len - i : sizeof(utf16le));
+    if (wz_utf16le_len(&utf16le_len, utf16le) ||
+        wz_utf16le_to_code(&code, utf16le) ||
+        wz_code_to_utf8(utf8, code) ||
+        wz_code_to_utf8_len(&utf8_len, code)) return free(bytes), 1;
+    i += utf16le_len;
+    utf8 += utf8_len;
+  }
+  return bytes[len] = '\0', val->bytes = bytes, val->len = len, 0;
+}
+
+int
+wz_decode_chars(wzstr * buffer, int ascii, wzkey * key) {
   if (key == NULL) return 0;
   if (buffer->len > key->len)
     return wz_error("String length %"PRIu32" > %"PRIu32"\n",
                     buffer->len, key->len), 1;
-  if (buffer->enc == WZ_ENC_ASCII) {
+  if (ascii) { // ASCII
     uint8_t * bytes = buffer->bytes;
     uint8_t mask = 0xaa;
     uint32_t len = buffer->len / sizeof(mask);
     for (uint32_t i = 0; i < len; i++)
       bytes[i] ^= mask++ ^ key->bytes[i];
-  } else { // WZ_ENC_UTF16LE
+    return 0;
+  } else { // UTF16-LE
     uint16_t * bytes = (uint16_t *) buffer->bytes;
     uint16_t mask = 0xaaaa;
     uint32_t len = buffer->len / sizeof(mask);
     for (uint32_t i = 0; i < len; i++)
       bytes[i] ^= wz_htole16(mask++ ^ wz_le16toh(((uint16_t *) key->bytes)[i]));
+    return wz_utf16le_to_utf8(buffer);
   }
-  return 0;
 }
 
 int // read characters (ascii or utf16le)
-wz_read_chars(wzchr * buffer, wzkey * key, wzfile * file) {
+wz_read_chars(wzstr * buffer, wzkey * key, wzfile * file) {
   int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file)) return 1;
   int32_t size = byte;
   int ascii = size < 0;
-  if (ascii) { // ascii
+  if (ascii) { // ASCII
     if (size == INT8_MIN) {
       if (wz_read_le32((uint32_t *) &size, file)) return 1;
     } else {
       size *= -1;
     }
-  } else { // utf16le
+  } else { // UTF16-LE
     if (size == INT8_MAX) {
       if (wz_read_le32((uint32_t *) &size, file)) return 1;
     }
@@ -163,17 +201,14 @@ wz_read_chars(wzchr * buffer, wzkey * key, wzfile * file) {
   }
   wzstr str;
   if (wz_read_str(&str, (uint32_t) size, file)) return 1;
-  wzchr chars = {
-    .len   = str.len,
-    .bytes = str.bytes,
-    .enc   = ascii ? WZ_ENC_ASCII : WZ_ENC_UTF16LE
-  };
-  if (wz_decode_chars(&chars, key)) return wz_free_chars(&chars), 1;
+  wzstr chars = str;
+  if (wz_decode_chars(&chars, ascii, key)) return wz_free_chars(&chars), 1;
+  if (chars.bytes != str.bytes) wz_free_str(&str);
   return * buffer = chars, 0;
 }
 
 void
-wz_free_chars(wzchr * buffer) {
+wz_free_chars(wzstr * buffer) {
   free(buffer->bytes);
 }
 
@@ -220,7 +255,7 @@ wz_read_node_body(wznode * node, uint8_t type, wzfile * file) {
     wzvar * var = malloc(sizeof(* var));
     if (var == NULL) return 1;
     var->parent = NULL, var->node = node;
-    var->name = (wzchr) {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII};
+    var->name = (wzstr) {.len = 0, .bytes = NULL};
     var->type = WZ_VAR_OBJ;
     wzobj * obj = malloc(sizeof(* obj));
     if (obj == NULL) return free(var), 1;
@@ -313,7 +348,7 @@ wz_read_head(wzhead * head, wzfile * file) {
     .file = file,
     .alloc = 0,
     .type = WZ_NODE_DIR,
-    .name = {.len = 0, .bytes = NULL, .enc = WZ_ENC_ASCII},
+    .name = {.len = 0, .bytes = NULL},
     .data = {.grp = NULL},
     .addr = {.val = head->start + (uint32_t) sizeof(file->ver.enc)}
   };
@@ -493,20 +528,20 @@ wz_free_keys(wzkey * keys, size_t len) {
 }
 
 int // if string key is found, the string is also decoded.
-wz_deduce_key(wzkey ** buffer, wzchr * name, wzctx * ctx) {
+wz_deduce_key(wzkey ** buffer, wzstr * name, wzctx * ctx) {
   if (* buffer != NULL) return 0;
   for (size_t i = 0; i < ctx->klen; i++) {
     wzkey * key = &ctx->keys[i];
-    if (wz_decode_chars(name, key)) continue;
+    if (wz_decode_chars(name, 1, key)) continue;
     for (uint32_t j = 0; j < name->len && isprint(name->bytes[j]); j++)
       if (j == name->len - 1) return * buffer = key, 0;
-    if (wz_decode_chars(name, key)) continue;
+    if (wz_decode_chars(name, 1, key)) continue;
   }
   return wz_error("Cannot deduce the string key\n"), 1;
 }
 
 int // read packed string
-wz_read_pack_chars(wzchr * buffer, wznode * node, wzfile * file) {
+wz_read_pack_chars(wzstr * buffer, wznode * node, wzfile * file) {
   uint8_t type;
   if (wz_read_byte(&type, file)) return 1;
   switch (type) {
@@ -528,12 +563,12 @@ wz_read_pack_chars(wzchr * buffer, wznode * node, wzfile * file) {
 }
 
 int
-wz_strcmp(wzchr * a, const char * b) {
+wz_strcmp(wzstr * a, const char * b) {
   return strncmp((char *) a->bytes, b, a->len);
 }
 
 int
-wz_strncmp(wzchr * a, const char * b, size_t blen) {
+wz_strncmp(wzstr * a, const char * b, size_t blen) {
   return a->len != blen || strncmp((char *) a->bytes, b, blen);
 }
 
@@ -904,7 +939,7 @@ wz_read_2d(wz2d * val, wzfile * file) {
 
 int
 wz_read_vex_item(wz2d * val, wznode * node, wzfile * file) {
-  wzchr type;
+  wzstr type;
   if (wz_read_pack_chars(&type, node, file)) return 1;
   if (WZ_IS_OBJ_VECTOR(&type))
     return wz_free_chars(&type),
@@ -1086,7 +1121,7 @@ wz_read_obj(wzobj ** buffer, wzvar * var,
             wznode * node, wzfile * file, wzctx * ctx) {
   wzobj * obj = var->val.obj;
   if (obj->alloc) return 0;
-  wzchr type;
+  wzstr type;
   if (wz_seek(obj->pos, SEEK_SET, file) ||
       wz_read_pack_chars(&type, node, file)) return 1;
   if (wz_deduce_key(&node->key, &type, ctx))
@@ -1230,29 +1265,8 @@ wz_read_obj_r(wzvar * buffer, wznode * node, wzfile * file, wzctx * ctx) {
                var->type == WZ_VAR_FLT64) {
       //pindent(), debug(" %f\n", var->val.f);
     } else if (var->type == WZ_VAR_STR) {
-      wzchr * val = &var->val.str;
-      if (val->enc == WZ_ENC_ASCII) {
-        //pindent(), debug(" %.*s\n", val->len, val->bytes);
-      } else if (val->len > 0) {
-        pindent(), printf(" ");
-        for (uint32_t i = 0; i < val->len;) {
-          uint8_t  utf16le[WZ_UTF16LE_MAX_LEN] = {0};
-          size_t   utf16le_len;
-          uint32_t code;
-          uint8_t  utf8[WZ_UTF8_MAX_LEN];
-          size_t   utf8_len;
-          memcpy(utf16le, val->bytes + i,
-                 val->len - i < sizeof(utf16le) ?
-                 val->len - i : sizeof(utf16le));
-          if (wz_utf16le_len(&utf16le_len, utf16le) ||
-              wz_utf16le_to_code(&code, utf16le) ||
-              wz_code_to_utf8(utf8, code) ||
-              wz_code_to_utf8_len(&utf8_len, code)) return 1;
-          printf("%.*s", (int) utf8_len, utf8);
-          i += (uint32_t) utf16le_len;
-        }
-        printf("\n");
-      }
+      //wzstr * val = &var->val.str;
+      //pindent(), debug(" %.*s\n", val->len, val->bytes);
     }
   }
   free(stack);

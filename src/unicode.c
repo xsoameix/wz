@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 int
-wz_code_to_utf8_len(size_t * len, uint32_t code) {
+wz_code_to_utf8_len(uint8_t * len, uint32_t code) {
   if ((code & 0xffffff80) == 0)      return * len = 1, 0;
   else if ((code & 0xfffff800) == 0) return * len = 2, 0;
   else if ((code & 0xffff0000) == 0) return * len = 3, 0;
@@ -31,7 +31,7 @@ wz_code_to_utf8(uint8_t * bytes, uint32_t code) {
 }
 
 int
-wz_utf16le_len(size_t * len, uint8_t * bytes) {
+wz_utf16le_len(uint8_t * len, uint8_t * bytes) {
   if ((bytes[1] & 0xfc) == 0xd8)
     if ((bytes[3] & 0xfc) == 0xdc)
       return * len = 4, 0;
