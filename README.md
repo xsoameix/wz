@@ -14,29 +14,23 @@ A C library can read \*.wz files.
 
 #### Windows
 
-```shell
-> mkdir build && cd build
-> cmake
-    -DCMAKE_INSTALL_PREFIX="X:\path\to\install"
-    -DZLIB_ROOT="X:\path\to\zlib"
-    -DCHECK_ROOT_DIR="X:\path\to\check"
-    -G "Visual Studio 12" ..
-```
+    > mkdir build && cd build
+    > cmake
+        -DCMAKE_INSTALL_PREFIX="X:\path\to\install"
+        -DZLIB_ROOT="X:\path\to\zlib"
+        -DCHECK_ROOT_DIR="X:\path\to\check"
+        -G "Visual Studio 12" ..
 
 Open `build\wz.sln` and build the project
 
 #### \*nix
 
-```shell
-$ mkdir build && cd build
-$ cmake .. && make && sudo make install
-```
+    $ mkdir build && cd build
+    $ cmake .. && make && sudo make install
 
 ## Unit Test
 
-```shell
-$ ctest
-```
+    $ ctest
 
 ## Documentation
 
