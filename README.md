@@ -34,6 +34,10 @@ Open `build\wz.sln` and build the project
 
 ## Documentation
 
+### Reading from wz file
+
+[Tutorial](https://github.com/xsoameix/wz/wiki/Reading-from-wz-file)
+
 ### Decryption
 
 There are two things in wz file is encrypted: the **address** and **characters**. The **address** is used to specify where the child nodes located. The **characters** have several usages and used in different places.
