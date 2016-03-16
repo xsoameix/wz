@@ -7,8 +7,8 @@
 // Structures
 
 #ifdef _WIN32
+#pragma warning(push)
 #pragma warning(disable: 4820) // C89: struct padding
-#pragma warning(push, 1)
 #endif
 
 typedef struct {
