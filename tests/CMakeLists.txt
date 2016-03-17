@@ -43,12 +43,6 @@ target_link_libraries(testlib ${LIBS})
 set(DIRS ../src)
 set(LIBS testlib)
 
-# encode - encode version & address program
-add_executable(encode encode.c)
-target_include_directories(encode PRIVATE ${DIRS})
-target_link_libraries(encode testlib)
-target_compile_options(encode PRIVATE ${TARGET_FLAGS})
-
 # Check
 find_package(Check REQUIRED)
 set(DIRS ${DIRS} ${CHECK_INCLUDE_DIR})
