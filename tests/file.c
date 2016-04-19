@@ -267,7 +267,8 @@ START_TEST(test_decode_chars) {
   ck_assert_int_eq(wz_decode_chars(&buffer, 0, file.key), 0);
   ck_assert_int_eq(memcmp(buffer.bytes, "\xe6\x99\xa6", 3), 0);
   ck_assert(buffer.len == 3 && memused() == 3 + 1);
-  free(buffer.bytes);
+  wz_free_chars(&buffer);
+  ck_assert(memused() == 0);
 
   // It should not decode if key == NULL
   wzstr copy = buffer;
