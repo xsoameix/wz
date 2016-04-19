@@ -9,21 +9,23 @@ find_package(ZLIB REQUIRED)
 set(DIRS ${DIRS} ${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
-# aes256
-set(DIRS ${DIRS} ../src/lib)
-set(LIBS ${LIBS} aes256)
-
 # exports all symbols
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
+
+# aes256
+set(DIRS ${DIRS} ../src/lib)
+set(LIBS ${LIBS} aes256)
 
 # flags
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
     "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
   set(FLAGS "-Wall -Werror -std=c99 -pthread -pedantic")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-  set(FLAGS "/WX")
+  set(FLAGS
+    "/wd4996" # C89: sprintf & fopen
+    "/WX")
 endif()
 string(REPLACE ";" " " SOURCE_FLAGS "${FLAGS}")
 string(REPLACE " " ";" TARGET_FLAGS "${FLAGS}")
@@ -40,6 +42,7 @@ add_library(testlib SHARED ${SOURCES} mem.c)
 set_target_properties(testlib PROPERTIES OUTPUT_NAME wz)
 target_include_directories(testlib PRIVATE ${DIRS})
 target_link_libraries(testlib ${LIBS})
+target_compile_options(testlib PRIVATE ${TARGET_FLAGS})
 set(DIRS ../src)
 set(LIBS testlib)
 
