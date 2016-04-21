@@ -8,6 +8,6 @@ Description: wz Reading Library
 Version: @VERSION@
 
 Requires:
-Libs: -L${libdir} -lwz
-Libs.private: -laes256 -lz
+Libs: -L${libdir} -laes256 -lwz
+Libs.private: -lz
 Cflags: -I${includedir}
