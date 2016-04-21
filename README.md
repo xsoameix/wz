@@ -109,7 +109,7 @@ A library which has these features:
 ## Tutorial
 
 * [Reading from wz file](https://github.com/xsoameix/wz/wiki/Reading-from-wz-file)
-* [Encryption used in wz file](https://github.com/xsoameix/wz/wiki/Encryption-used-in-wz-file.md)
+* [Encryption used in wz file](https://github.com/xsoameix/wz/wiki/Encryption-used-in-wz-file)
 
 ## Unit Test
 
