@@ -1,10 +1,11 @@
 # wz
 
 wz is a library for reading the wz files.
+
 wz focus on these features:
 
-* 1 dependency
-    * zlib
+* Minimal dependency
+    * only 1 dependency: zlib
 * Light weight but powerful
     * ~ 2000 lines of code
     * fully extract any data from any wz files
@@ -46,6 +47,8 @@ wz focus on these features:
 
 ## Installation
 
+### Windows
+
 #### Visual Studio
 
 1. Install [cmake](https://cmake.org/download/) and select "Add CMake to the system PATH for all users" when installing.
@@ -83,10 +86,11 @@ wz focus on these features:
                 zlibd.dll
         ▸ check
 
-#### Ubuntu/Mint
+### Linux
 
 1. Install cmake, zlib and check.
 
+        # Debian / Ubuntu / Mint
         $ sudo apt-get install cmake zlib1g-dev check
 
 2. Download source code of this library: [wz](https://github.com/xsoameix/wz/archive/master.zip). Extract this zip file to `wz` folder and enter this directory.
@@ -108,7 +112,9 @@ wz focus on these features:
             ▾ pkgconfig/
                 wz.pc
 
-#### Mac
+### Mac
+
+#### Xcode
 
 1. Install [homebrew](http://brew.sh/), cmake and check.
 
