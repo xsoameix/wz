@@ -60,11 +60,9 @@ target_link_libraries(suite ${LIBS})
 target_compile_options(suite PRIVATE ${TARGET_FLAGS})
 add_test(suite ${CMAKE_CURRENT_BINARY_DIR}/suite)
 if (WIN32)
+  string(REPLACE "\\" "/" ZLIB_ROOT ${ZLIB_ROOT})
   add_custom_command(TARGET suite POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${ZLIB_ROOT}\\bin\\zlibd.dll $<TARGET_FILE_DIR:suite>)
-  message(${ZLIB_LIBRARIES})
-  add_custom_command(TARGET suite POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${ZLIB_ROOT}/bin/zlibd.dll
     $<TARGET_FILE:aes256> $<TARGET_FILE_DIR:suite>)
 endif()
