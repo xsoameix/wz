@@ -34,13 +34,14 @@ wz focus on these features:
 
 ## Environment
 
-* Supported Platforms: Windows and \*nix
+* Supported Platforms: Windows, Linux, Mac and other Unix-like platforms
 * Supported Compilers:
-    * GCC >= 3.1
     * Visual Studio 2013 with Update 5
     * Visual Studio 2015
+    * GCC >= 3.1
+    * Xcode >= 3.1
 * Dependencies: [zlib](http://www.zlib.net/)
-* Unit Test: [check](https://github.com/libcheck/check/archive/master.zip)
+* Unit Test: [check](https://libcheck.github.io/check/)
 * Using C Standard Revision: C99
 
 ## Installation
@@ -99,10 +100,35 @@ wz focus on these features:
           ▾ include/
             ▾ wz/
                 file.h
-          ▾ bin/
+          ▾ lib/
             ▾ wz/
                 libaes256.so
                 libwz.so
+          ▾ share/
+            ▾ pkgconfig/
+                wz.pc
+
+#### Mac
+
+1. Install [homebrew](http://brew.sh/), cmake and check.
+
+        $ brew install cmake check
+
+2. Download source code of this library: [wz](https://github.com/xsoameix/wz/archive/master.zip). Extract this zip file to `wz` folder and enter this directory.
+
+        $ mkdir build && cd build
+        $ cmake .. && make && make install
+
+3. The headers, shared library and wz.pc are installed in `/usr/local` folders. Now you can use this library in your applications !
+
+        ▾ /usr/local/
+          ▾ include/
+            ▾ wz/
+                file.h
+          ▾ lib/
+            ▾ wz/
+                libaes256.dylib
+                libwz.dylib
           ▾ share/
             ▾ pkgconfig/
                 wz.pc
