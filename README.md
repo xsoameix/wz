@@ -1,6 +1,7 @@
 # wz
 
-A library which has these features:
+wz is a library for reading the wz files.
+wz focus on these features:
 
 * 1 dependency
     * zlib
@@ -114,6 +115,10 @@ A library which has these features:
 ## Unit Test
 
     $ cd build && ctest
+
+## Share and Feedback
+
+This library is totally open source. You can modify or share the source code to anyone. All suggestions are welcomed.
 
 ## Reference
 
