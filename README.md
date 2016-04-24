@@ -4,9 +4,9 @@ wz is a library for reading the wz files.
 
 wz focus on these features:
 
-* Minimal dependency
+* Minimal Dependency
     * only 1 dependency: zlib
-* Light weight but powerful
+* Light Weight but Powerful
     * ~ 2000 lines of code
     * fully extract any data from any wz files
 * Convenient
