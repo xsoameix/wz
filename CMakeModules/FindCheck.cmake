@@ -29,16 +29,6 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   set(CHECK_LIBRARIES ${_CHECK_LIBRARY} ${_CHECK_COMPAT_LIBRARY})
   find_package_handle_standard_args(Check "Could NOT find Check, try to set the path to Check root folder in the system variable CHECK_ROOT_DIR"
     CHECK_LIBRARIES CHECK_INCLUDE_DIR)
-elseif (APPLE)
-  find_path(CHECK_INCLUDE_DIR
-    NAMES check.h
-    PATH_SUFFIXES "include")
-  find_library(_CHECK_LIBRARY
-    NAMES check
-    PATH_SUFFIXES "lib")
-  set(CHECK_LIBRARIES ${_CHECK_LIBRARY})
-  find_package_handle_standard_args(Check
-    REQUIRED_VARS CHECK_LIBRARIES CHECK_INCLUDE_DIR)
 else()
   find_package(PkgConfig QUIET REQUIRED)
   pkg_search_module(CHECK REQUIRED QUIET check)

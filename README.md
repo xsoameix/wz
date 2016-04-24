@@ -116,9 +116,9 @@ wz focus on these features:
 
 #### Xcode
 
-1. Install [homebrew](http://brew.sh/), cmake and check.
+1. Install [homebrew](http://brew.sh/), pkg-config, cmake and check.
 
-        $ brew install cmake check
+        $ brew install pkg-config cmake check
 
 2. Download source code of this library: [wz](https://github.com/xsoameix/wz/archive/master.zip). Extract this zip file to `wz` folder and enter this directory.
 
