@@ -16,7 +16,6 @@ endif()
 
 # aes256
 set(DIRS ${DIRS} ../src/lib)
-set(LIBS ${LIBS} aes256)
 
 # flags
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
@@ -31,6 +30,8 @@ string(REPLACE ";" " " SOURCE_FLAGS "${FLAGS}")
 string(REPLACE " " ";" TARGET_FLAGS "${FLAGS}")
 
 # libwz.so or wz.dll - shared library
+set(CRYPTO_SOURCES
+  ../src/lib/aes256.c)
 set(SOURCES
   ../src/byteorder.c
   ../src/unicode.c
@@ -38,7 +39,7 @@ set(SOURCES
 set_source_files_properties(${SOURCES} PROPERTIES
   COMPILE_DEFINITIONS "WZ_WRAP=1")
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS ${SOURCE_FLAGS})
-add_library(testlib SHARED ${SOURCES} mem.c)
+add_library(testlib SHARED ${CRYPTO_SOURCES} ${SOURCES} mem.c)
 set_target_properties(testlib PROPERTIES OUTPUT_NAME wz)
 target_include_directories(testlib PRIVATE ${DIRS})
 target_link_libraries(testlib ${LIBS})
@@ -63,6 +64,5 @@ if (WIN32)
   string(REPLACE "\\" "/" ZLIB_ROOT ${ZLIB_ROOT})
   add_custom_command(TARGET suite POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${ZLIB_ROOT}/bin/zlibd.dll
-    $<TARGET_FILE:aes256> $<TARGET_FILE_DIR:suite>)
+    ${ZLIB_ROOT}/bin/zlibd.dll $<TARGET_FILE_DIR:suite>)
 endif()

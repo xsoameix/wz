@@ -74,11 +74,9 @@ wz focus on these features:
                   file.h
             ▾ bin/
               ▾ wz/
-                  aes256.dll
                   wz.dll
             ▾ lib
               ▾ wz/
-                  aes256.lib
                   wz.lib
         ▾ zlib/
           ▾ local/
@@ -106,7 +104,6 @@ wz focus on these features:
                 file.h
           ▾ lib/
             ▾ wz/
-                libaes256.so
                 libwz.so
           ▾ share/
             ▾ pkgconfig/
@@ -133,7 +130,6 @@ wz focus on these features:
                 file.h
           ▾ lib/
             ▾ wz/
-                libaes256.dylib
                 libwz.dylib
           ▾ share/
             ▾ pkgconfig/

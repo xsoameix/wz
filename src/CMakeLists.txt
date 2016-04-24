@@ -7,15 +7,13 @@ find_package(ZLIB REQUIRED)
 set(DIRS ${DIRS} ${ZLIB_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${ZLIB_LIBRARIES})
 
+# aes256
+set(DIRS ${DIRS} lib)
+
 # exports all symbols
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
-
-# aes256
-add_library(aes256 SHARED lib/aes256.c)
-set(DIRS ${DIRS} lib)
-set(LIBS ${LIBS} aes256)
 
 # flags
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
@@ -32,26 +30,30 @@ elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
     "/wd4996" # C89: sprintf & fopen
     "/WX /Wall")
 endif()
+string(REPLACE ";" " " SOURCE_FLAGS "${FLAGS}")
 string(REPLACE " " ";" TARGET_FLAGS "${FLAGS}")
 
 # libwz.so or wz.dll - shared library
-add_library(lib SHARED
+set(CRYPTO_SOURCES
+  lib/aes256.c)
+set(SOURCES
   byteorder.c
   unicode.c
   file.c)
+set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS ${SOURCE_FLAGS})
+add_library(lib SHARED ${CRYPTO_SOURCES} ${SOURCES})
 set_target_properties(lib PROPERTIES OUTPUT_NAME wz)
 target_include_directories(lib PRIVATE ${DIRS})
 target_link_libraries(lib ${LIBS})
-target_compile_options(lib PRIVATE ${TARGET_FLAGS})
 
 # wz/*.h - headers
 set(INSTALL_BINARY_DIR    ${CMAKE_INSTALL_PREFIX}/bin/wz)
-set(INSTALL_LIBRARY_DIR   ${CMAKE_INSTALL_PREFIX}/lib/wz)
+set(INSTALL_LIBRARY_DIR   ${CMAKE_INSTALL_PREFIX}/lib)
 set(INSTALL_INCLUDE_DIR   ${CMAKE_INSTALL_PREFIX}/include/wz)
 set(INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)
 set(WZ_PC ${CMAKE_CURRENT_BINARY_DIR}/wz.pc)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/wz.pc.cmake ${WZ_PC} @ONLY)
-install(TARGETS aes256 lib
+install(TARGETS lib
   RUNTIME DESTINATION ${INSTALL_BINARY_DIR}
   LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR}
   ARCHIVE DESTINATION ${INSTALL_LIBRARY_DIR})
