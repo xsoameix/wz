@@ -42,7 +42,10 @@ set(SOURCES
   file.c)
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS ${SOURCE_FLAGS})
 add_library(lib SHARED ${CRYPTO_SOURCES} ${SOURCES})
-set_target_properties(lib PROPERTIES OUTPUT_NAME wz)
+set_target_properties(lib PROPERTIES
+  OUTPUT_NAME wz
+  VERSION 0.0.0
+  SOVERSION 0)
 target_include_directories(lib PRIVATE ${DIRS})
 target_link_libraries(lib ${LIBS})
 
