@@ -73,11 +73,9 @@ wz focus on these features:
               ▾ wz/
                   file.h
             ▾ bin/
-              ▾ wz/
-                  wz.dll
+                wz.dll
             ▾ lib
-              ▾ wz/
-                  wz.lib
+                wz.lib
         ▾ zlib/
           ▾ local/
             ▾ bin/
@@ -103,8 +101,7 @@ wz focus on these features:
             ▾ wz/
                 file.h
           ▾ lib/
-            ▾ wz/
-                libwz.so
+              libwz.so
           ▾ share/
             ▾ pkgconfig/
                 wz.pc
@@ -129,8 +126,7 @@ wz focus on these features:
             ▾ wz/
                 file.h
           ▾ lib/
-            ▾ wz/
-                libwz.dylib
+              libwz.dylib
           ▾ share/
             ▾ pkgconfig/
                 wz.pc

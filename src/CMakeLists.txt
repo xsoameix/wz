@@ -50,7 +50,7 @@ target_include_directories(lib PRIVATE ${DIRS})
 target_link_libraries(lib ${LIBS})
 
 # wz/*.h - headers
-set(INSTALL_BINARY_DIR    ${CMAKE_INSTALL_PREFIX}/bin/wz)
+set(INSTALL_BINARY_DIR    ${CMAKE_INSTALL_PREFIX}/bin)
 set(INSTALL_LIBRARY_DIR   ${CMAKE_INSTALL_PREFIX}/lib)
 set(INSTALL_INCLUDE_DIR   ${CMAKE_INSTALL_PREFIX}/include/wz)
 set(INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)
