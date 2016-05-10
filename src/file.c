@@ -1470,7 +1470,10 @@ wz_open_var(wzvar * var, const char * path) {
           var->val.obj->alloc = 1;
         return found;
       } else {
-        return var;
+        wzvar * found = var;
+        while (var = var->parent, var != NULL && !var->val.obj->alloc)
+          var->val.obj->alloc = 1;
+        return found;
       }
     }
     if (var->type != WZ_VAR_OBJ ||
@@ -1479,7 +1482,16 @@ wz_open_var(wzvar * var, const char * path) {
         wz_free_obj(var->val.obj);
       return NULL;
     }
-    if (!(var->val.obj->type == WZ_OBJ_LIST ||
+    while (var->type == WZ_VAR_OBJ &&
+           var->val.obj->type == WZ_OBJ_UOL) {
+      for (wzvar * v = var; v != NULL && !v->val.obj->alloc; v = v->parent)
+        v->val.obj->alloc = 1;
+      wzvar * v = wz_resolve_uol(var);
+      if (v == NULL) return NULL;
+      var = v;
+    }
+    if (var->type != WZ_VAR_OBJ ||
+        !(var->val.obj->type == WZ_OBJ_LIST ||
           var->val.obj->type == WZ_OBJ_IMG)) {
       for (; var != NULL && !var->val.obj->alloc; var = var->parent)
         wz_free_obj(var->val.obj);
