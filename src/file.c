@@ -786,13 +786,13 @@ void
 wz_inflate_dxt3_color(wzcolor * out, uint8_t * in, wzctx * ctx) {
   wzcolor codes[4];
   wz_unpack_565(codes, in, 2, ctx); // the first two codes
-  codes[2].b = (uint8_t) (codes[0].b * 2 + codes[1].b) / 3; // the third code
-  codes[2].g = (uint8_t) (codes[0].g * 2 + codes[1].g) / 3;
-  codes[2].r = (uint8_t) (codes[0].r * 2 + codes[1].r) / 3;
+  codes[2].b = (uint8_t) ((codes[0].b * 2 + codes[1].b) / 3); // the third code
+  codes[2].g = (uint8_t) ((codes[0].g * 2 + codes[1].g) / 3);
+  codes[2].r = (uint8_t) ((codes[0].r * 2 + codes[1].r) / 3);
   codes[2].a = 0xff;
-  codes[3].b = (uint8_t) (codes[0].b + codes[1].b * 2) / 3; // the fourth code
-  codes[3].g = (uint8_t) (codes[0].g + codes[1].g * 2) / 3;
-  codes[3].r = (uint8_t) (codes[0].r + codes[1].r * 2) / 3;
+  codes[3].b = (uint8_t) ((codes[0].b + codes[1].b * 2) / 3); // the fourth code
+  codes[3].g = (uint8_t) ((codes[0].g + codes[1].g * 2) / 3);
+  codes[3].r = (uint8_t) ((codes[0].r + codes[1].r * 2) / 3);
   codes[3].a = 0xff;
   uint32_t indices = wz_le32toh(* (uint32_t *) (in + 4)); // get indices
   for (size_t i = 0; i < 16; i++) // choose code by using indice
