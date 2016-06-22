@@ -1365,14 +1365,14 @@ wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx) {
 size_t // [^\0{delim}]+
 wz_next_tok(const char * str, const char ** begin, const char ** end,
             const char delim) {
-  while (1) {
+  for (;;) {
     const char c = * str;
     if (c == '\0') return * begin = NULL, * end = NULL, (size_t) 0;
     if (c != delim) break;
     str++;
   }
   * begin = str++;
-  while (1) {
+  for (;;) {
     const char c = * str;
     if (c == '\0') return * end = str, (size_t) (str - * begin);
     if (c == delim) return * end = str + 1, (size_t) (str - * begin);
@@ -1448,7 +1448,7 @@ wz_open_var(wzvar * var, const char * path) {
   const char * name, * next = path;
   wznode * node = var->node;
   wzfile * file = node->file;
-  while (1) {
+  for (;;) {
     size_t len = wz_next_tok(next, &name, &next, '/');
     if (name == NULL) {
       if (var->type == WZ_VAR_OBJ) {
@@ -1580,7 +1580,7 @@ wznode *
 wz_open_node(wznode * node, const char * path) {
   const char * name, * next = path;
   wzfile * file = node->file;
-  while (1) {
+  for (;;) {
     size_t len = wz_next_tok(next, &name, &next, '/');
     if (name == NULL) {
       if (node->type == WZ_NODE_DIR) {

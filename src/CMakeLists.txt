@@ -23,7 +23,6 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
     "-Wall -Wextra -Werror -Wconversion -Wshadow -Wwrite-strings")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   set(FLAGS
-    "/wd4127" # syntax: while (1)
     "/wd4204" # C99
     "/wd4710" # C89: inline function
     "/wd4820" # C89: struct padding
