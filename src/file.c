@@ -1410,7 +1410,7 @@ wz_resolve_uol(wzvar * var) {
   for (var = var->parent;;) {
     size_t len = wz_next_tok(next, &name, &next, '/');
     if (name == NULL) return var;
-    if (!strncmp(name, "..", len)) { var = var->parent; continue; }
+    if (len == 2 && !strncmp(name, "..", len)) { var = var->parent; continue; }
     return wz_open_var(var, name);
   }
 }
