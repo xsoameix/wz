@@ -1417,8 +1417,6 @@ wz_resolve_uol(wzvar * var) {
 
 wzimg *
 wz_get_img(wzvar * var) {
-  var = wz_resolve_uol(var);
-  if (var == NULL) return NULL;
   if (var->type != WZ_VAR_OBJ ||
       var->val.obj->type != WZ_OBJ_IMG) return NULL;
   return (wzimg *) var->val.obj;
@@ -1426,8 +1424,6 @@ wz_get_img(wzvar * var) {
 
 wzvex *
 wz_get_vex(wzvar * var) {
-  var = wz_resolve_uol(var);
-  if (var == NULL) return NULL;
   if (var->type != WZ_VAR_OBJ ||
       var->val.obj->type != WZ_OBJ_VEX) return NULL;
   return (wzvex *) var->val.obj;
@@ -1435,8 +1431,6 @@ wz_get_vex(wzvar * var) {
 
 wzvec *
 wz_get_vec(wzvar * var) {
-  var = wz_resolve_uol(var);
-  if (var == NULL) return NULL;
   if (var->type != WZ_VAR_OBJ ||
       var->val.obj->type != WZ_OBJ_VEC) return NULL;
   return (wzvec *) var->val.obj;
@@ -1444,8 +1438,6 @@ wz_get_vec(wzvar * var) {
 
 wzao *
 wz_get_ao(wzvar * var) {
-  var = wz_resolve_uol(var);
-  if (var == NULL) return NULL;
   if (var->type != WZ_VAR_OBJ ||
       var->val.obj->type != WZ_OBJ_AO) return NULL;
   return (wzao *) var->val.obj;
@@ -1464,6 +1456,14 @@ wz_open_var(wzvar * var, const char * path) {
           while (var = var->parent, var != NULL && !var->val.obj->alloc)
             wz_free_obj(var->val.obj);
           return NULL;
+        }
+        while (var->type == WZ_VAR_OBJ &&
+               var->val.obj->type == WZ_OBJ_UOL) {
+          for (wzvar * v = var; v != NULL && !v->val.obj->alloc; v = v->parent)
+            v->val.obj->alloc = 1;
+          wzvar * v = wz_resolve_uol(var);
+          if (v == NULL) return NULL;
+          var = v;
         }
         wzvar * found = var;
         for (; var != NULL && !var->val.obj->alloc; var = var->parent)
