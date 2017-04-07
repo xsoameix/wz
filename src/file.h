@@ -239,12 +239,15 @@ typedef struct wzctx {
 #define WZ_VAR_STR   0x06
 #define WZ_VAR_OBJ   0x07
 
-#define WZ_OBJ_LIST 0x00 // "Property"
-#define WZ_OBJ_IMG  0x01 // "Canvas"
-#define WZ_OBJ_VEX  0x02 // "Shape2D#Convex2D"
-#define WZ_OBJ_VEC  0x03 // "Shape2D#Vector2D"
-#define WZ_OBJ_AO   0x04 // "Sound_DX8"
-#define WZ_OBJ_UOL  0x05 // "UOL"
+enum {
+  WZ_OBJ_LIST, // "Property"
+  WZ_OBJ_IMG,  // "Canvas"
+  WZ_OBJ_VEX,  // "Shape2D#Convex2D"
+  WZ_OBJ_VEC,  // "Shape2D#Vector2D"
+  WZ_OBJ_AO,   // "Sound_DX8"
+  WZ_OBJ_UOL,  // "UOL"
+  WZ_OBJ_LEN
+};
 
 #define WZ_NODE_NIL  0x00
 #define WZ_NODE_DIR  0x01
