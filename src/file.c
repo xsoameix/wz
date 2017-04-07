@@ -1126,7 +1126,7 @@ wz_read_obj(wzobj ** ret_obj, wzvar * var,
   if (wz_deduce_key(&node->key, &type, ctx))
     goto free_type;
   typedef int read_t(wzobj *, wzvar *, wznode *, wzfile *, wzctx *);
-  struct {
+  static struct {
     uint8_t type;
     const char * name;
     size_t size;
