@@ -592,17 +592,17 @@ wz_read_prim(wzprim * val, uint8_t * type, wznode * node, wzfile * file) {
     if (wz_read_long((uint64_t *) &int64, file)) return 1;
     return val->i = int64, * type = WZ_VAR_INT64, 0;
   } else if (WZ_IS_VAR_FLT32(byte)) {
-    int8_t set;
-    if (wz_read_byte((uint8_t *) &set, file)) return 1;
-    if (set == INT8_MIN) {
-      union int_to_flt { uint32_t i; float f; } float32;
+    int8_t float8;
+    if (wz_read_byte((uint8_t *) &float8, file)) return 1;
+    if (float8 == INT8_MIN) {
+      union { uint32_t i; float f; } float32;
       if (wz_read_le32(&float32.i, file)) return 1;
       return val->f = float32.f, * type = WZ_VAR_FLT32, 0;
     } else {
-      return val->f = 0.0, * type = WZ_VAR_FLT32, 0;
+      return val->f = float8, * type = WZ_VAR_FLT32, 0;
     }
   } else if (WZ_IS_VAR_FLT64(byte)) {
-    union int_to_flt { uint64_t i; double f; } float64;
+    union { uint64_t i; double f; } float64;
     if (wz_read_le64(&float64.i, file)) return 1;
     return val->f = float64.f, * type = WZ_VAR_FLT64, 0;
   } else if (WZ_IS_VAR_STR(byte)) {
