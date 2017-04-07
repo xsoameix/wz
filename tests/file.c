@@ -654,74 +654,37 @@ START_TEST(test_deduce_ver) {
 
 START_TEST(test_decode_aes) {
   // It shoule be ok
+  uint8_t iv[16] =
+    "\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b""\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b";
   uint8_t key[32] =
     "\x13\x00\x00\x00\x08\x00\x00\x00""\x06\x00\x00\x00\xb4\x00\x00\x00"
     "\x1b\x00\x00\x00\x0f\x00\x00\x00""\x33\x00\x00\x00\x52\x00\x00\x00";
-  uint8_t iv[16] =
-    "\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b""\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b";
   uint8_t cipher[16] =
     "\x96\xae\x3f\xa4\x48\xfa\xdd\x90""\x46\x76\x05\x61\x97\xce\x78\x68";
   uint8_t plain[16];
   memset(plain, 0x11, sizeof(plain));
-  wz_decode_aes(plain, cipher, 16, key, iv);
+  wz_decode_aes(plain, cipher, sizeof(cipher), key, iv);
   uint8_t expected[16] = {0};
   ck_assert_int_eq(memcmp(plain, expected, 16), 0);
 } END_TEST
 
 START_TEST(test_encode_aes) {
   // It shoule be ok
+  uint8_t iv[16] =
+    "\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b""\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b";
+  uint8_t key[32] =
+    "\x13\x00\x00\x00\x08\x00\x00\x00""\x06\x00\x00\x00\xb4\x00\x00\x00"
+    "\x1b\x00\x00\x00\x0f\x00\x00\x00""\x33\x00\x00\x00\x52\x00\x00\x00";
   uint8_t plain[32] =
     "\x00\x00\x00\x00\x00\x00\x00\x00""\x00\x00\x00\x00\x00\x00\x00\x00"
     "\x00\x00\x00\x00\x00\x00\x00\x00""\x00\x00\x00\x00\x00\x00\x00\x00";
-  uint8_t cipher[32] = {0};
-  wzaes aes = {
-    .key =
-      "\x13\x00\x00\x00\x08\x00\x00\x00""\x06\x00\x00\x00\xb4\x00\x00\x00"
-      "\x1b\x00\x00\x00\x0f\x00\x00\x00""\x33\x00\x00\x00\x52\x00\x00\x00",
-    .iv =
-      "\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b""\x4d\x23\xc7\x2b\x4d\x23\xc7\x2b",
-    .plain = plain, .cipher = cipher, .len = 32
-  };
-  wz_encode_aes(&aes);
+  uint8_t cipher[32];
+  memset(cipher, 0x11, sizeof(cipher));
+  wz_encode_aes(cipher, plain, sizeof(plain), key, iv);
   uint8_t expected[32] =
     "\x96\xae\x3f\xa4\x48\xfa\xdd\x90""\x46\x76\x05\x61\x97\xce\x78\x68"
     "\x2b\xa0\x44\x8f\xc1\x56\x7e\x32""\xfc\xe1\xf5\xb3\x14\x14\xc5\x22";
   ck_assert_int_eq(memcmp(cipher, expected, 32), 0);
-} END_TEST
-
-START_TEST(test_init_aes) {
-  // It should be ok
-  wzaes aes;
-  memset(&aes, 0, sizeof(aes));
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  ck_assert(aes.key[0] != 0);
-  ck_assert(aes.len != 0);
-  ck_assert(memused() == aes.len * 2);
-  ck_assert(aes.plain != NULL);
-  ck_assert(aes.cipher != NULL);
-  wz_free_aes(&aes);
-} END_TEST
-
-START_TEST(test_free_aes) {
-  // It should be ok
-  wzaes aes;
-  memset(&aes, 0, sizeof(aes));
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  ck_assert(memused() == aes.len * 2);
-  wz_free_aes(&aes);
-  ck_assert(memused() == 0);
-} END_TEST
-
-START_TEST(test_init_key) {
-  // It should be ok
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wzkey key;
-  ck_assert_int_eq(wz_init_key(&key, &aes), 0);
-  ck_assert(memused() == aes.len * 3);
-  ck_assert(key.bytes != NULL);
-  wz_free_key(&key);
-  wz_free_aes(&aes);
 } END_TEST
 
 //START_TEST(test_valid_nodekey) {
@@ -749,36 +712,6 @@ START_TEST(test_init_key) {
 //  file.root.data.dir->nodes[1].name.bytes = "<?\x80";
 //  ck_assert_int_eq(wz_valid_nodekey(&strk, &file), 1);
 //} END_TEST
-
-START_TEST(test_set_key) {
-  // It should be ok
-  wzaes aes = {
-    .cipher = (uint8_t *)
-      "\x96\xae\x3f\xa4\x48\xfa\xdd\x90""\x46\x76\x05\x61\x97\xce\x78\x68"
-      "\x2b\xa0\x44\x8f\xc1\x56\x7e\x32""\xfc\xe1\xf5\xb3\x14\x14\xc5\x22",
-    .len = 32
-  };
-  wzkey key;
-  ck_assert_int_eq(wz_init_key(&key, &aes), 0);
-  wz_set_key(&key, &aes);
-  ck_assert_int_eq(memcmp(key.bytes, aes.cipher, 32), 0);
-  ck_assert(key.len == aes.len);
-  wz_free_key(&key);
-} END_TEST
-
-START_TEST(test_free_key) {
-  // It should be ok
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wzkey key;
-  ck_assert_int_eq(wz_init_key(&key, &aes), 0);
-  ck_assert(memused() == aes.len * 3);
-  ck_assert(memused() > 0);
-  wz_free_key(&key);
-  ck_assert(memused() == aes.len * 2);
-  ck_assert(memused() > 0);
-  wz_free_aes(&aes);
-} END_TEST
 
 //START_TEST(test_decode_strk) {
 //  // It should decode GMS
@@ -863,9 +796,6 @@ START_TEST(test_read_file) {
   ck_assert_int_eq(wz_read_file(&file, raw, &ctx), 0);
   ck_assert_int_eq(memcmp(file.head.copy.bytes, "ab", 2), 0);
   ck_assert(file.head.copy.len == 2);
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wz_free_aes(&aes);
   ck_assert(memused() == 2 + 1);
   wz_free_file(&file);
   delete_tmpfile(raw);
@@ -896,9 +826,6 @@ START_TEST(test_free_file) {
   wzfile file;
   FILE * raw = create_tmpfile(normal, len);
   ck_assert_int_eq(wz_read_file(&file, raw, &ctx), 0);
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wz_free_aes(&aes);
   ck_assert(memused() == 2 + 1);
   wz_free_file(&file);
   ck_assert(memused() == 0);
@@ -919,9 +846,6 @@ START_TEST(test_open_file) {
   ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wz_free_aes(&aes);
   ck_assert(memused() == 2 + 1);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
@@ -944,9 +868,6 @@ START_TEST(test_close_file) {
   ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
-  wzaes aes;
-  ck_assert_int_eq(wz_init_aes(&aes), 0);
-  wz_free_aes(&aes);
   ck_assert(memused() == 2 + 1);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
@@ -987,12 +908,7 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_deduce_ver);
   tcase_add_test(tcase, test_decode_aes);
   tcase_add_test(tcase, test_encode_aes);
-  tcase_add_test(tcase, test_init_aes);
-  tcase_add_test(tcase, test_free_aes);
-  tcase_add_test(tcase, test_init_key);
   //tcase_add_test(tcase, test_valid_nodekey);
-  tcase_add_test(tcase, test_set_key);
-  tcase_add_test(tcase, test_free_key);
   //tcase_add_test(tcase, test_decode_strk);
   tcase_add_test(tcase, test_read_file);
   tcase_add_test(tcase, test_free_file);

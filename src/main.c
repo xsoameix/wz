@@ -75,10 +75,10 @@ cmd_all(int argc, char ** argv) {
   // read all nodes
   int ret = 1;
   if (argc != 3) return ret;
-  const char * filename;
+  char * filename;
   if ((filename = path_of_file(argv[2])) == NULL) return ret;
   wzctx ctx;
-  if (wz_init_ctx(&ctx)) return ret;
+  if (wz_init_ctx(&ctx)) goto cleanup_filename;
   wzfile file;
   if (wz_open_file(&file, filename, &ctx)) goto cleanup_ctx;
   if (wz_read_node_r(&file.root, &file, &ctx)) goto cleanup_file;
@@ -86,6 +86,7 @@ cmd_all(int argc, char ** argv) {
   ret = 0;
 cleanup_file: wz_close_file(&file);
 cleanup_ctx: wz_free_ctx(&ctx);
+cleanup_filename: free(filename);
   return ret;
 }
 

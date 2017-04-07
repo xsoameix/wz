@@ -372,11 +372,9 @@ wz_encode_ver(wzver * ver) {
   if (len < 0) return 1;
   ver->hash = 0;
   for (int i = 0; i < len; i++) ver->hash = (ver->hash << 5) + chars[i] + 1;
-  ver->enc = (uint16_t) (0xff ^
-                         (ver->hash >> 24 & 0xff) ^
-                         (ver->hash >> 16 & 0xff) ^
-                         (ver->hash >>  8 & 0xff) ^
-                         (ver->hash       & 0xff));
+  ver->enc = 0xff;
+  for (size_t i = 0; i < sizeof(ver->hash); i++)
+    ver->enc = (ver->enc ^ ((uint8_t *) &ver->hash)[i]) & 0xff;
   return 0;
 }
 
@@ -419,8 +417,8 @@ wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx) {
 }
 
 void
-wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
-              uint8_t * key, uint8_t * iv) {
+wz_decode_aes(uint8_t * plain, const uint8_t * cipher, uint32_t len,
+              uint8_t * key, const uint8_t * iv) {
   aes256_context ctx;
   aes256_init(&ctx, key);
   for (uint32_t i = 0; i < len; i += 16) {
@@ -434,17 +432,13 @@ wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
 }
 
 void
-wz_encode_aes(wzaes * aes) {
-  uint8_t * plain = aes->plain;
-  uint8_t * cipher = aes->cipher;
-  uint8_t * iv = aes->iv;
-  uint32_t len = aes->len;
+wz_encode_aes(uint8_t * cipher, const uint8_t * plain, uint32_t len,
+              uint8_t * key, const uint8_t * iv) {
   aes256_context ctx;
-  aes256_init(&ctx, aes->key);
+  aes256_init(&ctx, key);
   for (uint32_t i = 0; i < len; i += 16) {
-    memcpy(cipher, plain, 16);
     for (uint8_t j = 0; j < 16; j++)
-      cipher[j] ^= iv[j];
+      cipher[j] = plain[j] ^ iv[j];
     aes256_encrypt_ecb(&ctx, cipher);
     plain += 16, iv = cipher, cipher += 16;
   }
@@ -452,79 +446,66 @@ wz_encode_aes(wzaes * aes) {
 }
 
 int
-wz_init_aes(wzaes * aes) {
-  uint8_t key[] =
+wz_init_keys(wzkey ** ret_wkeys, size_t * ret_wklen) {
+  int ret = 1;
+  uint8_t ivs[][4] = { // These values is used for generating iv (aes)
+    {0x4d, 0x23, 0xc7, 0x2b},
+    {0xb9, 0x7d, 0x63, 0xe9}
+  };
+  size_t wklen = sizeof(ivs) / sizeof(* ivs) + 1;
+  wzkey * wkeys;
+  if ((wkeys = malloc(sizeof(* wkeys) * wklen)) == NULL)
+    return ret;
+  uint32_t len = 0x10000; // supported image chunk or string size
+  uint8_t * plain;
+  if ((plain = malloc(len * 2)) == NULL)
+    goto free_wkeys;
+  memset(plain, 0, len);
+  uint8_t * cipher = plain + len;
+  uint8_t key[32] =
     "\x13\x00\x00\x00\x08\x00\x00\x00""\x06\x00\x00\x00\xb4\x00\x00\x00"
     "\x1b\x00\x00\x00\x0f\x00\x00\x00""\x33\x00\x00\x00\x52\x00\x00\x00";
-  memcpy(aes->key, key, sizeof(key));
-  aes->len = 0x10000; // supported image chunk or string size
-  if ((aes->plain = malloc(aes->len * 2)) == NULL) return 1;
-  memset(aes->plain, 0, aes->len);
-  aes->cipher = aes->plain + aes->len;
-  return 0;
-}
-
-void
-wz_free_aes(wzaes * aes) {
-  free(aes->plain);
-}
-
-int
-wz_init_key(wzkey * key, wzaes * aes) {
-  uint8_t * bytes = malloc(aes->len);
-  if (bytes == NULL) return 1;
-  return key->bytes = bytes, 0;
-}
-
-void
-wz_set_key(wzkey * key, wzaes * aes) {
-  memcpy(key->bytes, aes->cipher, aes->len);
-  key->len = aes->len;
-}
-
-void
-wz_free_key(wzkey * key) {
-  free(key->bytes);
-}
-
-int
-wz_init_keys(wzkey ** buffer, size_t * len) {
-  uint8_t * values[] = { // These values is used for generating iv (aes)
-    (uint8_t *) "\x4d\x23\xc7\x2b",
-    (uint8_t *) "\xb9\x7d\x63\xe9"
-  };
-  size_t vlen = sizeof(values) / sizeof(* values);
-  wzkey * keys = malloc(sizeof(* keys) * (vlen + 1));
-  if (keys == NULL) return 1;
-  wzaes aes;
-  if (wz_init_aes(&aes)) return free(keys), 1;
-  for (size_t i = 0; i < vlen; i++) {
-    for (size_t j = 0; j < 16; j += 4) memcpy(aes.iv + j, values[i], 4);
-    wzkey * key = &keys[i];
-    if (wz_init_key(key, &aes)) {
-      for (size_t k = 0; k < i; k++)
-        wz_free_key(keys + k);
-      return wz_free_aes(&aes), free(keys), 1;
+  for (size_t i = 0; i < wklen; i++) {
+    int err = 1;
+    uint8_t * bytes;
+    if ((bytes = malloc(len)) == NULL)
+      goto free_wkey;
+    if (i + 1 < wklen) {
+      uint8_t * iv4 = ivs[i];
+      uint8_t iv[16];
+      for (size_t j = 0; j < 16; j += 4)
+        memcpy(iv + j, iv4, 4);
+      wz_encode_aes(cipher, plain, len, key, iv);
+      memcpy(bytes, cipher, len);
+    } else {
+      memset(bytes, 0, len); // an empty cipher
     }
-    wz_encode_aes(&aes);
-    wz_set_key(key, &aes);
+    wzkey * wkey = wkeys + i;
+    wkey->bytes = bytes;
+    wkey->len = len;
+    err = 0;
+free_wkey:
+    if (err) {
+      for (size_t k = 0; k < i; k++)
+        free(wkeys[i].bytes);
+      goto free_plain;
+    }
   }
-  wzkey * key = &keys[vlen];
-  if (wz_init_key(key, &aes)) {
-    for (size_t k = 0; k < vlen; k++)
-      wz_free_key(keys + k);
-    return wz_free_aes(&aes), free(keys), 1;
-  }
-  // plain can be used as an empty cipher
-  aes.cipher = aes.plain;
-  wz_set_key(key, &aes);
-  return wz_free_aes(&aes), * buffer = keys, * len = vlen + 1, 0;
+  * ret_wkeys = wkeys;
+  * ret_wklen = wklen;
+  ret = 0;
+free_plain:
+  free(plain);
+free_wkeys:
+  if (ret)
+    free(wkeys);
+  return ret;
 }
 
 void
 wz_free_keys(wzkey * keys, size_t len) {
   for (size_t i = 0; i < len; i++)
-    wz_free_key(keys + i);
+    free(keys[i].bytes);
   free(keys);
 }
 

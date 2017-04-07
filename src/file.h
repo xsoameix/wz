@@ -147,14 +147,6 @@ typedef union {
 } wzdata;
 
 typedef struct {
-  uint8_t   key[32];
-  uint8_t   iv[16];
-  uint8_t * plain;
-  uint8_t * cipher;
-  uint32_t  len;
-} wzaes;
-
-typedef struct {
   uint8_t * bytes;
   uint32_t  len;
 } wzkey;  // decode string and image
@@ -295,15 +287,11 @@ int      wz_valid_ver(wzver * ver, wznode * root, wzfile * file);
 int      wz_guess_ver(wzver * ver, wznode * root, wzfile * file);
 int      wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx);
 
-void     wz_decode_aes(uint8_t * plain, uint8_t * cipher, size_t len,
-                       uint8_t * key, uint8_t * iv);
-void     wz_encode_aes(wzaes * aes);
-int      wz_init_aes(wzaes * aes);
-void     wz_free_aes(wzaes * aes);
+void     wz_decode_aes(uint8_t * plain, const uint8_t * cipher, uint32_t len,
+                       uint8_t * key, const uint8_t * iv);
+void     wz_encode_aes(uint8_t * cipher, const uint8_t * plain, uint32_t len,
+                       uint8_t * key, const uint8_t * iv);
 
-int      wz_init_key(wzkey * key, wzaes * aes);
-void     wz_set_key(wzkey * key, wzaes * aes);
-void     wz_free_key(wzkey * key);
 int      wz_deduce_key(wzkey ** buffer, wzstr * name, wzctx * ctx);
 
 void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
