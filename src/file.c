@@ -140,6 +140,7 @@ wz_utf16le_to_utf8(wzstr * val) {
     len += utf8_len;
   }
   uint8_t * bytes = malloc(len + 1);
+  if (bytes == NULL) return 1;
   uint8_t * utf8 = bytes;
   for (uint32_t i = 0; i < val->len;) {
     uint8_t   utf16le[WZ_UTF16LE_MAX_LEN] = {0};
