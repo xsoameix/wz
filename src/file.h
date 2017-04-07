@@ -154,7 +154,6 @@ typedef struct {
 typedef struct wznode {
   struct wznode * parent;
   struct wzfile * file;
-  uint8_t   alloc;
   uint8_t   type;
   wzstr     name;
   uint32_t  size;
