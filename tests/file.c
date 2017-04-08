@@ -358,7 +358,7 @@ void
 wz_encode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
                uint32_t start, uint32_t hash) {
   uint32_t key = 0x581c3f6d;
-  uint32_t x = (~(pos - start) & 0xffffffff) * hash - key;
+  uint32_t x = ~(pos - start) * hash - key;
   uint32_t n = x & 0x1f;
   x = (x << n) | (x >> (32 - n)); // rotate left n bit
   * ret_val = x ^ (val - start * 2);

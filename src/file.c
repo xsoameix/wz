@@ -218,7 +218,7 @@ void
 wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
                uint32_t start, uint32_t hash) {
   uint32_t key = 0x581c3f6d;
-  uint32_t x = (~(pos - start) & 0xffffffff) * hash - key;
+  uint32_t x = ~(pos - start) * hash - key;
   uint32_t n = x & 0x1f;
   x = (x << n) | (x >> (32 - n)); // rotate left n bit
   * ret_val = (x ^ val) + start * 2;
@@ -806,11 +806,12 @@ wz_unpack_dxt3(wzcolor * out, uint8_t * in, uint32_t w, uint32_t h,
       wzcolor pixels[16];
       wz_inflate_dxt3(pixels, &in[y * bw + x * 4], ctx); // inflate 4x4 block
       // check the pixel is outside of image
-      uint8_t ph = h - y < 4 ? (uint8_t) (h - y) : 4;
-      uint8_t pw = w - x < 4 ? (uint8_t) (w - x) : 4;
+      wzcolor * bout = &out[y * w + x];
+      uint32_t ph = h - y < 4 ? h - y : 4;
+      uint32_t pw = w - x < 4 ? w - x : 4;
       for (uint32_t py = 0; py < ph; py++) // write to correct location
         for (uint32_t px = 0; px < pw; px++)
-          out[(y + py) * w + x + px] = pixels[py * 4 + px];
+          bout[py * w + px] = pixels[py * 4 + px];
     }
 }
 
