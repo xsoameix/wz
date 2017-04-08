@@ -188,6 +188,7 @@ typedef struct {
 } wzpalette;
 
 typedef struct wzfile {
+  struct wzctx * ctx;
   FILE *    raw;
   uint32_t  size;
   uint32_t  pos;
@@ -195,7 +196,6 @@ typedef struct wzfile {
   wznode    root;
   wzver     ver;
   wzkey *   key;  // decode node name
-  struct wzctx * ctx;
 } wzfile;
 
 typedef struct {
@@ -269,8 +269,8 @@ int      wz_decode_chars(wzstr * buffer, int ascii, wzkey * key);
 int      wz_read_chars(wzstr * buffer, wzkey * key, wzfile * file);
 void     wz_free_chars(wzstr * buffer);
 
-uint32_t wz_rotl32(uint32_t x, uint32_t n);
-void     wz_decode_addr(wzaddr * addr, wzfile * file);
+void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
+                        uint32_t start, uint32_t hash);
 int      wz_read_addr(wzaddr * addr, wzfile * file);
 
 int      wz_seek(uint32_t pos, int origin, wzfile * file);
@@ -284,10 +284,9 @@ void     wz_free_grp(wzgrp ** buffer);
 int      wz_read_head(wzhead * head, wzfile * file);
 void     wz_free_head(wzhead * head);
 
-int      wz_encode_ver(wzver * ver);
-int      wz_valid_ver(wzver * ver, wznode * root, wzfile * file);
-int      wz_guess_ver(wzver * ver, wznode * root, wzfile * file);
-int      wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx);
+void     wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec);
+int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash,
+                       uint16_t enc, wzfile * file, wzctx * ctx);
 
 void     wz_decode_aes(uint8_t * plain, const uint8_t * cipher, uint32_t len,
                        uint8_t * key, const uint8_t * iv);

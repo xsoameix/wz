@@ -214,19 +214,14 @@ wz_free_chars(wzstr * buffer) {
   free(buffer->bytes);
 }
 
-uint32_t
-wz_rotl32(uint32_t x, uint32_t n) {
-  return (x << n) | (x >> (32 - n));
-}
-
 void
-wz_decode_addr(wzaddr * addr, wzfile * file) {
+wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
+               uint32_t start, uint32_t hash) {
   uint32_t key = 0x581c3f6d;
-  uint32_t decoded = ~(addr->pos - file->head.start);
-  decoded = decoded * file->ver.hash - key;
-  decoded = wz_rotl32(decoded, decoded & 0x1f);
-  decoded = (decoded ^ addr->val) + file->head.start * 2;
-  addr->val = decoded;
+  uint32_t x = (~(pos - start) & 0xffffffff) * hash - key;
+  uint32_t n = x & 0x1f;
+  x = (x << n) | (x >> (32 - n)); // rotate left n bit
+  * ret_val = (x ^ val) + start * 2;
 }
 
 int // This function should not be called after address decoded
@@ -235,7 +230,8 @@ wz_read_addr(wzaddr * addr, wzfile * file) {
   if (wz_read_le32(&addr->val, file)) return 1;
   addr->pos = pos;
   if (file->ver.hash == 0) return 0;
-  return wz_decode_addr(addr, file), 0;
+  return wz_decode_addr(&addr->val, addr->val, addr->pos,
+                        file->head.start, file->ver.hash), 0;
 }
 
 int
@@ -365,55 +361,60 @@ wz_free_head(wzhead * head) {
   wz_free_str(&head->copy);
 }
 
-int
-wz_encode_ver(wzver * ver) {
+void
+wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec) {
   uint8_t chars[5 + 1]; // 0xffff.to_s.size == 5
-  int len = sprintf((char *) chars, "%"PRIu16, ver->dec);
-  if (len < 0) return 1;
-  ver->hash = 0;
-  for (int i = 0; i < len; i++) ver->hash = (ver->hash << 5) + chars[i] + 1;
-  ver->enc = 0xff;
-  for (size_t i = 0; i < sizeof(ver->hash); i++)
-    ver->enc = (ver->enc ^ ((uint8_t *) &ver->hash)[i]) & 0xff;
-  return 0;
+  int len = sprintf((char *) chars, "%"PRIu16, dec);
+  assert(len >= 0);
+  uint32_t hash = 0;
+  for (int i = 0; i < len; i++)
+    hash = (hash << 5) + chars[i] + 1;
+  uint16_t enc = 0xff;
+  for (size_t i = 0; i < sizeof(hash); i++)
+    enc = (enc ^ ((uint8_t *) &hash)[i]) & 0xff;
+  * ret_enc = enc, * ret_hash = hash;
 }
 
 int
-wz_valid_ver(wzver * ver, wznode * root, wzfile * file) {
-  wzfile copy = * file;
-  copy.ver.hash = ver->hash;
-  wzgrp * grp = root->data.grp;
-  for (uint32_t i = 0; i < grp->len; i++) {
-    wznode * node = &grp->nodes[i];
-    if (node->type == WZ_NODE_DIR ||
-        node->type == WZ_NODE_FILE) {
-      wzaddr addr = node->addr;
-      wz_decode_addr(&addr, &copy);
-      if (addr.val > copy.size) return 1;
+wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash,
+              uint16_t enc, wzfile * file, wzctx * ctx) {
+  int ret = 1;
+  file->ver.hash = 0; // do not decode addr in read_grp/node/node_body/addr
+  file->key = NULL;   // do not decode chars in read_grp/node/chars/decode_chars
+                      // but deduce file->key in read_grp/node/deduce_key
+  wznode root = file->root;
+  if (wz_read_grp(&root.data.grp, &root, file, ctx))
+    return ret;
+  for (uint16_t g_dec = 0; g_dec < 512; g_dec++) { // guess dec
+    uint32_t g_hash;
+    uint16_t g_enc;
+    wz_encode_ver(&g_enc, &g_hash, g_dec);
+    if (g_enc != enc)
+      continue;
+    int err = 0;
+    wzgrp * grp = root.data.grp;
+    for (uint32_t i = 0; i < grp->len; i++) {
+      wznode * node = grp->nodes + i;
+      if (node->type == WZ_NODE_DIR ||
+          node->type == WZ_NODE_FILE) {
+        wzaddr * addr = &node->addr;
+        uint32_t val;
+        wz_decode_addr(&val, addr->val, addr->pos, file->head.start, g_hash);
+        if (val > file->size) {
+          err = 1;
+          break;
+        }
+      }
+    }
+    if (!err) {
+      * ret_dec = g_dec;
+      * ret_hash = g_hash;
+      ret = 0;
+      break;
     }
   }
-  return 0;
-}
-
-int
-wz_guess_ver(wzver * ver, wznode * root, wzfile * file) {
-  wzver guess;
-  for (guess.dec = 0; guess.dec < 512; guess.dec++) {
-    if (wz_encode_ver(&guess)) return 1;
-    if (guess.enc == ver->enc && !wz_valid_ver(&guess, root, file))
-      return * ver = guess, 0;
-  }
-  return 1;
-}
-
-int
-wz_deduce_ver(wzver * ver, wzfile * file, wzctx * ctx) {
-  file->ver.hash = 0, file->key = NULL;
-  wznode root = file->root;
-  if (wz_read_grp(&root.data.grp, &root, file, ctx)) return 1;
-  if (wz_guess_ver(ver, &root, file))
-    return wz_free_grp(&root.data.grp), 1;
-  return wz_free_grp(&root.data.grp), 0;
+  wz_free_grp(&root.data.grp);
+  return ret;
 }
 
 void
@@ -1636,7 +1637,7 @@ wz_read_file(wzfile * file, FILE * raw, wzctx * ctx) {
   rewind(raw);
   if (wz_read_head(&file->head, file) ||
       wz_read_le16(&file->ver.enc, file)) return 1;
-  if (wz_deduce_ver(&file->ver, file, ctx))
+  if (wz_deduce_ver(&file->ver.dec, &file->ver.hash, file->ver.enc, file, ctx))
     return wz_free_head(&file->head), 1;
   //printf("memory used  %lu\n", memused());
   return file->ctx = ctx, 0;

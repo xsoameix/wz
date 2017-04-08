@@ -354,28 +354,26 @@ START_TEST(test_free_chars) {
   delete_file(&file);
 } END_TEST
 
-START_TEST(test_rotl32) {
-  // It should be ok
-  ck_assert(wz_rotl32(0xf2345678, 3) == 0x91a2b3c7);
-} END_TEST
-
 void
-wz_encode_addr(wzaddr * addr, wzfile * file) {
+wz_encode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
+               uint32_t start, uint32_t hash) {
   uint32_t key = 0x581c3f6d;
-  uint32_t decoded = ~(addr->pos - file->head.start);
-  decoded = decoded * file->ver.hash - key;
-  decoded = wz_rotl32(decoded, decoded & 0x1f);
-  addr->val = decoded ^ (addr->val - file->head.start * 2);
+  uint32_t x = (~(pos - start) & 0xffffffff) * hash - key;
+  uint32_t n = x & 0x1f;
+  x = (x << n) | (x >> (32 - n)); // rotate left n bit
+  * ret_val = x ^ (val - start * 2);
 }
 
 START_TEST(test_decode_addr) {
   // It should be ok
-  wzfile file = {.head = {.start = 0x3c}, .ver = {.hash = 0x713}};
-  wzaddr addr = {.pos = 0x51, .val = 0x2ed};
-  wz_encode_addr(&addr, &file);
-  ck_assert(addr.val == 0x49e34db3);
-  wz_decode_addr(&addr, &file);
-  ck_assert(addr.val == 0x2ed);
+  uint32_t hash = 0x713;
+  uint32_t start = 0x3c;
+  uint32_t pos = 0x51;
+  uint32_t val = 0x2ed;
+  wz_encode_addr(&val, val, pos, start, hash);
+  ck_assert(val == 0x49e34db3);
+  wz_decode_addr(&val, val, pos, start, hash);
+  ck_assert(val == 0x2ed);
 } END_TEST
 
 START_TEST(test_read_addr) {
@@ -595,59 +593,39 @@ START_TEST(test_free_head) {
 
 START_TEST(test_encode_ver) {
   // It should be ok
-  wzver ver = {.dec = 0x0123};
-  ck_assert_int_eq(wz_encode_ver(&ver), 0);
-  ck_assert(ver.enc == 0x005e && ver.hash == 0xd372);
-} END_TEST
-
-START_TEST(test_valid_ver) {
-  // It should be ok
-  wzfile file = {
-    .size = 0x8a95328,
-    .head = {.start = 0x3c},
-    .root = {
-      .data = {
-        .grp = (wzgrp[]) {{
-          .len = 1,
-          .nodes = (wznode[]) {{
-            .type = WZ_NODE_DIR,
-            .addr = {.pos = 0x51, .val = 0x49e34db3}
-          }}
-        }}
-      }
-    },
-    .ver = {.hash = 0x99}
-  };
-  wzver ver = {.hash = 0x713};
-  ck_assert_int_eq(wz_valid_ver(&ver, &file.root, &file), 0);
-  ck_assert(file.ver.hash == 0x99);
-
-  // It should not change version hash if failed
-  ver.hash = 0x712;
-  ck_assert_int_eq(wz_valid_ver(&ver, &file.root, &file), 1);
-  ck_assert(file.ver.hash == 0x99);
+  uint16_t dec = 0x0123;
+  uint16_t enc;
+  uint32_t hash;
+  wz_encode_ver(&enc, &hash, dec);
+  ck_assert(enc == 0x005e && hash == 0xd372);
 } END_TEST
 
 START_TEST(test_deduce_ver) {
   // It should be ok
-  wzver ver = {.dec = 0x00ce};
-  ck_assert_int_eq(wz_encode_ver(&ver), 0);
-  wzfile file = {.head = {.start = 0}, .ver = ver};
-  wzaddr addr = {.pos = 0x7, .val = 0x00000000};
-  wz_encode_addr(&addr, &file);
+  uint16_t dec = 0x00ce;
+  uint32_t hash;
+  uint16_t enc;
+  wz_encode_ver(&enc, &hash, dec);
+  uint32_t start = 0;
+  uint32_t pos = 0x7;
+  uint32_t val = 0x00000000;
+  wz_encode_addr(&val, val, pos, start, hash);
+  ck_assert_int_eq(val != 0, 1);
   char normal[] =
     "\x01"                             // nodes len
     "\x03""\xfe\x01\x23""\x01""\x00""\x00\x00\x00\x00";
-  * (uint32_t *) (normal + addr.pos) = wz_htole32(addr.val);
+  * (uint32_t *) (normal + pos) = wz_htole32(val);
   wzctx ctx;
   create_ctx(&ctx);
   wzfile testfile = {.root = {.addr = {.val = 0x00000000}}};
   create_file(&testfile, normal, sizeof(normal) - 1);
-  wzver test = {.enc = 0x007a};
-  ck_assert_int_eq(wz_deduce_ver(&test, &testfile, &ctx), 0);
-  ck_assert(test.dec == 0x00ce);
-  ck_assert(test.enc == 0x007a);
-  ck_assert(test.hash == 0xd257);
+  dec = 0;
+  hash = 0;
+  enc = 0x007a;
+  ck_assert_int_eq(wz_deduce_ver(&dec, &hash, enc, &testfile, &ctx), 0);
+  ck_assert(dec == 0x00ce);
+  ck_assert(enc == 0x007a);
+  ck_assert(hash == 0xd257);
   delete_file(&testfile);
   delete_ctx(&ctx);
 } END_TEST
@@ -754,11 +732,14 @@ START_TEST(test_encode_aes) {
 
 void
 create_content(char ** buffer, size_t * len, wzctx * ctx) {
-  wzver ver = {.dec = 0x00ce};
-  ck_assert_int_eq(wz_encode_ver(&ver), 0);
-  wzfile file = {.head = {.start = 18}, .ver = ver};
-  wzaddr addr = {.pos = 27, .val = 0x00000000};
-  wz_encode_addr(&addr, &file);
+  uint16_t dec = 0x00ce;
+  uint32_t hash;
+  uint16_t enc;
+  wz_encode_ver(&enc, &hash, dec);
+  uint32_t val = 0x00000000;
+  uint32_t pos = 27;
+  uint32_t start = 18;
+  wz_encode_addr(&val, val, pos, start, hash);
   char normal[] =
     "\x01\x23\x45\x67"                 // ident
     "\x1F\x00\x00\x00\x00\x00\x00\x00" // size
@@ -768,7 +749,7 @@ create_content(char ** buffer, size_t * len, wzctx * ctx) {
     "\x01"                             // nodes len
     "\x03""\xfe\x5d\x67""\x01""\x02""\x00\x00\x00\x00";
   // node name: "\x5d\x67" == "\x96\xae" ^ "\xaa\xab" ^ "ab"
-  * (uint32_t *) (normal + addr.pos) = wz_htole32(addr.val);
+  * (uint32_t *) (normal + pos) = wz_htole32(val);
   char * content = malloc(sizeof(normal) - 1);
   ck_assert(content != NULL);
   memcpy(content, normal, sizeof(normal) - 1);
@@ -893,7 +874,6 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_decode_chars);
   tcase_add_test(tcase, test_read_chars);
   tcase_add_test(tcase, test_free_chars);
-  tcase_add_test(tcase, test_rotl32);
   tcase_add_test(tcase, test_decode_addr);
   tcase_add_test(tcase, test_read_addr);
   tcase_add_test(tcase, test_seek);
@@ -904,7 +884,6 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_read_head);
   tcase_add_test(tcase, test_free_head);
   tcase_add_test(tcase, test_encode_ver);
-  tcase_add_test(tcase, test_valid_ver);
   tcase_add_test(tcase, test_deduce_ver);
   tcase_add_test(tcase, test_decode_aes);
   tcase_add_test(tcase, test_encode_aes);
