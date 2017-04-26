@@ -65,6 +65,9 @@ typedef struct {
   wzvar *   vars;
   uint32_t  w;
   uint32_t  h;
+  uint16_t  depth;
+  uint16_t  scale;
+  uint32_t  size;
   wzcolor * data; // size == w * h * sizeof(wzcolor)
 } wzimg;
 
@@ -169,33 +172,33 @@ typedef struct wzgrp {
 } wzgrp;
 
 typedef struct {
-  uint8_t   ident[4];
-  uint32_t  size;
-  uint32_t  start;
-  wzstr     copy;  // copyright
-} wzhead;
-
-typedef struct {
   uint16_t  enc;   // encoded version
   uint16_t  dec;   // decoded version
   uint32_t  hash;  // hash of the version
 } wzver;
 
 typedef struct {
-  uint8_t   table4[0x10];  // scale 4 bit color to 8 bit color
-  uint8_t   table5[0x20];  // scale 5 bit color to 8 bit color
-  uint8_t   table6[0x40];  // scale 6 bit color to 8 bit color
-} wzpalette;
+  uint8_t   u4[0x10];          // scale 4 bit color to 8 bit color
+  uint8_t   u5[0x20];          // scale 5 bit color to 8 bit color
+  uint8_t   u6[0x40];          // scale 6 bit color to 8 bit color
+  wzcolor   u4444[0x10000];    // unpack rgba 4444 pixel
+  wzcolor   u565[0x10000];     // unpack rgb 565 pixel
+  wzcolor   c[2][256][256];    // unpack color code 2 and 3 of dxt3
+  uint8_t   a[2][256][256][6]; // unpack alpha code 2 ~ 7 of dxt5
+} wzplt;  // palette
 
 typedef struct wzfile {
   struct wzctx * ctx;
   FILE *    raw;
   uint32_t  size;
   uint32_t  pos;
-  wzhead    head;
-  wznode    root;
+  uint8_t   ident[4];
+  uint32_t  size_; // the size specified in the header of wz file
+  uint32_t  start;
+  wzstr     copy;  // copyright
   wzver     ver;
   wzkey *   key;  // decode node name
+  wznode    root;
 } wzfile;
 
 typedef struct {
@@ -206,7 +209,7 @@ typedef struct {
 typedef struct wzctx {
   size_t    klen; // keys length
   wzkey *   keys;
-  wzpalette palette;
+  wzplt *   plt;
   wzguid    guid;
 } wzctx;
 
@@ -220,6 +223,7 @@ typedef struct wzctx {
 #define WZ_COLOR_8888    2
 #define WZ_COLOR_565   513
 #define WZ_COLOR_DXT3 1026
+#define WZ_COLOR_DXT5 2050
 
 // microsoft define these values in Mmreg.h
 #define WZ_AUDIO_PCM 0x0001
@@ -229,14 +233,24 @@ typedef struct wzctx {
 #define WZ_AUDIO_MP3_SIZE 30 // sizeof(packed wzmp3)
 #define WZ_AUDIO_PCM_SIZE 44 // sizeof(packed wzpcm)
 
-#define WZ_VAR_NIL   0x00
-#define WZ_VAR_INT16 0x01
-#define WZ_VAR_INT32 0x02
-#define WZ_VAR_INT64 0x03
-#define WZ_VAR_FLT32 0x04
-#define WZ_VAR_FLT64 0x05
-#define WZ_VAR_STR   0x06
-#define WZ_VAR_OBJ   0x07
+typedef enum {
+  WZ_ENC_AUTO,
+  WZ_ENC_ASCII,
+  WZ_ENC_UTF16LE,
+  WZ_ENC_UTF8
+} wzenc;
+
+enum {
+  WZ_VAR_UNK,  // not read yet
+  WZ_VAR_NIL,
+  WZ_VAR_INT16,
+  WZ_VAR_INT32,
+  WZ_VAR_INT64,
+  WZ_VAR_FLT32,
+  WZ_VAR_FLT64,
+  WZ_VAR_STR,
+  WZ_VAR_OBJ
+};
 
 enum {
   WZ_OBJ_LIST, // "Property"
@@ -248,60 +262,60 @@ enum {
   WZ_OBJ_LEN
 };
 
-#define WZ_NODE_NIL  0x00
-#define WZ_NODE_DIR  0x01
-#define WZ_NODE_FILE 0x02
+enum {
+  WZ_NODE_NIL,
+  WZ_NODE_DIR,
+  WZ_NODE_FILE
+};
 
-int      wz_read_data(void * buffer, uint32_t len, wzfile * file);
-int      wz_read_byte(uint8_t * buffer, wzfile * file);
-int      wz_read_le16(uint16_t * buffer, wzfile * file);
-int      wz_read_le32(uint32_t * buffer, wzfile * file);
-int      wz_read_le64(uint64_t * buffer, wzfile * file);
-int      wz_read_int(uint32_t * buffer, wzfile * file);
-int      wz_read_long(uint64_t * buffer, wzfile * file);
-int      wz_read_bytes(uint8_t * buffer, uint32_t len, wzfile * file);
+int      wz_read_bytes(void * bytes, uint32_t len, wzfile * file);
+int      wz_read_byte(uint8_t * byte, wzfile * file);
+int      wz_read_le16(uint16_t * le16, wzfile * file);
+int      wz_read_le32(uint32_t * le32, wzfile * file);
+int      wz_read_le64(uint64_t * le64, wzfile * file);
+int      wz_read_int32(uint32_t * int32, wzfile * file);
+int      wz_read_int64(uint64_t * int64, wzfile * file);
 
-void     wz_init_str(wzstr * buffer);
-int      wz_read_str(wzstr * buffer, uint32_t len, wzfile * file);
-void     wz_free_str(wzstr * buffer);
+void     wz_init_str(wzstr * str);
+int      wz_read_str(wzstr * str, uint32_t len, wzfile * file);
+void     wz_free_str(wzstr * str);
 
-int      wz_decode_chars(wzstr * buffer, int ascii, wzkey * key);
-int      wz_read_chars(wzstr * buffer, wzkey * key, wzfile * file);
-void     wz_free_chars(wzstr * buffer);
+int      wz_decode_chars(wzstr * ret_str, wzstr * str, wzkey * key, wzenc enc);
+int      wz_read_chars(wzstr * str, wzkey * key, wzenc enc, wzfile * file);
+void     wz_free_chars(wzstr * str);
 
 void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
                         uint32_t start, uint32_t hash);
 int      wz_read_addr(wzaddr * addr, wzfile * file);
 
 int      wz_seek(uint32_t pos, int origin, wzfile * file);
-int      wz_read_node(wznode * node, wzfile * file, wzctx * ctx);
-void     wz_free_node(wznode * node);
 
-int      wz_read_grp(wzgrp ** buffer, wznode * node, wzfile * file,
-                     wzctx * ctx);
-void     wz_free_grp(wzgrp ** buffer);
-
-int      wz_read_head(wzhead * head, wzfile * file);
-void     wz_free_head(wzhead * head);
+int      wz_read_grp(wzgrp ** ret_grp, wznode * node,
+                     wzfile * file, wzctx * ctx);
+void     wz_free_grp(wzgrp ** ret_grp);
 
 void     wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec);
-int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash,
-                       uint16_t enc, wzfile * file, wzctx * ctx);
+int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint16_t enc,
+                       uint32_t addr, uint32_t start, uint32_t size, FILE * raw,
+                       wzctx * ctx);
 
 void     wz_decode_aes(uint8_t * plain, const uint8_t * cipher, uint32_t len,
                        uint8_t * key, const uint8_t * iv);
 void     wz_encode_aes(uint8_t * cipher, const uint8_t * plain, uint32_t len,
                        uint8_t * key, const uint8_t * iv);
 
-int      wz_deduce_key(wzkey ** buffer, wzstr * name, wzctx * ctx);
+int      wz_deduce_key(wzkey ** ret_key, wzstr * name,
+                       wzkey * keys, size_t klen);
 
 void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
 
-int      wz_read_obj(wzobj ** buffer, wzvar * var,
-                     wznode * node, wzfile * file, wzctx * ctx);
+int      wz_read_obj(wzobj ** ret_obj, wzvar * var,
+                     wznode * node, wzfile * file, wzctx * ctx, uint8_t eager);
 void     wz_free_obj(wzobj * obj);
 
 int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
+int      wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx,
+                             uint8_t tcapa);
 
 int64_t  wz_get_int(wzvar * var);
 double   wz_get_flt(wzvar * var);
@@ -312,20 +326,20 @@ wzvec *  wz_get_vec(wzvar * var);
 wzao *   wz_get_ao(wzvar * var);
 
 wzvar *  wz_open_var(wzvar * var, const char * path);
-void     wz_close_var(wzvar * var);
+int      wz_close_var(wzvar * var);
 wzvar *  wz_open_root_var(wznode * node);
 
+char *   wz_get_var_name(wzvar * var);
 uint32_t wz_get_vars_len(wzvar * var);
 wzvar *  wz_open_var_at(wzvar * var, uint32_t i);
-char *   wz_get_var_name(wzvar * var);
 
 wznode * wz_open_node(wznode * node, const char * path);
-void     wz_close_node(wznode * node);
+int      wz_close_node(wznode * node);
 wznode * wz_open_root_node(wzfile * file);
 
+char *   wz_get_node_name(wznode * node);
 uint32_t wz_get_nodes_len(wznode * node);
 wznode * wz_open_node_at(wznode * node, uint32_t i);
-char *   wz_get_node_name(wznode * node);
 
 int      wz_read_file(wzfile * file, FILE * raw, wzctx * ctx);
 void     wz_free_file(wzfile * file);

@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200112L
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -66,27 +68,63 @@ cmd_help(int argc, char ** argv) {
          "There is NO WARRANTY, to the extent permitted by law.\n"
          "\n"
          "Written by Lien Chiang.\n");
+  wzctx ctx;
+  wz_init_ctx(&ctx);
+  for (size_t i = 0; i < ctx.klen; i++) {
+    printf("{ ");
+    for (size_t j = 0; j < 28; j++)
+      printf("%02hhx ", ctx.keys[i].bytes[j]);
+    printf("}\n");
+  }
+  wz_free_ctx(&ctx);
   return 0;
 }
 
 int
 cmd_all(int argc, char ** argv) {
-  // wz all <FILE>
+  // wz all <FILE>...
   // read all nodes
   int ret = 1;
-  if (argc != 3) return ret;
-  char * filename;
-  if ((filename = path_of_file(argv[2])) == NULL) return ret;
+  if (argc < 3) return ret;
+  char * done;
+  if ((done = malloc((size_t) (argc - 2))) == NULL) return ret;
   wzctx ctx;
-  if (wz_init_ctx(&ctx)) goto cleanup_filename;
-  wzfile file;
-  if (wz_open_file(&file, filename, &ctx)) goto cleanup_ctx;
-  if (wz_read_node_r(&file.root, &file, &ctx)) goto cleanup_file;
-  printf("all read !\n");
-  ret = 0;
+  if (wz_init_ctx(&ctx)) goto cleanup_done;
+  struct timespec start;
+  struct timespec end;
+  int err;
+  if ((err = clock_gettime(CLOCK_MONOTONIC, &start)) != 0) goto cleanup_ctx;
+  for (int i = 2; i < argc; i++) {
+    int read_err = 1;
+    done[i - 2] = 0;
+    if (strstr(argv[i], "List.wz") == NULL &&
+        strstr(argv[i], "Data.wz") == NULL) {
+      printf("file: %s\n", argv[i]);
+      wzfile file;
+      if (wz_open_file(&file, argv[i], &ctx)) goto cleanup_ctx;
+      if (wz_read_node_thrd_r(&file.root, &file, &ctx, 8)) goto cleanup_file;
+      //if (wz_read_node_r(&file.root, &file, &ctx)) goto cleanup_file;
+      read_err = 0;
 cleanup_file: wz_close_file(&file);
+    } else {
+      printf("file: %s ignored\n", argv[i]);
+      read_err = 0;
+    }
+    if (!read_err)
+      done[i - 2] = 1;
+  }
+  if ((err = clock_gettime(CLOCK_MONOTONIC, &end)) != 0) goto cleanup_ctx;
+  long time_use =
+      (end.tv_sec - start.tv_sec) * 1000000000 +
+      (end.tv_nsec - start.tv_nsec);
+  for (int i = 2; i < argc; i++)
+    printf("%c: %s\n", done[i - 2] ? 'o' : 'x', argv[i]);
+  printf("took %3ld.%09ld\n",
+         time_use / 1000000000,
+         time_use % 1000000000);
+  ret = 0;
 cleanup_ctx: wz_free_ctx(&ctx);
-cleanup_filename: free(filename);
+cleanup_done: free(done);
   return ret;
 }
 
@@ -291,27 +329,57 @@ cmd_scrolls(int argc, char ** argv) {
   // read all scrolls
   (void) argc; (void) argv;
   int ret = 1;
-  char * filename;
-  if ((filename = path_of_file("String.wz")) == NULL) return ret;
   wzctx ctx;
-  if (wz_init_ctx(&ctx)) goto cleanup_filename;
-  wzfile file;
-  if (wz_open_file(&file, filename, &ctx)) goto cleanup_ctx;
-  wznode * node_root = wz_open_root_node(&file);
-  wznode * node = wz_open_node(node_root, "Consume.img");
-  wzvar * var_root = wz_open_root_var(node);
-  for (uint32_t i = 0, len = wz_get_vars_len(var_root); i < len; i++) {
-    wzvar * var = wz_open_var_at(var_root, i);
-    const char * id = wz_get_var_name(var);
+  if (wz_init_ctx(&ctx)) return ret;
+  char * filename_string;
+  char * filename_item;
+  if ((filename_string = path_of_file("String.wz")) == NULL) goto cleanup_ctx;
+  if ((filename_item = path_of_file("Item.wz")) == NULL)
+    goto cleanup_filename_string;
+  wzfile file_string;
+  wzfile file_item;
+  if (wz_open_file(&file_string, filename_string, &ctx))
+    goto cleanup_filename_item;
+  if (wz_open_file(&file_item, filename_item, &ctx))
+    goto cleanup_file_string;
+  wznode * node_string_root = wz_open_root_node(&file_string);
+  wznode * node_string_consume = wz_open_node(node_string_root, "Consume.img");
+  wzvar * var_string_consume_root = wz_open_root_var(node_string_consume);
+  wznode * node_item_root = wz_open_root_node(&file_item);
+  wznode * node_item_consume = wz_open_node(node_item_root, "Consume");
+  wznode * node_item_scroll = wz_open_node(node_item_consume, "0204.img");
+  wzvar * var_item_scroll_root = wz_open_root_var(node_item_scroll);
+  uint32_t len = wz_get_vars_len(var_string_consume_root);
+  for (uint32_t i = 0; i < len; i++) {
+    wzvar * var_string_consume = wz_open_var_at(var_string_consume_root, i);
+    const char * id = wz_get_var_name(var_string_consume);
     if (strncmp(id, "204", 3)) continue;
-    wzvar * var_name = wz_open_var(var, "name");
+    char index[8 + 1];
+    int ret_snprintf;
+    if ((ret_snprintf = snprintf(index, sizeof(index), "%8s",
+                                 id)) >= (int) sizeof(index) ||
+        ret_snprintf < 0) goto cleanup_file_item;
+    for (size_t j = 0; index[j] == ' '; j++) index[j] = '0';
+    wzvar * var_item_scroll = wz_open_var(var_item_scroll_root, index);
+    wzvar * var_item_info = wz_open_var(var_item_scroll, "info");
+    wzvar * var_name = wz_open_var(var_string_consume, "name");
     const char * name = wz_get_str(var_name);
-    printf("%s %s\n", id, name);
+    wzvar * var_success = wz_open_var(var_item_info, "success");
+    int32_t success;
+    if (var_success->type == WZ_VAR_STR) {
+      if (sscanf(wz_get_str(var_success), "%"PRId32, &success) != 1)
+        goto cleanup_file_item;
+    } else {
+      success = (int32_t) wz_get_int(var_success);
+    }
+    printf("%s  %-50s  %3"PRId32"%%\n", id, name, success);
   }
   ret = 0;
-  wz_close_file(&file);
-cleanup_ctx: wz_free_ctx(&ctx);
-cleanup_filename: free(filename);
+cleanup_file_item:       wz_close_file(&file_item);
+cleanup_file_string:     wz_close_file(&file_string);
+cleanup_filename_item:   free(filename_item);
+cleanup_filename_string: free(filename_string);
+cleanup_ctx:             wz_free_ctx(&ctx);
   return ret;
 }
 
@@ -498,37 +566,50 @@ cmd_life_maps(int argc, char ** argv) {
         const char * map_life_id = wz_get_str(var_map_life_id);
         if (strcmp(map_life_id, life_id)) { only = ""; break; }
       }
+      wzvar * found_var_map_life = NULL;
       for (uint32_t k = 0, kl = wz_get_vars_len(var_map_lifes); k < kl; k++) {
         wzvar * var_map_life = wz_open_var_at(var_map_lifes, k);
         wzvar * var_map_life_id = wz_open_var(var_map_life, "id");
         const char * map_life_id = wz_get_str(var_map_life_id);
         if (strcmp(map_life_id, life_id)) continue;
-        const char * node_map_name = wz_get_node_name(node_map);
-        char map_id[9 + 1];
-        if (sscanf(node_map_name, "%[^.]", map_id) != 1)
-          goto cleanup_file_string;
-        int brk;
-        uint32_t ll = wz_get_vars_len(var_string_map_root);
-        for (uint32_t l = 0; l < ll; l++) {
-          wzvar * var_string_maps = wz_open_var_at(var_string_map_root, l);
-          wzvar * var_string_map = wz_open_var(var_string_maps, map_id);
-          if (var_string_map == NULL) continue;
-          wzvar * var_map_name = wz_open_var(var_string_map, "mapName");
-          wzvar * var_street_name = wz_open_var(var_string_map, "streetName");
-          const char * map_name = wz_get_str(var_map_name);
-          const char * street_name = wz_get_str(var_street_name);
-          wzvar * var_map_life_type = wz_open_var(var_map_life, "type");
-          const char * map_life_type = wz_get_str(var_map_life_type);
-          const char * life_type;
-          if (!strcmp(map_life_type, "n")) life_type = "npc";
-          else if (!strcmp(map_life_type, "m")) life_type = "mob";
-          else life_type = "???";
-          printf("%s  %s  %s: %s%s\n",
-                 life_type, map_id, street_name, map_name, only);
-          brk = 1;
-        }
-        if (brk) break;
+        found_var_map_life = var_map_life;
+        break;
       }
+      if (found_var_map_life == NULL) continue;
+      const char * node_map_name = wz_get_node_name(node_map);
+      char map_id[9 + 1];
+      if (sscanf(node_map_name, "%[^.]", map_id) != 1)
+        goto cleanup_file_string;
+      wzvar * var_map_life = found_var_map_life;
+      wzvar * var_map_life_type = wz_open_var(var_map_life, "type");
+      const char * map_life_type = wz_get_str(var_map_life_type);
+      const char * life_type;
+      if (!strcmp(map_life_type, "n"))      life_type = "npc";
+      else if (!strcmp(map_life_type, "m")) life_type = "mob";
+      else                                  life_type = "???";
+      wzvar * found_var_string_map = NULL;
+      uint32_t ll = wz_get_vars_len(var_string_map_root);
+      for (uint32_t l = 0; l < ll; l++) {
+        wzvar * var_string_maps = wz_open_var_at(var_string_map_root, l);
+        wzvar * var_string_map = wz_open_var(var_string_maps, map_id);
+        if (var_string_map == NULL) continue;
+        found_var_string_map = var_string_map;
+        break;
+      }
+      const char * map_name;
+      const char * street_name;
+      if (found_var_string_map == NULL) {
+        map_name = "(nil)";
+        street_name = "(nil)";
+      } else {
+        wzvar * var_string_map = found_var_string_map;
+        wzvar * var_map_name = wz_open_var(var_string_map, "mapName");
+        wzvar * var_street_name = wz_open_var(var_string_map, "streetName");
+        map_name = wz_get_str(var_map_name);
+        street_name = wz_get_str(var_street_name);
+      }
+      printf("%s  %s  %s: %s%s\n",
+             life_type, map_id, street_name, map_name, only);
     }
   }
   ret = 0;
@@ -537,6 +618,142 @@ cleanup_file_map:        wz_close_file(&file_map);
 cleanup_ctx:             wz_free_ctx(&ctx);
 cleanup_filename_string: free(filename_string);
 cleanup_filename_map:    free(filename_map);
+  return ret;
+}
+
+int
+cmd_mob_exp(int argc, char ** argv) {
+  // wz mob-exp <DIR>
+  // read highest exp's mob
+  int ret = 1;
+  if (argc != 3) return ret;
+  int32_t minhp;
+  if (sscanf(argv[2], "%"PRId32, &minhp) != 1) return ret;
+  char * filename_mob;
+  char * filename_string;
+  if ((filename_mob = path_of_file("Mob.wz")) == NULL) return ret;
+  if ((filename_string = path_of_file("String.wz")) == NULL)
+    goto cleanup_filename_mob;
+  wzctx ctx;
+  if (wz_init_ctx(&ctx)) goto cleanup_filename_string;
+  wzfile file_mob;
+  wzfile file_string;
+  if (wz_open_file(&file_mob, filename_mob, &ctx))
+    goto cleanup_ctx;
+  if (wz_open_file(&file_string, filename_string, &ctx))
+    goto cleanup_file_mob;
+  wznode * node_string_root = wz_open_root_node(&file_string);
+  wznode * node_string_mob = wz_open_node(node_string_root, "Mob.img");
+  wzvar * var_string_mob_root = wz_open_root_var(node_string_mob);
+  wznode * node_mob_root = wz_open_root_node(&file_mob);
+  for (uint32_t i = 0, il = wz_get_nodes_len(node_mob_root); i < il; i++) {
+    wznode * node_mob = wz_open_node_at(node_mob_root, i);
+    wzvar * var_mob_root = wz_open_root_var(node_mob);
+    wzvar * var_mob_info = wz_open_var(var_mob_root, "info");
+    wzvar * var_mob_maxhp = wz_open_var(var_mob_info, "maxHP");
+    wzvar * var_mob_exp = wz_open_var(var_mob_info, "exp");
+    if (var_mob_exp == NULL) continue;
+    int32_t maxhp = (int32_t) wz_get_int(var_mob_maxhp);
+    int32_t exp = (int32_t) wz_get_int(var_mob_exp);
+    if (maxhp < minhp) continue;
+    if (!exp) continue;
+    const char * mob_img = wz_get_node_name(node_mob);
+    char mob_id[7 + 1];
+    if (sscanf(mob_img, "%[^.]", mob_id) != 1)
+      goto cleanup_file_string;
+    wzvar * var_string_mob = wz_open_var(var_string_mob_root, mob_id);
+    const char * mob_name = "(nil)";
+    if (var_string_mob != NULL) {
+      wzvar * var_string_mob_name = wz_open_var(var_string_mob, "name");
+      mob_name = wz_get_str(var_string_mob_name);
+    }
+    printf("%s  %7d  %10d  %-s\n", mob_id, maxhp / exp, maxhp, mob_name);
+  }
+  ret = 0;
+cleanup_file_string:     wz_close_file(&file_string);
+cleanup_file_mob:        wz_close_file(&file_mob);
+cleanup_ctx:             wz_free_ctx(&ctx);
+cleanup_filename_string: free(filename_string);
+cleanup_filename_mob:    free(filename_mob);
+  return ret;
+}
+
+int
+cmd_ls(int argc, char ** argv) {
+  int ret = 1;
+  if (argc < 3) return ret;
+  const char * filename = argv[2];
+  const char * nodepath = argc >= 4 ? argv[3] : "";
+  const char * varpath = argc >= 5 ? argv[4] : "";
+  wzctx ctx;
+  if (wz_init_ctx(&ctx))
+    return ret;
+  wzfile file;
+  if (wz_open_file(&file, filename, &ctx))
+    goto free_ctx;
+  wznode * node_root;
+  if ((node_root = wz_open_root_node(&file)) == NULL) {
+    fprintf(stderr, "Error: Unable to open the root node\n");
+    goto close_file;
+  }
+  wznode * node;
+  if ((node = wz_open_node(node_root, nodepath)) == NULL) {
+    fprintf(stderr, "Error: Unable to open the node: %s\n", nodepath);
+    goto close_file;
+  }
+  if (argc >= 5 || node->type == WZ_NODE_FILE) {
+    wzvar * var_root;
+    if ((var_root = wz_open_root_var(node)) == NULL) {
+      fprintf(stderr, "Error: Unable to open the root var\n");
+      goto close_file;
+    }
+    wzvar * var;
+    if ((var = wz_open_var(var_root, varpath)) == NULL) {
+      fprintf(stderr, "Error: Unable to open the var: %s\n", varpath);
+      goto close_file;
+    }
+    if (var->type == WZ_VAR_OBJ) {
+      wzobj * obj = var->val.obj;
+      if (obj->type == WZ_OBJ_IMG)
+        printf("(image)\n");
+      if (obj->type == WZ_OBJ_LIST ||
+          obj->type == WZ_OBJ_IMG) {
+        wzlist * list = (wzlist *) obj;
+        for (uint32_t i = 0; i < list->len; i++) {
+          printf("%s\n", list->vars[i].name.bytes);
+        }
+      } else if (obj->type == WZ_OBJ_VEX) {
+        printf("(vex)\n");
+      } else if (obj->type == WZ_OBJ_VEC) {
+        printf("(vec)\n");
+      } else if (obj->type == WZ_OBJ_AO) {
+        printf("(ao)\n");
+      } else if (obj->type == WZ_OBJ_UOL) {
+        printf("(uol)\n");
+      }
+    } else if (var->type == WZ_VAR_STR) {
+      printf("%s\n", var->val.str.bytes);
+    } else if (var->type == WZ_VAR_INT16 ||
+               var->type == WZ_VAR_INT32 ||
+               var->type == WZ_VAR_INT64 ||
+               var->type == WZ_VAR_FLT32 ||
+               var->type == WZ_VAR_FLT64) {
+      printf("(number)\n");
+    } else if (var->type == WZ_VAR_NIL) {
+      printf("(nil)\n");
+    }
+  } else {
+    if (node->type == WZ_NODE_DIR) {
+      wzgrp * grp = node->data.grp;
+      for (uint32_t i = 0; i < grp->len; i++) {
+        printf("%s\n", grp->nodes[i].name.bytes);
+      }
+    }
+  }
+close_file:
+  wz_close_file(&file);
+free_ctx:
+  wz_free_ctx(&ctx);
   return ret;
 }
 
@@ -560,7 +777,9 @@ main(int argc, char ** argv) {
     {"scrolls",       cmd_scrolls},
     {"mobs",          cmd_mobs},
     {"thief-shields", cmd_thief_shields},
-    {"life-maps",     cmd_life_maps}
+    {"life-maps",     cmd_life_maps},
+    {"mob-exp",       cmd_mob_exp},
+    {"ls",            cmd_ls}
   };
   for (size_t i = 0, len = sizeof(funcs) / sizeof(funcs[0]); i < len; i++)
     if (!strcmp(funcs[i].name, cmd)) return funcs[i].call(argc, argv);
