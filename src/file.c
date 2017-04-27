@@ -155,25 +155,25 @@ wz_utf16le_to_utf8_1(uint8_t * ret_u8_bytes, uint8_t * ret_u8_size,
                        (u16_bytes[0]     ));
   }
   uint8_t u8_size;
-  if ((code & 0xffffff80) == 0) {
+  if (code < 0x80) {
     u8_size = 1;
     if (ret_u8_bytes != NULL) {
       ret_u8_bytes[0] = (uint8_t) code;
     }
-  } else if ((code & 0xfffff800) == 0) {
+  } else if (code < 0x800) {
     u8_size = 2;
     if (ret_u8_bytes != NULL) {
       ret_u8_bytes[0] = (uint8_t) (((code >> 6) & 0x1f) | 0xc0);
       ret_u8_bytes[1] = (uint8_t) (((code     ) & 0x3f) | 0x80);
     }
-  } else if ((code & 0xffff0000) == 0) {
+  } else if (code < 0x10000) {
     u8_size = 3;
     if (ret_u8_bytes != NULL) {
       ret_u8_bytes[0] = (uint8_t) (((code >> 12) & 0x0f) | 0xe0);
       ret_u8_bytes[1] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
       ret_u8_bytes[2] = (uint8_t) (((code      ) & 0x3f) | 0x80);
     }
-  } else if (code < 0x00110000) {
+  } else if (code < 0x110000) {
     u8_size = 4;
     if (ret_u8_bytes != NULL) {
       ret_u8_bytes[0] = (uint8_t) (((code >> 18) & 0x07) | 0xf0);
