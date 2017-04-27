@@ -2477,29 +2477,21 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   uint8_t  ident[4];
   uint32_t size_;
   uint32_t start;
-  wzstr    copy;
+  uint16_t enc;
   if (wz_read_bytes(&ident, sizeof(ident), &file) ||
       wz_read_le32(&size_, &file) ||
       wz_seek(4, SEEK_CUR, &file) ||
-      wz_read_le32(&start, &file)) {
+      wz_read_le32(&start, &file) ||
+      wz_seek(start - file.pos, SEEK_CUR, &file) ||
+      wz_read_le16(&enc, &file)) {
     perror(filename);
     goto close_raw;
-  }
-  copy.len = start - file.pos;
-  if (wz_read_str(&copy.bytes, copy.len, &file)) {
-    perror(filename);
-    goto close_raw;
-  }
-  uint16_t enc;
-  if (wz_read_le16(&enc, &file)) {
-    perror(filename);
-    goto free_copy;
   }
   uint32_t addr = file.pos;
   uint16_t dec;
   uint32_t hash;
   if (wz_deduce_ver(&dec, &hash, enc, addr, start, file.size, raw, ctx))
-    goto free_copy;
+    goto close_raw;
   ret_file->ctx = ctx;
   ret_file->raw = raw;
   ret_file->pos = 0;
@@ -2507,7 +2499,6 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   memcpy(ret_file->ident, ident, sizeof(ident));
   ret_file->size_ = size_;
   ret_file->start = start;
-  ret_file->copy = copy;
   ret_file->ver.enc = enc;
   ret_file->ver.dec = dec;
   ret_file->ver.hash = hash;
@@ -2520,9 +2511,6 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   ret_file->root.addr.val = addr;
   ret_file->root.data.grp = NULL;
   ret = 0;
-free_copy:
-  if (ret)
-    wz_free_chars(copy.bytes);
 close_raw:
   if (ret)
     fclose(raw);
@@ -2534,7 +2522,6 @@ wz_close_file(wzfile * file) {
   int ret = 0;
   if (wz_close_node(&file->root))
     ret = 1;
-  wz_free_str(file->copy.bytes);
   if (fclose(file->raw))
     ret = 1;
   return ret;

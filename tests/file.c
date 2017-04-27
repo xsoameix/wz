@@ -706,12 +706,6 @@ delete_content(char * content, wzctx * ctx) {
   free(content);
 }
 
-START_TEST(test_read_file) {
-} END_TEST
-
-START_TEST(test_free_file) {
-} END_TEST
-
 START_TEST(test_open_file) {
   // It should be ok
   char * filename = "test_open_file.wz";
@@ -725,9 +719,7 @@ START_TEST(test_open_file) {
   ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
-  ck_assert_int_eq(memcmp(file.copy.bytes, "ab", 2), 0);
-  ck_assert(file.copy.len == 2);
-  ck_assert(memused() == 2 + 1);
+  ck_assert(memused() == 0);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert_int_eq(remove(filename), 0);
 
@@ -766,7 +758,7 @@ START_TEST(test_close_file) {
   ck_assert(fwrite(normal, 1, len, raw) == len);
   ck_assert_int_eq(fclose(raw), 0);
   ck_assert_int_eq(wz_open_file(&file, filename, &ctx), 0);
-  ck_assert(memused() == 2 + 1);
+  ck_assert(memused() == 0);
   ck_assert_int_eq(wz_close_file(&file), 0);
   ck_assert(memused() == 0);
   ck_assert_int_eq(remove(filename), 0);
@@ -800,8 +792,6 @@ make_file_suite(void) {
   tcase_add_test(tcase, test_encode_aes);
   //tcase_add_test(tcase, test_valid_nodekey);
   //tcase_add_test(tcase, test_decode_strk);
-  tcase_add_test(tcase, test_read_file);
-  tcase_add_test(tcase, test_free_file);
   tcase_add_test(tcase, test_open_file);
   tcase_add_test(tcase, test_close_file);
   suite_add_tcase(suite, tcase);

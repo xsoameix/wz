@@ -208,8 +208,8 @@ typedef struct wzn_ao {
 typedef struct wzn_file {
   struct wzctx * ctx;
   FILE *   raw;
-  uint32_t size;
   uint32_t pos;
+  uint32_t size;
   uint32_t start;
   uint32_t hash;
   uint8_t  key;
