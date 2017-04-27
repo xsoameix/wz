@@ -11,6 +11,214 @@
 #pragma warning(disable: 4820) // C89: struct padding
 #endif
 
+// 0    4    8    12   16   20   24   28   32   36   40
+// p--- ---- n--- ---- tlb- ---- b--- ---- ---- --2-
+// p--- ---- n--- ---- tlb- ---- b--- ---- ---- 4---
+// p--- ---- n--- ---- tlb- ---- b--- ---- 8--- ----
+// p--- ---- n--- ---- tlb- ---- b--- ---- o--- ----
+// p--- ---- f--- ---- tlb- ---- b--- ---- d--- ----
+// p--- ---- f--- ---- tlb- ---- ---k a--- d--- ----
+// p--- ---- f--- ---- tlk. a--- b--- ---- d--- ----
+// 
+// p--- n--- tlb- b--- ---- --2-
+// p--- n--- tlb- b--- ---- 4---
+// p--- n--- tlb- b--- 8--- ----
+// p--- n--- tlb- b--- ---- o---
+// p--- f--- tlb- b--- ---- d---
+// p--- f--- tlb- ---k a--- d---
+// p--- f--- tlk. b--- a--- d---
+
+#pragma GCC diagnostic warning "-Wpadded"
+
+typedef struct { int32_t x; int32_t y; } wzn_vec;
+
+typedef union { int32_t i; float f; } wzv32;
+typedef union { int64_t i; double f; wzn_vec v; } wzv64;
+typedef union {
+  struct wzn_str * str;
+  struct wzn_ary * ary;
+  struct wzn_img * img;
+  struct wzn_vex * vex;
+  struct wzn_ao  * ao;
+  uint32_t         addr;
+} wzv;
+
+typedef union {
+  union  wzn      * node;
+  struct wzn_file * file;
+} wzn_root;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   name[sizeof(void *) - 2 + sizeof(void *) + 8 - 2];
+  uint16_t  val;
+} wzn16_embed;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   _1[sizeof(void *) - 2]; // padding
+  uint8_t * name;
+  uint8_t   _2[8 - 2]; // padding
+  uint16_t  val;
+} wzn16;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   name[sizeof(void *) - 2 + sizeof(void *) + 8 - 4];
+  wzv32     val;
+} wzn32_embed;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   _1[sizeof(void *) - 2]; // padding
+  uint8_t * name;
+  uint8_t   _2[8 - 4]; // padding
+  wzv32     val;
+} wzn32;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   name[sizeof(void *) - 2 + sizeof(void *)];
+  wzv64     val;
+} wzn64_embed;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   _[sizeof(void *) - 2]; // padding
+  uint8_t * name;
+  wzv64     val;
+} wzn64;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   name[sizeof(void *) - 2 + sizeof(void *) + 8 - sizeof(void *)];
+  wzv       val;
+} wznv_embed;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   _1[sizeof(void *) - 2]; // padding
+  uint8_t * name;
+#if UINTPTR_MAX <= UINT32_MAX
+  uint8_t   _2[4]; // padding
+#endif
+  wzv       val;
+} wznv;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   name[sizeof(void *) - 2 + 4 - 1];
+  uint8_t   key;
+  uint32_t  addr;
+  wzv       val;
+} wzna_embed;
+
+typedef struct {
+  union wzn * parent;
+  wzn_root  root;
+  uint8_t   type;
+  uint8_t   name_len;
+  uint8_t   key;
+  uint8_t   _[1]; // padding
+#if UINTPTR_MAX <= UINT32_MAX
+  uint8_t * name;
+  uint32_t  addr;
+#else
+  uint32_t  addr;
+  uint8_t * name;
+#endif
+  wzv       val;
+} wzna;
+
+typedef union wzn {
+  wzn16_embed n16_e;
+  wzn16       n16;
+  wzn32_embed n32_e;
+  wzn32       n32;
+  wzn64_embed n64_e;
+  wzn64       n64;
+  wznv_embed  nv_e;
+  wznv        nv;
+  wzna_embed  na_e;
+  wzna        na;
+} wzn;
+
+typedef struct wzn_str {
+  uint32_t  len;
+  uint8_t   bytes[4]; // variable array
+} wzn_str;
+
+typedef struct wzn_ary {
+  uint32_t  len;
+  uint8_t   _[4]; // padding
+  wzn       nodes[1]; // variable array
+} wzn_ary;
+
+typedef struct wzn_img {
+  uint32_t  w;
+  uint32_t  h;
+  uint8_t * data;
+  uint32_t  len;
+#if UINTPTR_MAX > UINT32_MAX
+  uint8_t   _[4]; // padding
+#endif
+  wzn       nodes[1]; // variable array
+} wzn_img;
+
+typedef struct wzn_vex {
+  uint32_t  len;
+  wzn_vec   ary[1]; // variable array
+} wzn_vex;
+
+typedef struct wzn_ao {
+  uint32_t  size;
+  uint32_t  ms;
+  uint16_t  format;
+  uint8_t   _[sizeof(void *) - 2]; // padding
+  uint8_t * data;
+} wzn_ao;
+
+typedef struct wzn_file {
+  struct wzctx * ctx;
+  FILE *   raw;
+  uint32_t size;
+  uint32_t pos;
+  uint32_t start;
+  uint32_t hash;
+  uint8_t  key;
+  uint8_t  _[sizeof(void *) - 1]; // padding
+  wzn      root;
+} wzn_file;
+
+#pragma GCC diagnostic ignored "-Wpadded"
+
 typedef struct {
   uint8_t * bytes;
   uint32_t  len;
@@ -276,13 +484,14 @@ int      wz_read_le64(uint64_t * le64, wzfile * file);
 int      wz_read_int32(uint32_t * int32, wzfile * file);
 int      wz_read_int64(uint64_t * int64, wzfile * file);
 
-void     wz_init_str(wzstr * str);
-int      wz_read_str(wzstr * str, uint32_t len, wzfile * file);
-void     wz_free_str(wzstr * str);
+int      wz_read_str(uint8_t ** ret_bytes, uint32_t len, wzfile * file);
+void     wz_free_str(uint8_t * bytes);
 
-int      wz_decode_chars(wzstr * ret_str, wzstr * str, wzkey * key, wzenc enc);
-int      wz_read_chars(wzstr * str, wzkey * key, wzenc enc, wzfile * file);
-void     wz_free_chars(wzstr * str);
+int      wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+                         uint8_t * bytes, uint32_t len, wzkey * key, wzenc enc);
+int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+                       wzkey * key, wzenc enc, wzfile * file);
+void     wz_free_chars(uint8_t * bytes);
 
 void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
                         uint32_t start, uint32_t hash);

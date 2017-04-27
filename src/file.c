@@ -48,6 +48,9 @@
 #define WZ_KEY_LUA_LEN  0x20000 // giant lua script > 0x10000
 #define WZ_KEY_MAX_LEN  WZ_KEY_LUA_LEN
 
+#define WZ_ERR \
+    fprintf(stderr, "Error: %s at %s:%d\n", __func__, __FILE__, __LINE__)
+
 void
 wz_error(const char * format, ...) {
   va_list args;
@@ -59,9 +62,9 @@ wz_error(const char * format, ...) {
 
 int
 wz_read_bytes(void * bytes, uint32_t len, wzfile * file) {
-  if (file->pos + len > file->size) return 1;
+  if (file->pos + len > file->size) { WZ_ERR; return 1; }
   if (!len) return 0;
-  if (fread(bytes, len, 1, file->raw) != 1) return 1;
+  if (fread(bytes, len, 1, file->raw) != 1) { WZ_ERR; return 1; }
   return file->pos += len, 0;
 }
 
@@ -72,26 +75,26 @@ wz_read_byte(uint8_t * byte, wzfile * file) {
 
 int
 wz_read_le16(uint16_t * le16, wzfile * file) {
-  if (wz_read_bytes(le16, sizeof(* le16), file)) return 1;
+  if (wz_read_bytes(le16, sizeof(* le16), file)) { WZ_ERR; return 1; }
   return * le16 = WZ_LE16TOH(* le16), 0;
 }
 
 int
 wz_read_le32(uint32_t * le32, wzfile * file) {
-  if (wz_read_bytes(le32, sizeof(* le32), file)) return 1;
+  if (wz_read_bytes(le32, sizeof(* le32), file)) { WZ_ERR; return 1; }
   return * le32 = WZ_LE32TOH(* le32), 0;
 }
 
 int
 wz_read_le64(uint64_t * le64, wzfile * file) {
-  if (wz_read_bytes(le64, sizeof(* le64), file)) return 1;
+  if (wz_read_bytes(le64, sizeof(* le64), file)) { WZ_ERR; return 1; }
   return * le64 = WZ_LE64TOH(* le64), 0;
 }
 
 int // read packed integer (int8 or int32)
 wz_read_int32(uint32_t * int32, wzfile * file) {
   int8_t byte;
-  if (wz_read_byte((uint8_t *) &byte, file)) return 1;
+  if (wz_read_byte((uint8_t *) &byte, file)) { WZ_ERR; return 1; }
   if (byte == INT8_MIN) return wz_read_le32(int32, file);
   return * (int32_t *) int32 = byte, 0;
 }
@@ -99,29 +102,33 @@ wz_read_int32(uint32_t * int32, wzfile * file) {
 int // read packed long (int8 or int64)
 wz_read_int64(uint64_t * int64, wzfile * file) {
   int8_t byte;
-  if (wz_read_byte((uint8_t *) &byte, file)) return 1;
+  if (wz_read_byte((uint8_t *) &byte, file)) { WZ_ERR; return 1; }
   if (byte == INT8_MIN) return wz_read_le64(int64, file);
   return * (int64_t *) int64 = byte, 0;
 }
 
-void
-wz_init_str(wzstr * str) {
-  str->bytes = NULL;
+int
+wz_read_str_embed(uint8_t * bytes, uint32_t capa, uint32_t len, wzfile * file) {
+  if (len >= capa) { WZ_ERR; return 1; }
+  if (wz_read_bytes(bytes, len, file)) { WZ_ERR; return 1; }
+  bytes[len] = '\0';
+  return 0;
 }
 
 int // read string with malloc
-wz_read_str(wzstr * str, uint32_t len, wzfile * file) {
-  if (len > INT32_MAX) return wz_error("String length > INT32_MAX\n"), 1;
-  uint8_t * bytes = malloc(len + 1);
-  if (bytes == NULL) return 1;
-  if (wz_read_bytes(bytes, len, file)) return free(bytes), 1;
+wz_read_str(uint8_t ** ret_bytes, uint32_t len, wzfile * file) {
+  if (len > INT32_MAX) { WZ_ERR; return 1; }
+  uint8_t * bytes;
+  if ((bytes = malloc(len + 1)) == NULL) { WZ_ERR; return 1; }
+  if (wz_read_bytes(bytes, len, file)) { WZ_ERR; return free(bytes), 1; }
   bytes[len] = '\0';
-  return str->bytes = bytes, str->len = len, 0;
+  * ret_bytes = bytes;
+  return 0;
 }
 
 void
-wz_free_str(wzstr * str) {
-  free(str->bytes);
+wz_free_str(uint8_t * bytes) {
+  free(bytes);
 }
 
 int
@@ -141,7 +148,7 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
       u16[i] = u16_bytes[i];
     if (wz_utf16le_size(&u16_size, u16) ||
         wz_utf16le_to_unicode(&code, u16) ||
-        wz_unicode_to_utf8_size(&u8_size, code)) return 1;
+        wz_unicode_to_utf8_size(&u8_size, code)) { WZ_ERR; return 1; }
     u16_bytes += u16_size;
     u16_last -= u16_size;
     u8_len += u8_size;
@@ -150,7 +157,7 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
   u16_bytes = u16_end - u16_len;
   u16_last = u16_len;
   uint8_t * u8_bytes;
-  if ((u8_bytes = malloc(u8_len + 1)) == NULL) return 1;
+  if ((u8_bytes = malloc(u8_len + 1)) == NULL) { WZ_ERR; return 1; }
   uint8_t * u8 = u8_bytes;
   while (u16_bytes < u16_end) {
     uint8_t  u16[WZ_UTF16LE_MAX_SIZE] = {0}; // utf16le
@@ -164,7 +171,7 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
     if (wz_utf16le_size(&u16_size, u16) ||
         wz_utf16le_to_unicode(&code, u16) ||
         wz_unicode_to_utf8_size(&u8_size, code) ||
-        wz_unicode_to_utf8(u8, code)) return free(u8_bytes), 1;
+        wz_unicode_to_utf8(u8, code)) { WZ_ERR; return free(u8_bytes), 1; }
     u16_bytes += u16_size;
     u16_last -= u16_size;
     u8 += u8_size;
@@ -174,13 +181,12 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
 }
 
 int
-wz_decode_chars(wzstr * ret_str, wzstr * str, wzkey * key, wzenc enc) {
+wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+                uint8_t * bytes, uint32_t len, wzkey * key, wzenc enc) {
   if (key == NULL) return 0;
   if (enc == WZ_ENC_ASCII) {
-    uint8_t * bytes = str->bytes;
     uint8_t * kbytes = key->bytes;
-    uint8_t mask = 0xaa;
-    uint32_t len = str->len;
+    uint8_t  mask = 0xaa;
     uint32_t klen = WZ_KEY_JSON_LEN;
     uint32_t min_len = len < WZ_KEY_JSON_LEN ? len : WZ_KEY_JSON_LEN;
     for (uint32_t i = 0; i < min_len; i++)
@@ -189,40 +195,38 @@ wz_decode_chars(wzstr * ret_str, wzstr * str, wzkey * key, wzenc enc) {
       bytes[i] ^= mask++;
     return 0;
   } else if (enc == WZ_ENC_UTF16LE) {
-    uint16_t * bytes = (uint16_t *) str->bytes;
-    uint16_t * kbytes = (uint16_t *) key->bytes;
+    uint16_t * blocks = (uint16_t *) bytes;
+    uint16_t * kblocks = (uint16_t *) key->bytes;
     uint16_t mask = 0xaaaa;
-    uint32_t len = str->len >> 1;
+    uint32_t blen = len >> 1;
     uint32_t klen = WZ_KEY_JSON_LEN >> 1;
-    uint32_t min_len = len < WZ_KEY_JSON_LEN ? len : WZ_KEY_JSON_LEN;
+    uint32_t min_len = blen < WZ_KEY_JSON_LEN ? blen : WZ_KEY_JSON_LEN;
     for (uint32_t i = 0; i < min_len; i++)
-      bytes[i] = WZ_HTOLE16(bytes[i] ^ mask++ ^ WZ_LE16TOH(kbytes[i]));
+      blocks[i] = WZ_HTOLE16(blocks[i] ^ mask++ ^ WZ_LE16TOH(kblocks[i]));
     for (uint32_t i = klen; i < len; i++)
-      bytes[i] = WZ_HTOLE16(bytes[i] ^ mask++);
-    return wz_utf16le_to_utf8(&ret_str->bytes, &ret_str->len,
-                              str->bytes, str->len);
+      blocks[i] = WZ_HTOLE16(blocks[i] ^ mask++);
+    return wz_utf16le_to_utf8(ret_bytes, ret_len, bytes, len);
   } else {
     assert(enc == WZ_ENC_UTF8);
-    uint8_t * bytes = str->bytes;
     uint8_t * kbytes = key->bytes;
-    uint32_t len = str->len;
     uint32_t klen = key->len;
-    uint32_t min_len = len < klen ? len : klen;
-    for (uint32_t i = 0; i < min_len; i++)
+    if (len > klen) { WZ_ERR; return 1; }
+    for (uint32_t i = 0; i < len; i++)
       bytes[i] ^= kbytes[i];
     return 0;
   }
 }
 
 int // read characters (ascii, utf16le, or utf8)
-wz_read_chars(wzstr * ret_str, wzkey * key, wzenc enc, wzfile * file) {
+wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+              wzkey * key, wzenc enc, wzfile * file) {
   int8_t byte;
-  if (wz_read_byte((uint8_t *) &byte, file)) return 1;
+  if (wz_read_byte((uint8_t *) &byte, file)) { WZ_ERR; return 1; }
   int32_t size = byte;
   uint8_t ascii = size < 0;
   if (ascii) { // ASCII
     if (size == INT8_MIN) {
-      if (wz_read_le32((uint32_t *) &size, file)) return 1;
+      if (wz_read_le32((uint32_t *) &size, file)) { WZ_ERR; return 1; }
     } else {
       size *= -1;
     }
@@ -230,42 +234,48 @@ wz_read_chars(wzstr * ret_str, wzkey * key, wzenc enc, wzfile * file) {
       enc = WZ_ENC_ASCII;
   } else { // UTF16-LE
     if (size == INT8_MAX) {
-      if (wz_read_le32((uint32_t *) &size, file)) return 1;
+      if (wz_read_le32((uint32_t *) &size, file)) { WZ_ERR; return 1; }
     }
     size *= 2;
     if (enc == WZ_ENC_AUTO)
       enc = WZ_ENC_UTF16LE;
   }
-  wzstr str;
-  if (wz_read_str(&str, (uint32_t) size, file)) return 1;
-  wzstr utf8 = {.bytes = NULL, .len = 0};
-  if (wz_decode_chars(&utf8, &str, key, enc))
-    return wz_free_chars(&str), 1;
-  if (utf8.bytes == NULL) {
-    * ret_str = str;
+  uint32_t len = (uint32_t) size;
+  uint8_t * bytes;
+  if (wz_read_str(&bytes, len, file)) { WZ_ERR; return 1; }
+  uint8_t * utf8_bytes = NULL;
+  uint32_t utf8_len = 0;
+  if (wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, key, enc)) {
+    WZ_ERR;
+    return wz_free_chars(bytes), 1;
+  }
+  if (utf8_bytes == NULL) {
+    * ret_bytes = bytes;
+    * ret_len = len;
   } else {
-    wz_free_str(&str);
-    * ret_str = utf8;
+    wz_free_str(bytes);
+    * ret_bytes = utf8_bytes;
+    * ret_len = utf8_len;
   }
   return 0;
 }
 
 int
-wz_read_chars_else(wzstr * str, uint32_t addr, wzkey * key, wzenc enc,
-                   wzfile * file) {
+wz_read_chars_else(uint8_t ** bytes, uint32_t * len, uint32_t addr,
+                   wzkey * key, wzenc enc, wzfile * file) {
   uint32_t offset;
   if (wz_read_le32(&offset, file)) return 1;
   uint32_t pos = file->pos;
   if (wz_seek(addr + offset, SEEK_SET, file) ||
-      wz_read_chars(str, key, enc, file)) return 1;
+      wz_read_chars(bytes, len, key, enc, file)) return 1;
   if (wz_seek(pos, SEEK_SET, file))
-    return wz_free_chars(str), 1;
+    return wz_free_chars(* bytes), 1;
   return 0;
 }
 
 void
-wz_free_chars(wzstr * str) {
-  free(str->bytes);
+wz_free_chars(uint8_t * bytes) {
+  free(bytes);
 }
 
 void
@@ -352,7 +362,8 @@ wz_read_grp(wzgrp ** ret_grp, wznode * node, wzfile * file, wzctx * ctx) {
       uint32_t pos = file->pos;
       if (wz_seek(file->start + addr, SEEK_SET, file) ||
           wz_read_byte(&type, file) || // type and name are in the other place
-          wz_read_chars(&child->name, file->key, WZ_ENC_AUTO, file))
+          wz_read_chars(&child->name.bytes, &child->name.len,
+                        file->key, WZ_ENC_AUTO, file))
         goto free_child;
       if (wz_deduce_key(&file->key, &child->name, ctx->keys, ctx->klen) ||
           wz_seek(pos, SEEK_SET, file) ||
@@ -361,13 +372,14 @@ wz_read_grp(wzgrp ** ret_grp, wznode * node, wzfile * file, wzctx * ctx) {
       name_err = 0;
 free_child_link_name:
       if (name_err) {
-        wz_free_chars(&child->name);
+        wz_free_chars(child->name.bytes);
         goto free_child;
       }
     } else if (WZ_IS_NODE_DIR(type) ||
                WZ_IS_NODE_FILE(type)) {
       int name_err = 1;
-      if (wz_read_chars(&child->name, file->key, WZ_ENC_AUTO, file))
+      if (wz_read_chars(&child->name.bytes, &child->name.len,
+                        file->key, WZ_ENC_AUTO, file))
         goto free_child;
       if (wz_deduce_key(&file->key, &child->name, ctx->keys, ctx->klen) ||
           wz_read_node_body(child, type, file))
@@ -375,7 +387,7 @@ free_child_link_name:
       name_err = 0;
 free_child_dir_name:
       if (name_err) {
-        wz_free_chars(&child->name);
+        wz_free_chars(child->name.bytes);
         goto free_child;
       }
     } else {
@@ -391,10 +403,10 @@ free_child:
         wznode * child_f = nodes + j;
         if (child_f->type == WZ_NODE_DIR ||
             child_f->type == WZ_NODE_FILE)
-          wz_free_chars(&child_f->name);
+          wz_free_chars(child_f->name.bytes);
         if (child_f->type == WZ_NODE_FILE) {
           if (child_f->data.var->type == WZ_VAR_STR)
-            wz_free_chars(&child_f->data.var->val.str);
+            wz_free_chars(child_f->data.var->val.str.bytes);
           else // WZ_VAR_OBJ
             free(child_f->data.var->val.obj);
           free(child_f->data.var);
@@ -420,10 +432,10 @@ wz_free_grp(wzgrp ** ret_grp) {
     wznode * child = grp->nodes + i;
     if (child->type == WZ_NODE_DIR ||
         child->type == WZ_NODE_FILE)
-      wz_free_chars(&child->name);
+      wz_free_chars(child->name.bytes);
     if (child->type == WZ_NODE_FILE) {
       if (child->data.var->type == WZ_VAR_STR)
-        wz_free_chars(&child->data.var->val.str);
+        wz_free_chars(child->data.var->val.str.bytes);
       else // WZ_VAR_OBJ
         free(child->data.var->val.obj);
       free(child->data.var);
@@ -579,21 +591,22 @@ wz_deduce_key(wzkey ** ret_key, wzstr * name, wzkey * keys, size_t klen) {
   uint32_t len = name->len;
   for (size_t i = 0; i < klen; i++) {
     wzkey * key = keys + i;
-    if (wz_decode_chars(NULL, name, key, WZ_ENC_ASCII)) continue;
+    if (wz_decode_chars(NULL, 0, bytes, len, key, WZ_ENC_ASCII)) continue;
     for (uint32_t j = 0; j < len && isprint(bytes[j]); j++)
       if (j == len - 1) return * ret_key = key, 0;
-    if (wz_decode_chars(NULL, name, key, WZ_ENC_ASCII)) continue;
+    if (wz_decode_chars(NULL, 0, bytes, len, key, WZ_ENC_ASCII)) continue;
   }
   return wz_error("Cannot deduce the string key\n"), 1;
 }
 
 int // variable related, used in var's name, var's str, or uol 
-wz_read_var_chars(wzstr * str, wznode * node, wzfile * file) {
+wz_read_var_chars(uint8_t ** bytes, uint32_t * len,
+                  wznode * node, wzfile * file) {
   uint8_t fmt;
   if (wz_read_byte(&fmt, file)) return 1;
   switch (fmt) {
-  case 0x00: return wz_read_chars(str, node->key, WZ_ENC_AUTO, file);
-  case 0x01: return wz_read_chars_else(str, node->addr.val, node->key,
+  case 0x00: return wz_read_chars(bytes, len, node->key, WZ_ENC_AUTO, file);
+  case 0x01: return wz_read_chars_else(bytes, len, node->addr.val, node->key,
                                        WZ_ENC_AUTO, file);
   default:   return wz_error("Unsupported string type: 0x%02hhx\n", fmt), 1;
   }
@@ -661,7 +674,7 @@ wz_read_list(wzlist * list, wzvar * var,
       int var_err = 1;
       wzvar * child = vars + i;
       wzstr name;
-      if (wz_read_var_chars(&name, node, file))
+      if (wz_read_var_chars(&name.bytes, &name.len, node, file))
         goto free_child;
       uint8_t type;
       if (wz_read_byte(&type, file))
@@ -707,7 +720,7 @@ wz_read_list(wzlist * list, wzvar * var,
         child->val.f = float64.f;
       } else if (WZ_IS_VAR_STR(type)) {
         wzstr str;
-        if (wz_read_var_chars(&str, node, file))
+        if (wz_read_var_chars(&str.bytes, &str.len, node, file))
           goto free_name;
         child->type = WZ_VAR_STR;
         child->val.str = str;
@@ -741,16 +754,16 @@ free_obj:
       var_err = 0;
 free_name:
       if (var_err)
-        wz_free_chars(&name);
+        wz_free_chars(name.bytes);
 free_child:
       if (var_err) {
         for (uint32_t j = 0; j < i; j++) {
           wzvar * child_f = vars + j;
           if (child_f->type == WZ_VAR_STR)
-            wz_free_chars(&child_f->val.str);
+            wz_free_chars(child_f->val.str.bytes);
           else if (child_f->type == WZ_VAR_OBJ)
             free(child_f->val.obj);
-          wz_free_chars(&child_f->name);
+          wz_free_chars(child_f->name.bytes);
         }
         goto free_vars;
       }
@@ -776,10 +789,10 @@ wz_free_list(wzlist * list) {
   for (uint32_t i = 0; i < list->len; i++) {
     wzvar * var = list->vars + i;
     if (var->type == WZ_VAR_STR)
-      wz_free_chars(&var->val.str);
+      wz_free_chars(var->val.str.bytes);
     else if (var->type == WZ_VAR_OBJ)
       free(var->val.obj);
-    wz_free_chars(&var->name);
+    wz_free_chars(var->name.bytes);
   }
   free(list->vars);
 }
@@ -1104,7 +1117,7 @@ wz_read_obj(wzobj ** ret_obj, wzvar * var,
   switch (fmt) {
   case 0x01: {
     wzstr str;
-    if (wz_read_chars(&str, ctx->keys + 1, WZ_ENC_UTF8, file))
+    if (wz_read_chars(&str.bytes, &str.len, ctx->keys + 1, WZ_ENC_UTF8, file))
       return ret;
     var->type = WZ_VAR_STR;
     var->val.str = str;
@@ -1112,11 +1125,12 @@ wz_read_obj(wzobj ** ret_obj, wzvar * var,
     return ret = 0, ret;
   }
   case 0x1b:
-    if (wz_read_chars_else(&type, node->addr.val, node->key, WZ_ENC_AUTO, file))
+    if (wz_read_chars_else(&type.bytes, &type.len,
+                           node->addr.val, node->key, WZ_ENC_AUTO, file))
       return ret;
     break;
   case 0x73:
-    if (wz_read_chars(&type, node->key, WZ_ENC_AUTO, file))
+    if (wz_read_chars(&type.bytes, &type.len, node->key, WZ_ENC_AUTO, file))
       return ret;
     break;
   default:
@@ -1225,11 +1239,12 @@ free_img:
       wzstr vtype; // vex's val type
       switch (vfmt) {
       case 0x1b:
-        if (wz_read_chars_else(&vtype, addr, key, WZ_ENC_AUTO, file))
+        if (wz_read_chars_else(&vtype.bytes, &vtype.len,
+                               addr, key, WZ_ENC_AUTO, file))
           goto free_vals;
         break;
       case 0x73:
-        if (wz_read_chars(&vtype, key, WZ_ENC_AUTO, file))
+        if (wz_read_chars(&vtype.bytes, &vtype.len, key, WZ_ENC_AUTO, file))
           goto free_vals;
         break;
       default:
@@ -1245,7 +1260,7 @@ free_img:
         goto free_vex_type;
       val_err = 0;
 free_vex_type:
-      wz_free_chars(&vtype);
+      wz_free_chars(vtype.bytes);
       if (val_err)
         goto free_vals;
     }
@@ -1386,7 +1401,7 @@ free_ao:
     if ((uol = malloc(sizeof(* uol))) == NULL)
       goto free_type;
     if (wz_seek(1, SEEK_CUR, file) ||
-        wz_read_var_chars(&uol->path, node, file))
+        wz_read_var_chars(&uol->path.bytes, &uol->path.len, node, file))
       goto free_uol;
     o = (wzobj *) uol;
     o->type = WZ_OBJ_UOL;
@@ -1407,7 +1422,7 @@ free_uol:
   free(obj);
   ret = 0;
 free_type:
-  wz_free_chars(&type);
+  wz_free_chars(type.bytes);
   return ret;
 }
 
@@ -1423,7 +1438,7 @@ wz_free_obj(wzobj * obj) {
   } else if (obj->type == WZ_OBJ_AO) {
     free(((wzao *) obj)->data);
   } else if (obj->type == WZ_OBJ_UOL) {
-    wz_free_chars(&((wzuol *) obj)->path);
+    wz_free_chars(((wzuol *) obj)->path.bytes);
   }
   obj->alloc = 0;
 }
@@ -2392,8 +2407,12 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   if (wz_read_bytes(&ident, sizeof(ident), &file) ||
       wz_read_le32(&size_, &file) ||
       wz_seek(4, SEEK_CUR, &file) ||
-      wz_read_le32(&start, &file) ||
-      wz_read_str(&copy, start - file.pos, &file)) {
+      wz_read_le32(&start, &file)) {
+    perror(filename);
+    goto close_raw;
+  }
+  copy.len = start - file.pos;
+  if (wz_read_str(&copy.bytes, copy.len, &file)) {
     perror(filename);
     goto close_raw;
   }
@@ -2429,7 +2448,7 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   ret = 0;
 free_copy:
   if (ret)
-    wz_free_chars(&copy);
+    wz_free_chars(copy.bytes);
 close_raw:
   if (ret)
     fclose(raw);
@@ -2441,7 +2460,7 @@ wz_close_file(wzfile * file) {
   int ret = 0;
   if (wz_close_node(&file->root))
     ret = 1;
-  wz_free_str(&file->copy);
+  wz_free_str(file->copy.bytes);
   if (fclose(file->raw))
     ret = 1;
   return ret;
