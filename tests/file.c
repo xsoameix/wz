@@ -229,7 +229,7 @@ START_TEST(test_decode_chars) {
   wzfile file = {.key = &key};
   uint8_t * bytes = (uint8_t *) ascii;
   uint32_t len = strlen(ascii);
-  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len,
+  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len, 0,
                                    file.key, WZ_ENC_ASCII), 0);
   ck_assert_int_eq(memcmp(bytes, "\x22\x23", 2), 0);
   ck_assert(len == 2 && memused() == 0);
@@ -240,7 +240,7 @@ START_TEST(test_decode_chars) {
   len = strlen(utf16le);
   uint8_t * utf8_bytes;
   uint32_t utf8_len;
-  ck_assert_int_eq(wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len,
+  ck_assert_int_eq(wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, 0,
                                    file.key, WZ_ENC_UTF16LE), 0);
   ck_assert_int_eq(memcmp(utf8_bytes, "\xe6\x99\xa6", 3), 0);
   ck_assert(utf8_len == 3 && memused() == 3 + 1);
@@ -248,14 +248,15 @@ START_TEST(test_decode_chars) {
   ck_assert(memused() == 0);
 
   // It should not decode if key == NULL
-  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len, NULL, WZ_ENC_ASCII), 0);
+  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len, 0,
+                                   NULL, WZ_ENC_ASCII), 0);
   ck_assert_int_eq(memcmp(bytes, "\x66\x66", 2), 0); // still \x66\x66
   ck_assert(len == 2);
 
   // It should still decode if string key is even too short
   file.key->bytes = (uint8_t *) "\xcd"; // decode => 0x66 ^ 0xaa ^ 0xcd = 0x01
   file.key->len = 1;                    //           0x66 ^ 0xab ^ 0x00 = 0xcd
-  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len,
+  ck_assert_int_eq(wz_decode_chars(NULL, 0, bytes, len, 0,
                                    file.key, WZ_ENC_ASCII), 0);
   ck_assert_int_eq(memcmp(bytes, "\x01\xcd", 2), 0);
   ck_assert(len == 2);

@@ -20,7 +20,6 @@
 
 #include "wrap.h"
 #include "byteorder.h"
-#include "unicode.h"
 #include "file.h"
 
 #define WZ_IS_NODE_NIL(type)  ((type) == 0x01)
@@ -132,57 +131,124 @@ wz_free_str(uint8_t * bytes) {
 }
 
 int
+wz_utf16le_to_utf8_1(uint8_t * ret_u8_bytes, uint8_t * ret_u8_size,
+                     uint8_t * ret_u16_size,
+                     const uint8_t * u16_bytes, uint32_t u16_len) {
+  uint8_t  u16_size;
+  uint32_t code; // unicode
+  if (u16_len < 2) { WZ_ERR; return 1; }
+  if ((u16_bytes[1] & 0xfc) == 0xd8) {
+    if (u16_len < 4) { WZ_ERR; return 1; }
+    if ((u16_bytes[3] & 0xfc) == 0xdc) {
+      u16_size = 4;
+      code = (uint32_t) ((u16_bytes[1] & 0x03) << 18 |
+                         (u16_bytes[0]       ) << 10 |
+                         (u16_bytes[3] & 0x03) <<  8 |
+                         (u16_bytes[2]       ) <<  0);
+    } else {
+      WZ_ERR;
+      return 1;
+    }
+  } else {
+    u16_size = 2;
+    code = (uint32_t) ((u16_bytes[1] << 8) |
+                       (u16_bytes[0]     ));
+  }
+  uint8_t u8_size;
+  if ((code & 0xffffff80) == 0) {
+    u8_size = 1;
+    if (ret_u8_bytes != NULL) {
+      ret_u8_bytes[0] = (uint8_t) code;
+    }
+  } else if ((code & 0xfffff800) == 0) {
+    u8_size = 2;
+    if (ret_u8_bytes != NULL) {
+      ret_u8_bytes[0] = (uint8_t) (((code >> 6) & 0x1f) | 0xc0);
+      ret_u8_bytes[1] = (uint8_t) (((code     ) & 0x3f) | 0x80);
+    }
+  } else if ((code & 0xffff0000) == 0) {
+    u8_size = 3;
+    if (ret_u8_bytes != NULL) {
+      ret_u8_bytes[0] = (uint8_t) (((code >> 12) & 0x0f) | 0xe0);
+      ret_u8_bytes[1] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
+      ret_u8_bytes[2] = (uint8_t) (((code      ) & 0x3f) | 0x80);
+    }
+  } else if (code < 0x00110000) {
+    u8_size = 4;
+    if (ret_u8_bytes != NULL) {
+      ret_u8_bytes[0] = (uint8_t) (((code >> 18) & 0x07) | 0xf0);
+      ret_u8_bytes[1] = (uint8_t) (((code >> 12) & 0x3f) | 0x80);
+      ret_u8_bytes[2] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
+      ret_u8_bytes[3] = (uint8_t) (((code      ) & 0x3f) | 0x80);
+    }
+  } else {
+    WZ_ERR;
+    return 1;
+  }
+  * ret_u16_size = u16_size;
+  * ret_u8_size = u8_size;
+  return 0;
+}
+
+int // malloc new string only if capa == 0 && u8_len > u16_len
 wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
-                   const uint8_t * u16_bytes, const uint32_t u16_len) {
-  const uint8_t * u16_end = u16_bytes + u16_len;
+                   uint8_t * u16_bytes, uint32_t u16_len, uint32_t u16_capa) {
+  uint8_t * u16_ptr = u16_bytes;
   uint32_t u16_last = u16_len;
   uint32_t u8_len = 0;
-  while (u16_bytes < u16_end) {
-    uint8_t  u16[WZ_UTF16LE_MAX_SIZE] = {0}; // utf16le
+  while (u16_last) {
     uint8_t  u16_size;
-    uint32_t code; // unicode
     uint8_t  u8_size;
-    uint8_t  min_len = (uint8_t) (u16_last < sizeof(u16) ?
-                                  u16_last : sizeof(u16));
-    for (uint8_t i = 0; i < min_len; i++)
-      u16[i] = u16_bytes[i];
-    if (wz_utf16le_size(&u16_size, u16) ||
-        wz_utf16le_to_unicode(&code, u16) ||
-        wz_unicode_to_utf8_size(&u8_size, code)) { WZ_ERR; return 1; }
-    u16_bytes += u16_size;
+    if (wz_utf16le_to_utf8_1(NULL, &u8_size, &u16_size, u16_ptr, u16_last)) {
+      WZ_ERR;
+      return 1;
+    }
+    u16_ptr += u16_size;
     u16_last -= u16_size;
     u8_len += u8_size;
   }
-  if (u16_last) return 1;
-  u16_bytes = u16_end - u16_len;
-  u16_last = u16_len;
+  if (u16_capa && (u8_len >= u16_capa)) { WZ_ERR; return 1; }
+  uint8_t u8_buf[256];
   uint8_t * u8_bytes;
-  if ((u8_bytes = malloc(u8_len + 1)) == NULL) { WZ_ERR; return 1; }
-  uint8_t * u8 = u8_bytes;
-  while (u16_bytes < u16_end) {
-    uint8_t  u16[WZ_UTF16LE_MAX_SIZE] = {0}; // utf16le
+  if (u8_len < sizeof(u8_buf) && (u16_capa || u8_len <= u16_len)) {
+    u8_bytes = u8_buf;
+  } else {
+    if ((u8_bytes = malloc(u8_len + 1)) == NULL) { WZ_ERR; return 1; }
+  }
+  u16_ptr = u16_bytes;
+  u16_last = u16_len;
+  uint8_t * u8_ptr = u8_bytes;
+  while (u16_last) {
     uint8_t  u16_size;
-    uint32_t code; // unicode
     uint8_t  u8_size;
-    uint8_t  min_len = (uint8_t) (u16_last < sizeof(u16) ?
-                                  u16_last : sizeof(u16));
-    for (uint8_t i = 0; i < min_len; i++)
-      u16[i] = u16_bytes[i];
-    if (wz_utf16le_size(&u16_size, u16) ||
-        wz_utf16le_to_unicode(&code, u16) ||
-        wz_unicode_to_utf8_size(&u8_size, code) ||
-        wz_unicode_to_utf8(u8, code)) { WZ_ERR; return free(u8_bytes), 1; }
-    u16_bytes += u16_size;
+    if (wz_utf16le_to_utf8_1(u8_ptr, &u8_size, &u16_size, u16_ptr, u16_last)) {
+      WZ_ERR;
+      if (u8_bytes != u8_buf)
+        free(u8_bytes);
+      return 1;
+    }
+    u16_ptr += u16_size;
     u16_last -= u16_size;
-    u8 += u8_size;
+    u8_ptr += u8_size;
   }
   u8_bytes[u8_len] = '\0';
-  return * ret_u8_bytes = u8_bytes, * ret_u8_len = u8_len, 0;
+  if (u16_capa || u8_len <= u16_len) {
+    for (uint32_t i = 0; i < u8_len; i++)
+      u16_bytes[i] = u8_bytes[i];
+    u16_bytes[u8_len] = '\0';
+    if (u8_bytes != u8_buf)
+      free(u8_bytes);
+  } else {
+    * ret_u8_bytes = u8_bytes;
+  }
+  * ret_u8_len = u8_len;
+  return 0;
 }
 
 int
 wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
-                uint8_t * bytes, uint32_t len, wzkey * key, wzenc enc) {
+                uint8_t * bytes, uint32_t len, uint32_t capa,
+                wzkey * key, wzenc enc) {
   if (key == NULL) return 0;
   if (enc == WZ_ENC_ASCII) {
     uint8_t * kbytes = key->bytes;
@@ -190,9 +256,9 @@ wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
     uint32_t klen = WZ_KEY_JSON_LEN;
     uint32_t min_len = len < WZ_KEY_JSON_LEN ? len : WZ_KEY_JSON_LEN;
     for (uint32_t i = 0; i < min_len; i++)
-      bytes[i] ^= mask++ ^ kbytes[i];
+      bytes[i] ^= (uint8_t) (mask++ ^ kbytes[i]);
     for (uint32_t i = klen; i < len; i++)
-      bytes[i] ^= mask++;
+      bytes[i] ^= (uint8_t) (mask++);
     return 0;
   } else if (enc == WZ_ENC_UTF16LE) {
     uint16_t * blocks = (uint16_t *) bytes;
@@ -205,7 +271,7 @@ wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
       blocks[i] = WZ_HTOLE16(blocks[i] ^ mask++ ^ WZ_LE16TOH(kblocks[i]));
     for (uint32_t i = klen; i < len; i++)
       blocks[i] = WZ_HTOLE16(blocks[i] ^ mask++);
-    return wz_utf16le_to_utf8(ret_bytes, ret_len, bytes, len);
+    return wz_utf16le_to_utf8(ret_bytes, ret_len, bytes, len, capa);
   } else {
     assert(enc == WZ_ENC_UTF8);
     uint8_t * kbytes = key->bytes;
@@ -218,7 +284,7 @@ wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
 }
 
 int // read characters (ascii, utf16le, or utf8)
-wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,// uint32_t capa,
               wzkey * key, wzenc enc, wzfile * file) {
   int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file)) { WZ_ERR; return 1; }
@@ -242,16 +308,22 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
   }
   uint32_t len = (uint32_t) size;
   uint8_t * bytes;
-  if (wz_read_str(&bytes, len, file)) { WZ_ERR; return 1; }
+  //if (capa) {
+  //  bytes = * ret_bytes;
+  //  if (wz_read_str_embed(bytes, capa, len, file)) { WZ_ERR; return 1; }
+  //} else {
+    if (wz_read_str(&bytes, len, file)) { WZ_ERR; return 1; }
+  //}
   uint8_t * utf8_bytes = NULL;
   uint32_t utf8_len = 0;
-  if (wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, key, enc)) {
+  if (wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, 0, key, enc)) {
     WZ_ERR;
-    return wz_free_chars(bytes), 1;
+    /*if (!capa) */wz_free_str(bytes);
+    return 1;
   }
   if (utf8_bytes == NULL) {
     * ret_bytes = bytes;
-    * ret_len = len;
+    * ret_len = utf8_len ? utf8_len : len;
   } else {
     wz_free_str(bytes);
     * ret_bytes = utf8_bytes;
@@ -591,10 +663,10 @@ wz_deduce_key(wzkey ** ret_key, wzstr * name, wzkey * keys, size_t klen) {
   uint32_t len = name->len;
   for (size_t i = 0; i < klen; i++) {
     wzkey * key = keys + i;
-    if (wz_decode_chars(NULL, 0, bytes, len, key, WZ_ENC_ASCII)) continue;
+    if (wz_decode_chars(NULL, 0, bytes, len, 0, key, WZ_ENC_ASCII)) continue;
     for (uint32_t j = 0; j < len && isprint(bytes[j]); j++)
       if (j == len - 1) return * ret_key = key, 0;
-    if (wz_decode_chars(NULL, 0, bytes, len, key, WZ_ENC_ASCII)) continue;
+    if (wz_decode_chars(NULL, 0, bytes, len, 0, key, WZ_ENC_ASCII)) continue;
   }
   return wz_error("Cannot deduce the string key\n"), 1;
 }

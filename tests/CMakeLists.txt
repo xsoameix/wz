@@ -34,7 +34,6 @@ set(CRYPTO_SOURCES
   ../src/lib/aes256.c)
 set(SOURCES
   ../src/byteorder.c
-  ../src/unicode.c
   ../src/file.c)
 set_source_files_properties(${SOURCES} PROPERTIES
   COMPILE_DEFINITIONS "WZ_WRAP=1")

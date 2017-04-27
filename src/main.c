@@ -810,7 +810,7 @@ cmd_ls(int argc, char ** argv) {
         printf("(uol)\n");
       }
     } else if (var->type == WZ_VAR_STR) {
-      printf("%s\n", var->val.str.bytes);
+      printf("(str: %s)\n", var->val.str.bytes);
     } else if (var->type == WZ_VAR_INT16 ||
                var->type == WZ_VAR_INT32 ||
                var->type == WZ_VAR_INT64 ||

@@ -37,7 +37,6 @@ set(CRYPTO_SOURCES
   lib/aes256.c)
 set(SOURCES
   byteorder.c
-  unicode.c
   file.c)
 set_source_files_properties(${SOURCES} PROPERTIES COMPILE_FLAGS ${SOURCE_FLAGS})
 add_library(lib SHARED ${CRYPTO_SOURCES} ${SOURCES})
