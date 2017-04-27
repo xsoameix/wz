@@ -2499,8 +2499,6 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
   memcpy(ret_file->ident, ident, sizeof(ident));
   ret_file->size_ = size_;
   ret_file->start = start;
-  ret_file->ver.enc = enc;
-  ret_file->ver.dec = dec;
   ret_file->ver.hash = hash;
   ret_file->key = NULL;
   ret_file->root.parent = NULL;
