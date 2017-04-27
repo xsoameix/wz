@@ -197,8 +197,8 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
   uint32_t u16_last = u16_len;
   uint32_t u8_len = 0;
   while (u16_last) {
-    uint8_t  u16_size;
-    uint8_t  u8_size;
+    uint8_t u16_size;
+    uint8_t u8_size;
     if (wz_utf16le_to_utf8_1(NULL, &u8_size, &u16_size, u16_ptr, u16_last)) {
       WZ_ERR;
       return 1;
@@ -219,8 +219,8 @@ wz_utf16le_to_utf8(uint8_t ** ret_u8_bytes, uint32_t * ret_u8_len,
   u16_last = u16_len;
   uint8_t * u8_ptr = u8_bytes;
   while (u16_last) {
-    uint8_t  u16_size;
-    uint8_t  u8_size;
+    uint8_t u16_size;
+    uint8_t u8_size;
     if (wz_utf16le_to_utf8_1(u8_ptr, &u8_size, &u16_size, u16_ptr, u16_last)) {
       WZ_ERR;
       if (u8_bytes != u8_buf)
@@ -284,7 +284,7 @@ wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
 }
 
 int // read characters (ascii, utf16le, or utf8)
-wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,// uint32_t capa,
+wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint32_t capa,
               wzkey * key, wzenc enc, wzfile * file) {
   int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file)) { WZ_ERR; return 1; }
@@ -308,21 +308,22 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,// uint32_t capa,
   }
   uint32_t len = (uint32_t) size;
   uint8_t * bytes;
-  //if (capa) {
-  //  bytes = * ret_bytes;
-  //  if (wz_read_str_embed(bytes, capa, len, file)) { WZ_ERR; return 1; }
-  //} else {
+  if (capa) {
+    bytes = * ret_bytes;
+    if (wz_read_str_embed(bytes, capa, len, file)) { WZ_ERR; return 1; }
+  } else {
     if (wz_read_str(&bytes, len, file)) { WZ_ERR; return 1; }
-  //}
+  }
   uint8_t * utf8_bytes = NULL;
   uint32_t utf8_len = 0;
-  if (wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, 0, key, enc)) {
+  if (wz_decode_chars(&utf8_bytes, &utf8_len, bytes, len, capa, key, enc)) {
     WZ_ERR;
-    /*if (!capa) */wz_free_str(bytes);
+    if (!capa) wz_free_str(bytes);
     return 1;
   }
   if (utf8_bytes == NULL) {
-    * ret_bytes = bytes;
+    if (!capa)
+      * ret_bytes = bytes;
     * ret_len = utf8_len ? utf8_len : len;
   } else {
     wz_free_str(bytes);
@@ -333,13 +334,13 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,// uint32_t capa,
 }
 
 int
-wz_read_chars_else(uint8_t ** bytes, uint32_t * len, uint32_t addr,
-                   wzkey * key, wzenc enc, wzfile * file) {
+wz_read_chars_else(uint8_t ** bytes, uint32_t * len, uint32_t capa,
+                   uint32_t addr, wzkey * key, wzenc enc, wzfile * file) {
   uint32_t offset;
   if (wz_read_le32(&offset, file)) return 1;
   uint32_t pos = file->pos;
   if (wz_seek(addr + offset, SEEK_SET, file) ||
-      wz_read_chars(bytes, len, key, enc, file)) return 1;
+      wz_read_chars(bytes, len, capa, key, enc, file)) return 1;
   if (wz_seek(pos, SEEK_SET, file))
     return wz_free_chars(* bytes), 1;
   return 0;
@@ -434,7 +435,7 @@ wz_read_grp(wzgrp ** ret_grp, wznode * node, wzfile * file, wzctx * ctx) {
       uint32_t pos = file->pos;
       if (wz_seek(file->start + addr, SEEK_SET, file) ||
           wz_read_byte(&type, file) || // type and name are in the other place
-          wz_read_chars(&child->name.bytes, &child->name.len,
+          wz_read_chars(&child->name.bytes, &child->name.len, 0,
                         file->key, WZ_ENC_AUTO, file))
         goto free_child;
       if (wz_deduce_key(&file->key, &child->name, ctx->keys, ctx->klen) ||
@@ -450,7 +451,7 @@ free_child_link_name:
     } else if (WZ_IS_NODE_DIR(type) ||
                WZ_IS_NODE_FILE(type)) {
       int name_err = 1;
-      if (wz_read_chars(&child->name.bytes, &child->name.len,
+      if (wz_read_chars(&child->name.bytes, &child->name.len, 0,
                         file->key, WZ_ENC_AUTO, file))
         goto free_child;
       if (wz_deduce_key(&file->key, &child->name, ctx->keys, ctx->klen) ||
@@ -672,13 +673,13 @@ wz_deduce_key(wzkey ** ret_key, wzstr * name, wzkey * keys, size_t klen) {
 }
 
 int // variable related, used in var's name, var's str, or uol 
-wz_read_var_chars(uint8_t ** bytes, uint32_t * len,
+wz_read_var_chars(uint8_t ** bytes, uint32_t * len, uint32_t capa,
                   wznode * node, wzfile * file) {
   uint8_t fmt;
   if (wz_read_byte(&fmt, file)) return 1;
   switch (fmt) {
-  case 0x00: return wz_read_chars(bytes, len, node->key, WZ_ENC_AUTO, file);
-  case 0x01: return wz_read_chars_else(bytes, len, node->addr.val, node->key,
+  case 0x00: return wz_read_chars(bytes, len, capa, node->key, WZ_ENC_AUTO, file);
+  case 0x01: return wz_read_chars_else(bytes, len, capa, node->addr.val, node->key,
                                        WZ_ENC_AUTO, file);
   default:   return wz_error("Unsupported string type: 0x%02hhx\n", fmt), 1;
   }
@@ -746,7 +747,7 @@ wz_read_list(wzlist * list, wzvar * var,
       int var_err = 1;
       wzvar * child = vars + i;
       wzstr name;
-      if (wz_read_var_chars(&name.bytes, &name.len, node, file))
+      if (wz_read_var_chars(&name.bytes, &name.len, 0, node, file))
         goto free_child;
       uint8_t type;
       if (wz_read_byte(&type, file))
@@ -792,7 +793,7 @@ wz_read_list(wzlist * list, wzvar * var,
         child->val.f = float64.f;
       } else if (WZ_IS_VAR_STR(type)) {
         wzstr str;
-        if (wz_read_var_chars(&str.bytes, &str.len, node, file))
+        if (wz_read_var_chars(&str.bytes, &str.len, 0, node, file))
           goto free_name;
         child->type = WZ_VAR_STR;
         child->val.str = str;
@@ -1189,7 +1190,8 @@ wz_read_obj(wzobj ** ret_obj, wzvar * var,
   switch (fmt) {
   case 0x01: {
     wzstr str;
-    if (wz_read_chars(&str.bytes, &str.len, ctx->keys + 1, WZ_ENC_UTF8, file))
+    if (wz_read_chars(&str.bytes, &str.len, 0,
+                      ctx->keys + 1, WZ_ENC_UTF8, file))
       return ret;
     var->type = WZ_VAR_STR;
     var->val.str = str;
@@ -1197,12 +1199,12 @@ wz_read_obj(wzobj ** ret_obj, wzvar * var,
     return ret = 0, ret;
   }
   case 0x1b:
-    if (wz_read_chars_else(&type.bytes, &type.len,
+    if (wz_read_chars_else(&type.bytes, &type.len, 0,
                            node->addr.val, node->key, WZ_ENC_AUTO, file))
       return ret;
     break;
   case 0x73:
-    if (wz_read_chars(&type.bytes, &type.len, node->key, WZ_ENC_AUTO, file))
+    if (wz_read_chars(&type.bytes, &type.len, 0, node->key, WZ_ENC_AUTO, file))
       return ret;
     break;
   default:
@@ -1311,12 +1313,12 @@ free_img:
       wzstr vtype; // vex's val type
       switch (vfmt) {
       case 0x1b:
-        if (wz_read_chars_else(&vtype.bytes, &vtype.len,
+        if (wz_read_chars_else(&vtype.bytes, &vtype.len, 0,
                                addr, key, WZ_ENC_AUTO, file))
           goto free_vals;
         break;
       case 0x73:
-        if (wz_read_chars(&vtype.bytes, &vtype.len, key, WZ_ENC_AUTO, file))
+        if (wz_read_chars(&vtype.bytes, &vtype.len, 0, key, WZ_ENC_AUTO, file))
           goto free_vals;
         break;
       default:
@@ -1473,7 +1475,7 @@ free_ao:
     if ((uol = malloc(sizeof(* uol))) == NULL)
       goto free_type;
     if (wz_seek(1, SEEK_CUR, file) ||
-        wz_read_var_chars(&uol->path.bytes, &uol->path.len, node, file))
+        wz_read_var_chars(&uol->path.bytes, &uol->path.len, 0, node, file))
       goto free_uol;
     o = (wzobj *) uol;
     o->type = WZ_OBJ_UOL;

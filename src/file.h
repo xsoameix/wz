@@ -490,7 +490,7 @@ void     wz_free_str(uint8_t * bytes);
 int      wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
                          uint8_t * bytes, uint32_t len, uint32_t capa,
                          wzkey * key, wzenc enc);
-int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint32_t capa,
                        wzkey * key, wzenc enc, wzfile * file);
 void     wz_free_chars(uint8_t * bytes);
 
