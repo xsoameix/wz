@@ -490,8 +490,9 @@ void     wz_free_str(uint8_t * bytes);
 int      wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
                          uint8_t * bytes, uint32_t len, uint32_t capa,
                          wzkey * key, wzenc enc);
-int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint32_t capa,
-                       wzkey * key, wzenc enc, wzfile * file);
+int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
+                       wzenc * ret_enc,
+                       uint32_t capa, wzkey * key, wzenc enc, wzfile * file);
 void     wz_free_chars(uint8_t * bytes);
 
 void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
@@ -502,10 +503,11 @@ int      wz_seek(uint32_t pos, int origin, wzfile * file);
 
 int      wz_read_grp(wzgrp ** ret_grp, wznode * node,
                      wzfile * file, wzctx * ctx);
-void     wz_free_grp(wzgrp ** ret_grp);
+void     wz_free_grp(wzgrp ** ret_grp, wznode * node);
 
 void     wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec);
-int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint16_t enc,
+int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash,
+                       wzkey ** ret_key, uint16_t enc,
                        uint32_t addr, uint32_t start, uint32_t size, FILE * raw,
                        wzctx * ctx);
 
