@@ -1,4 +1,4 @@
-#include "byteorder.h"
+#include <stdint.h>
 
 uint16_t
 wz_swap16(uint16_t x16) {
