@@ -1,5 +1,6 @@
-#include <stdint.h>
+#include "byteorder.h"
 
+#ifdef WZ_SWAP_NO_BUILTIN
 uint16_t
 wz_swap16(uint16_t x16) {
   return (uint16_t) ((x16 << 8) | (x16 >> 8));
@@ -20,3 +21,4 @@ wz_swap64(uint64_t x64) {
   return (((x16 << 8) & 0xff00ff00ff00ff00) |
           ((x16 >> 8) & 0x00ff00ff00ff00ff));
 }
+#endif

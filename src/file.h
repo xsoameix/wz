@@ -6,30 +6,6 @@
 
 // Structures
 
-#ifdef _WIN32
-#pragma warning(push)
-#pragma warning(disable: 4820) // C89: struct padding
-#endif
-
-// 0    4    8    12   16   20   24   28   32   36   40
-// p--- ---- n--- ---- tlb- ---- b--- ---- ---- --2-
-// p--- ---- n--- ---- tlb- ---- b--- ---- ---- 4---
-// p--- ---- n--- ---- tlb- ---- b--- ---- 8--- ----
-// p--- ---- n--- ---- tlb- ---- b--- ---- o--- ----
-// p--- ---- f--- ---- tlb- ---- b--- ---- d--- ----
-// p--- ---- f--- ---- tlb- ---- ---k a--- d--- ----
-// p--- ---- f--- ---- tlk. a--- b--- ---- d--- ----
-// 
-// p--- n--- tlb- b--- ---- --2-
-// p--- n--- tlb- b--- ---- 4---
-// p--- n--- tlb- b--- 8--- ----
-// p--- n--- tlb- b--- ---- o---
-// p--- f--- tlb- b--- ---- d---
-// p--- f--- tlb- ---k a--- d---
-// p--- f--- tlk. b--- a--- d---
-
-#pragma GCC diagnostic warning "-Wpadded"
-
 typedef struct {
   uint8_t   b;
   uint8_t   g;
@@ -75,54 +51,72 @@ typedef struct {
   uint32_t  subchunk2_size;
 } wzpcm;
 
-typedef struct { int32_t x; int32_t y; } wzn_vec;
+typedef struct { int32_t x; int32_t y; } wzvec;
+
+// wznode format:
+// 0    4    8    12   16   20   24   28   32   36   40
+// p--- ---- n--- ---- tlb- ---- b--- ---- ---- --2-
+// p--- ---- n--- ---- tlb- ---- b--- ---- ---- 4---
+// p--- ---- n--- ---- tlb- ---- b--- ---- 8--- ----
+// p--- ---- n--- ---- tlb- ---- b--- ---- o--- ----
+// p--- ---- f--- ---- tlb- ---- b--- ---- d--- ----
+// p--- ---- f--- ---- tlb- ---- ---k a--- d--- ----
+// p--- ---- f--- ---- tlk. a--- b--- ---- d--- ----
+//
+// p--- n--- tlb- b--- ---- --2-
+// p--- n--- tlb- b--- ---- 4---
+// p--- n--- tlb- b--- 8--- ----
+// p--- n--- tlb- b--- ---- o---
+// p--- f--- tlb- b--- ---- d---
+// p--- f--- tlb- ---k a--- d---
+// p--- f--- tlk. b--- a--- d---
 
 typedef struct {
   uint8_t   _[4 * sizeof(void *) + 8 - 2]; // padding
   int16_t   val;
-} wzn16;
+} wznode_16;
 
 typedef struct {
   uint8_t   _[4 * sizeof(void *) + 8 - 4]; // padding
   union     { int32_t i; float f; } val;
-} wzn32;
+} wznode_32;
 
 typedef struct {
   uint8_t   _[4 * sizeof(void *)]; // padding
-  union     { int64_t i; double f; wzn_vec vec; } val;
-} wzn64;
+  union     { int64_t i; double f; wzvec vec; } val;
+} wznode_64;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8];
-} wznil_embed;
+} wznode_nil_embed;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - 2];
-} wzn16_embed;
+} wznode_16_embed;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - 4];
-} wzn32_embed;
+} wznode_32_embed;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *)];
-} wzn64_embed;
+} wznode_64_embed;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - sizeof(void *)];
-} wznv_embed;
+} wznode_ptr_embed;
 
 typedef struct {
   uint8_t   _[2 * sizeof(void *) + 2]; // padding
   uint8_t   name_buf[sizeof(void *) - 2 + 4 - 1];
   uint8_t   key;
   uint32_t  addr;
-} wzna_embed;
+} wznode_addr_embed;
 
 typedef struct {
   uint8_t   _1[2 * sizeof(void *) + 2]; // padding
@@ -132,58 +126,56 @@ typedef struct {
   uint8_t   _3[sizeof(void *)]; // name in prototype
 #endif
   uint32_t  addr;
-} wzna;
+} wznode_addr;
 
 typedef struct {
   union {
-    union  wzn      * node;
-    struct wzn_file * file;
-  }           root;
-  union wzn * parent;
-  unsigned    type  : 5;
-  unsigned    level : 2;
-  unsigned    embed : 1;
-  uint8_t     name_len;
-  uint8_t     name_e[sizeof(void *) - 2];
-  uint8_t *   name;
+    union  wznode * node;
+    struct wzfile * file;
+  }              root;
+  union wznode * parent;
+  uint8_t        info;
+  uint8_t        name_len;
+  uint8_t        name_e[sizeof(void *) - 2];
+  uint8_t *      name;
 #if UINTPTR_MAX <= UINT32_MAX
-  uint8_t     _[4]; // addr in wzna
+  uint8_t        _[4]; // addr in wznode_addr
 #endif
   union {
-    struct wzn_str * str;
-    struct wzn_ary * ary;
-    struct wzn_img * img;
-    struct wzn_vex * vex;
-    struct wzn_ao  * ao;
-  }           val;
-} wznp; // prototype
+    struct wzstr * str;
+    struct wzary * ary;
+    struct wzimg * img;
+    struct wzvex * vex;
+    struct wzao  * ao;
+  }              val;
+} wznode_proto; // prototype
 
-typedef union wzn {
-  wznil_embed nil_e;
-  wzn16_embed n16_e;
-  wzn32_embed n32_e;
-  wzn64_embed n64_e;
-  wzn16       n16;
-  wzn32       n32;
-  wzn64       n64;
-  wznv_embed  nv_e;
-  wzna_embed  na_e;
-  wzna        na;
-  wznp        n;
-} wzn;
+typedef union wznode {
+  wznode_nil_embed   nil_e;
+  wznode_16_embed    n16_e;
+  wznode_32_embed    n32_e;
+  wznode_64_embed    n64_e;
+  wznode_16          n16;
+  wznode_32          n32;
+  wznode_64          n64;
+  wznode_ptr_embed   np_e;
+  wznode_addr_embed  na_e;
+  wznode_addr        na;
+  wznode_proto       n;
+} wznode;
 
-typedef struct wzn_str {
+typedef struct wzstr {
   uint32_t  len;
   uint8_t   bytes[4]; // variable array
-} wzn_str;
+} wzstr;
 
-typedef struct wzn_ary {
+typedef struct wzary {
   uint32_t  len;
   uint8_t   _[4]; // padding
-  wzn       nodes[1]; // variable array
-} wzn_ary;
+  wznode    nodes[1]; // variable array
+} wzary;
 
-typedef struct wzn_img {
+typedef struct wzimg {
   uint32_t  w;
   uint32_t  h;
   uint8_t * data;
@@ -195,23 +187,23 @@ typedef struct wzn_img {
 #if UINTPTR_MAX > UINT32_MAX
   uint8_t   _2[4]; // padding
 #endif
-  wzn       nodes[1]; // variable array
-} wzn_img;
+  wznode    nodes[1]; // variable array
+} wzimg;
 
-typedef struct wzn_vex {
+typedef struct wzvex {
   uint32_t  len;
-  wzn_vec   ary[1]; // variable array
-} wzn_vex;
+  wzvec     ary[1]; // variable array
+} wzvex;
 
-typedef struct wzn_ao {
+typedef struct wzao {
   uint32_t  size;
   uint32_t  ms;
   uint16_t  format;
   uint8_t   _[sizeof(void *) - 2]; // padding
   uint8_t * data;
-} wzn_ao;
+} wzao;
 
-typedef struct wzn_file {
+typedef struct wzfile {
   struct wzctx * ctx;
   FILE *   raw;
   uint32_t pos;
@@ -220,169 +212,133 @@ typedef struct wzn_file {
   uint32_t hash;
   uint8_t  key;
   uint8_t  _[sizeof(void *) - 1]; // padding
-  wzn      root;
-} wzn_file;
-
-typedef enum {
-  WZN_CHARS,
-  WZN_FMT_CHARS,
-  WZN_FMT_CHARS_WITH_LEN,
-  WZN_TYPE_CHARS,
-  WZN_FMT_OR_TYPE_CHARS
-} wzn_chars;
-
-enum {
-  WZN_NIL,
-  WZN_I16,
-  WZN_I32,
-  WZN_I64,
-  WZN_F32,
-  WZN_F64,
-  WZN_VEC,  // "Shape2D#Vector2D"
-  WZN_UNK,  // not read yet
-  WZN_STR,
-  WZN_ARY,  // "Property"
-  WZN_IMG,  // "Canvas"
-  WZN_VEX,  // "Shape2D#Convex2D"
-  WZN_AO,   // "Sound_DX8"
-  WZN_UOL,  // "UOL"
-  WZN_LEN
-};
-
-#pragma GCC diagnostic ignored "-Wpadded"
-
-typedef struct {
-  uint8_t * bytes;
-  uint32_t  len;
-} wzkey;  // decode string and image
-
-typedef struct {
-  uint8_t   u4[0x10];          // scale 4 bit color to 8 bit color
-  uint8_t   u5[0x20];          // scale 5 bit color to 8 bit color
-  uint8_t   u6[0x40];          // scale 6 bit color to 8 bit color
-  wzcolor   u4444[0x10000];    // unpack rgba 4444 pixel
-  wzcolor   u565[0x10000];     // unpack rgb 565 pixel
-  wzcolor   c[2][256][256];    // unpack color code 2 and 3 of dxt3
-  uint8_t   a[2][256][256][6]; // unpack alpha code 2 ~ 7 of dxt5
-} wzplt;  // palette
-
-typedef struct {
-  uint8_t   wav[16];
-  uint8_t   empty[16];
-} wzguid;
+  wznode   root;
+} wzfile;
 
 typedef struct wzctx {
-  size_t    klen; // keys length
-  wzkey *   keys;
-  wzplt *   plt;
-  wzguid    guid;
+  uint8_t * keys;
 } wzctx;
 
-#ifdef _WIN32
-#pragma warning(pop)
-#endif
+enum { // bit fields of wznode->info
+  WZ_TYPE  = 0x0f,
+  WZ_LEVEL = 0x10,
+  WZ_LEAF  = 0x20, // is it a leaf in level 0 or not
+  WZ_EMBED = 0x40
+};
 
-// Macro Definitions
+enum {
+  WZ_LV0_NAME,
+  WZ_LV1_NAME,
+  WZ_LV1_STR,
+  WZ_LV1_TYPENAME,
+  WZ_LV1_TYPENAME_OR_STR
+};
 
-#define WZ_COLOR_4444    1
-#define WZ_COLOR_8888    2
-#define WZ_COLOR_565   513
-#define WZ_COLOR_DXT3 1026
-#define WZ_COLOR_DXT5 2050
+enum {
+  WZ_NIL,
+  WZ_I16,
+  WZ_I32,
+  WZ_I64,
+  WZ_F32,
+  WZ_F64,
+  WZ_VEC,  // "Shape2D#Vector2D"
+  WZ_UNK,  // not read yet
+  WZ_STR,
+  WZ_ARY,  // "Property"
+  WZ_IMG,  // "Canvas"
+  WZ_VEX,  // "Shape2D#Convex2D"
+  WZ_AO,   // "Sound_DX8"
+  WZ_UOL,  // "UOL"
+  WZ_LEN
+};
 
-// microsoft define these values in Mmreg.h
-#define WZ_AUDIO_PCM 0x0001
-#define WZ_AUDIO_MP3 0x0055
+enum {
+  WZ_COLOR_4444 =    1,
+  WZ_COLOR_8888 =    2,
+  WZ_COLOR_565  =  513,
+  WZ_COLOR_DXT3 = 1026,
+  WZ_COLOR_DXT5 = 2050
+};
 
-#define WZ_AUDIO_WAV_SIZE 18 // sizeof(packed wzwav)
-#define WZ_AUDIO_MP3_SIZE 30 // sizeof(packed wzmp3)
-#define WZ_AUDIO_PCM_SIZE 44 // sizeof(packed wzpcm)
+enum { // microsoft define these values in Mmreg.h
+  WZ_AUDIO_PCM = 0x0001,
+  WZ_AUDIO_MP3 = 0x0055
+};
 
-typedef enum {
+enum {
+  WZ_AUDIO_WAV_SIZE = 18, // sizeof(packed wzwav)
+  WZ_AUDIO_PCM_SIZE = 44  // sizeof(packed wzpcm)
+};
+
+enum {
   WZ_ENC_AUTO,
-  WZ_ENC_ASCII,
+  WZ_ENC_CP1252,
   WZ_ENC_UTF16LE,
   WZ_ENC_UTF8
-} wzenc;
+};
 
-int      wz_read_bytes(void * bytes, uint32_t len, wzn_file * file);
-int      wz_read_byte(uint8_t * byte, wzn_file * file);
-int      wz_read_le16(uint16_t * le16, wzn_file * file);
-int      wz_read_le32(uint32_t * le32, wzn_file * file);
-int      wz_read_le64(uint64_t * le64, wzn_file * file);
-int      wz_read_int32(uint32_t * int32, wzn_file * file);
-int      wz_read_int64(uint64_t * int64, wzn_file * file);
+int      wz_read_bytes(void * bytes, uint32_t len, wzfile * file);
+int      wz_read_byte(uint8_t * byte, wzfile * file);
+int      wz_read_le16(uint16_t * le16, wzfile * file);
+int      wz_read_le32(uint32_t * le32, wzfile * file);
+int      wz_read_le64(uint64_t * le64, wzfile * file);
+int      wz_read_int32(uint32_t * int32, wzfile * file);
+int      wz_read_int64(uint64_t * int64, wzfile * file);
 
-int      wz_read_str(uint8_t ** ret_bytes, uint32_t len, wzn_file * file);
-void     wz_free_str(uint8_t * bytes);
-
-int      wz_decode_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
-                         uint8_t * bytes, uint32_t len, uint32_t capa,
-                         uint32_t padding, wzkey * key, wzenc enc);
+int      wz_decode_chars(uint8_t * bytes, uint32_t len,
+                         uint8_t key_i, const uint8_t * keys, uint8_t enc);
 int      wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len,
-                       wzenc * ret_enc,
-                       uint32_t capa, uint32_t addr, wzn_chars type,
-                       uint8_t key, wzkey * keys, wzn_file * file);
+                       uint8_t * ret_enc,
+                       uint32_t capa, uint32_t addr, uint8_t type,
+                       uint8_t key, uint8_t * keys, wzfile * file);
 void     wz_free_chars(uint8_t * bytes);
 
 void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
                         uint32_t start, uint32_t hash);
 
-int      wz_seek(uint32_t pos, int origin, wzn_file * file);
+int      wz_seek(uint32_t pos, int origin, wzfile * file);
 
-int      wz_read_grp(wzn * node, wzkey * keys, wzn_file * file);
-void     wz_free_grp(wzn * node);
+int      wz_read_lv0(wznode * node, uint8_t * keys, wzfile * file);
+void     wz_free_lv0(wznode * node);
 
 void     wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec);
 int      wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash,
                        uint8_t * ret_key, uint16_t enc,
                        uint32_t addr, uint32_t start, uint32_t size, FILE * raw,
-                       wzctx * ctx);
+                       const uint8_t * keys);
 
-void     wz_decode_aes(uint8_t * plain, const uint8_t * cipher, uint32_t len,
-                       uint8_t * key, const uint8_t * iv);
-void     wz_encode_aes(uint8_t * cipher, const uint8_t * plain, uint32_t len,
+void     wz_encode_aes(uint8_t * cipher, uint32_t len,
                        uint8_t * key, const uint8_t * iv);
 
-int      wz_deduce_key(uint8_t * ret_key, uint8_t * bytes, uint32_t len,
-                       wzkey * keys, size_t klen);
+int      wz_read_lv1(wznode * node, wznode * root, wzfile * file,
+                     uint8_t * keys, uint8_t eager);
+void     wz_free_lv1(wznode * node);
 
-void     wz_read_pcm(wzpcm * out, uint8_t * pcm);
-
-int      wz_read_obj(wzn * node, wzn * root, wzn_file * file, wzctx * ctx,
-                     uint8_t eager);
-void     wz_free_obj(wzn * node);
-
-int      wz_read_node_r(wzn * root, wzn_file * file, wzctx * ctx);
-int      wz_read_node_thrd_r(wzn * root, wzn_file * file, wzctx * ctx,
+int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
+int      wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx,
                              uint8_t tcapa);
 
-int64_t   wz_get_int(wzn * node);
-double    wz_get_flt(wzn * node);
-char *    wz_get_str(wzn * node);
-wzn_img * wz_get_img(wzn * node);
-wzn_vex * wz_get_vex(wzn * node);
-wzn_vec * wz_get_vec(wzn * node);
-wzn_ao *  wz_get_ao(wzn * node);
+int16_t  wz_get_i16(wznode * node);
+int32_t  wz_get_i32(wznode * node);
+int64_t  wz_get_i64(wznode * node);
+float    wz_get_f32(wznode * node);
+double   wz_get_f64(wznode * node);
+char *   wz_get_str(wznode * node);
+wzimg *  wz_get_img(wznode * node);
+wzvex *  wz_get_vex(wznode * node);
+wzvec *  wz_get_vec(wznode * node);
+wzao *   wz_get_ao(wznode * node);
 
-wzn *    wz_open_var(wzn * node, const char * path);
-int      wz_close_var(wzn * node);
-wzn *    wz_open_root_var(wzn * node);
+wznode * wz_open_node(wznode * node, const char * path);
+int      wz_close_node(wznode * node);
+wznode * wz_open_root(wzfile * file);
 
-char *   wz_get_var_name(wzn * node);
-uint32_t wz_get_vars_len(wzn * node);
-wzn *    wz_open_var_at(wzn * node, uint32_t i);
+char *   wz_get_name(wznode * node);
+uint32_t wz_get_len(wznode * node);
+wznode * wz_open_node_at(wznode * node, uint32_t i);
 
-wzn    * wz_open_node(wzn * node, const char * path);
-int      wz_close_node(wzn * node);
-wzn    * wz_open_root_node(wzn_file * file);
-
-char *   wz_get_node_name(wzn * node);
-uint32_t wz_get_nodes_len(wzn * node);
-wzn    * wz_open_node_at(wzn * node, uint32_t i);
-
-int      wz_open_file(wzn_file * file, const char * filename, wzctx * ctx);
-int      wz_close_file(wzn_file * file);
+int      wz_open_file(wzfile * file, const char * filename, wzctx * ctx);
+int      wz_close_file(wzfile * file);
 
 int      wz_init_ctx(wzctx * ctx);
 void     wz_free_ctx(wzctx * ctx);

@@ -571,7 +571,7 @@ START_TEST(test_deduce_ver) {
   dec = 0;
   hash = 0;
   enc = 0x007a;
-  wzkey * key;
+  uint8_t key;
   ck_assert_int_eq(wz_deduce_ver(&dec, &hash, &key, enc, file.root.addr.val,
                                  file.start, file.size, file.raw, &ctx), 0);
   ck_assert(dec == 0x00ce);

@@ -40,6 +40,7 @@
 #  define WZ_SWAP16(x) wz_swap16(x)
 #  define WZ_SWAP32(x) wz_swap32(x)
 #  define WZ_SWAP64(x) wz_swap64(x)
+#  define WZ_SWAP_NO_BUILTIN
 uint16_t wz_swap16(uint16_t x16);
 uint32_t wz_swap32(uint32_t x32);
 uint64_t wz_swap64(uint64_t x64);

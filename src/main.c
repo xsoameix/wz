@@ -68,7 +68,7 @@ cmd_help(int argc, char ** argv) {
          "There is NO WARRANTY, to the extent permitted by law.\n"
          "\n"
          "Written by Lien Chiang.\n");
-  wzn n;
+  wznode n;
 #define offsetof(a, b) (size_t) ((char *) (&(a)->b) - (char *) (a))
   printf("\n");
   printf("sizeof n16_e           %2zu\n", sizeof(n.n16_e));
@@ -92,9 +92,9 @@ cmd_help(int argc, char ** argv) {
   printf("sizeof n64             %2zu\n", sizeof(n.n64));
   printf("offset n64.val         %2zu\n", offsetof(&n, n64.val));
   printf("\n");
-  printf("sizeof nv_e            %2zu\n", sizeof(n.nv_e));
-  printf("offset nv_e.name_buf   %2zu\n", offsetof(&n, nv_e.name_buf));
-  printf("sizeof nv_e.name_buf   %2zu\n", sizeof(n.nv_e.name_buf));
+  printf("sizeof np_e            %2zu\n", sizeof(n.np_e));
+  printf("offset np_e.name_buf   %2zu\n", offsetof(&n, np_e.name_buf));
+  printf("sizeof np_e.name_buf   %2zu\n", sizeof(n.np_e.name_buf));
   printf("\n");
   printf("sizeof na_e            %2zu\n", sizeof(n.na_e));
   printf("offset na_e.name_buf   %2zu\n", offsetof(&n, na_e.name_buf));
@@ -136,7 +136,7 @@ cmd_all(int argc, char ** argv) {
     if (strstr(argv[i], "List.wz") == NULL &&
         strstr(argv[i], "Data.wz") == NULL) {
       printf("file: %s\n", argv[i]);
-      wzn_file file;
+      wzfile file;
       if (wz_open_file(&file, argv[i], &ctx)) goto cleanup_ctx;
       if (wz_read_node_thrd_r(&file.root, &file, &ctx, 8)) goto cleanup_file;
       //if (wz_read_node_r(&file.root, &file, &ctx)) goto cleanup_file;
@@ -717,92 +717,118 @@ cleanup_done: free(done);
 int
 cmd_ls(int argc, char ** argv) {
   int ret = 1;
-  if (argc < 3) return ret;
+  if (argc < 3)
+    return ret;
   const char * filename = argv[2];
   const char * nodepath = argc >= 4 ? argv[3] : "";
-  const char * varpath = argc >= 5 ? argv[4] : "";
-  const char * savename = (argc >= 6 && strstr(argv[5], ".data") != NULL ?
-                           argv[5] : NULL);
+  const char * savename = argc >= 5 ? argv[4] : NULL;
   wzctx ctx;
   if (wz_init_ctx(&ctx))
     return ret;
-  wzn_file file;
+  wzfile file;
   if (wz_open_file(&file, filename, &ctx))
     goto free_ctx;
-  wzn * node_root;
-  if ((node_root = wz_open_root_node(&file)) == NULL) {
+  wznode * node_root;
+  if ((node_root = wz_open_root(&file)) == NULL) {
     fprintf(stderr, "Error: Unable to open the root node\n");
     goto close_file;
   }
-  wzn * node;
+  wznode * node;
   if ((node = wz_open_node(node_root, nodepath)) == NULL) {
     fprintf(stderr, "Error: Unable to open the node: %s\n", nodepath);
     goto close_file;
   }
-  if (argc >= 5 || node->n.level == 1) {
-    wzn * var_root;
-    if ((var_root = wz_open_root_var(node)) == NULL) {
-      fprintf(stderr, "Error: Unable to open the root var\n");
-      goto close_file;
+  if ((node->n.info & WZ_TYPE) == WZ_ARY) {
+    wzary * ary = node->n.val.ary;
+    for (uint32_t i = 0; i < ary->len; i++) {
+      printf("%s\n", wz_get_name(ary->nodes + i));
     }
-    wzn * var;
-    if ((var = wz_open_var(var_root, varpath)) == NULL) {
-      fprintf(stderr, "Error: Unable to open the var: %s\n", varpath);
-      goto close_file;
-    }
-    if (var->n.type == WZN_IMG) {
-      wzn_img * img = var->n.val.img;
-      printf("(image: %u %u)\n", img->w, img->h);
-      if (savename != NULL) {
-        FILE * savefile;
-        if ((savefile = fopen(savename, "w")) == NULL) {
-          perror(savename);
-          goto close_file;
-        }
-        if (fwrite(img->data, img->w * img->h * 4, 1, savefile) != 1) {
-          perror(savename);
-          goto close_savefile;
-        }
+  } else if ((node->n.info & WZ_TYPE) == WZ_IMG) {
+    wzimg * img = node->n.val.img;
+    if (savename == NULL) {
+      const char * depth;
+      switch (img->depth) {
+      case WZ_COLOR_8888: depth = "8888"; break;
+      case WZ_COLOR_4444: depth = "4444"; break;
+      case WZ_COLOR_565:  depth = "565";  break;
+      case WZ_COLOR_DXT3: depth = "dxt3"; break;
+      case WZ_COLOR_DXT5: depth = "dxt5"; break;
+      default:            depth = "unk";  break;
+      }
+      uint8_t scale;
+      switch (img->scale) {
+      case 0:  scale =  1; break; // pow(2, 0) == 1
+      case 4:  scale = 16; break; // pow(2, 4) == 16
+      default: scale =  0; break;
+      }
+      printf("(image: %u %u %s/%hhu)\n", img->w, img->h, depth, scale);
+      for (uint32_t i = 0; i < img->len; i++) {
+        printf("%s\n", wz_get_name(img->nodes + i));
+      }
+    } else {
+      int err = 1;
+      FILE * savefile;
+      if ((savefile = fopen(savename, "w")) == NULL) {
+        perror(savename);
+        goto close_file;
+      }
+      if (fwrite(img->data, img->w * img->h * 4, 1, savefile) != 1) {
+        perror(savename);
+        goto close_savefile;
+      }
+      err = 0;
 close_savefile:
-        fclose(savefile);
-      }
+      fclose(savefile);
+      if (err)
+        goto close_file;
     }
-    if (var->n.type == WZN_ARY) {
-      wzn_ary * list = var->n.val.ary;
-      for (uint32_t i = 0; i < list->len; i++) {
-        printf("%s\n", wz_get_var_name(list->nodes + i));
+  } else if ((node->n.info & WZ_TYPE) == WZ_AO) {
+    wzao * ao = node->n.val.ao;
+    if (savename == NULL) {
+      const char * format;
+      switch (ao->format) {
+      case WZ_AUDIO_PCM: format = "pcm"; break;
+      case WZ_AUDIO_MP3: format = "mp3"; break;
+      default:           format = "unk"; break;
       }
-    } else if (var->n.type == WZN_IMG) {
-      wzn_img * list = var->n.val.img;
-      for (uint32_t i = 0; i < list->len; i++) {
-        printf("%s\n", wz_get_var_name(list->nodes + i));
+      printf("(audio: %02u:%02u.%03u %uB %s)\n",
+             ao->ms / 60000,
+             ao->ms / 1000 % 60,
+             ao->ms % 1000,
+             ao->size, format);
+    } else {
+      int err = 1;
+      FILE * savefile;
+      if ((savefile = fopen(savename, "w")) == NULL) {
+        perror(savename);
+        goto close_file;
       }
-    } else if (var->n.type == WZN_VEX) {
-      printf("(vex)\n");
-    } else if (var->n.type == WZN_VEC) {
-      printf("(vec)\n");
-    } else if (var->n.type == WZN_AO) {
-      printf("(ao)\n");
-    } else if (var->n.type == WZN_UOL) {
-      printf("(uol)\n");
-    } else if (var->n.type == WZN_STR) {
-      printf("(str: %s)\n", var->n.val.str->bytes);
-    } else if (var->n.type == WZN_I16 ||
-               var->n.type == WZN_I32 ||
-               var->n.type == WZN_I64 ||
-               var->n.type == WZN_F32 ||
-               var->n.type == WZN_F64) {
-      printf("(number)\n");
-    } else if (var->n.type == WZN_NIL) {
-      printf("(nil)\n");
+      if (fwrite(ao->data, ao->size, 1, savefile) != 1) {
+        perror(savename);
+        goto close_savefile_;
+      }
+      err = 0;
+close_savefile_:
+      fclose(savefile);
+      if (err)
+        goto close_file;
     }
-  } else {
-    if (node->n.level == 0) {
-      wzn_ary * grp = node->n.val.ary;
-      for (uint32_t i = 0; i < grp->len; i++) {
-        printf("%s\n", wz_get_node_name(grp->nodes + i));
-      }
-    }
+  } else if ((node->n.info & WZ_TYPE) == WZ_VEX) {
+    printf("(vex)\n");
+  } else if ((node->n.info & WZ_TYPE) == WZ_VEC) {
+    printf("(vec)\n");
+  } else if ((node->n.info & WZ_TYPE) == WZ_UOL) {
+    printf("(uol)\n");
+  } else if ((node->n.info & WZ_TYPE) == WZ_STR) {
+    printf("(str: %s)\n", node->n.val.str->bytes);
+  } else if ((node->n.info & WZ_TYPE) == WZ_I16 ||
+             (node->n.info & WZ_TYPE) == WZ_I32 ||
+             (node->n.info & WZ_TYPE) == WZ_I64 ||
+             (node->n.info & WZ_TYPE) == WZ_F32 ||
+             (node->n.info & WZ_TYPE) == WZ_F64) {
+    printf("(number)\n");
+  } else if ((node->n.info & WZ_TYPE) == WZ_NIL) {
+    printf("(nil)\n");
   }
   ret = 0;
 close_file:
