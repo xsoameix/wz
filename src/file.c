@@ -2577,7 +2577,7 @@ wz_open_file(wzfile * ret_file, const char * filename, wzctx * ctx) {
     perror(filename);
     goto close_raw;
   }
-  if ((unsigned long) size > SIZE_MAX) {
+  if (size > INT32_MAX) {
     wz_error("The file is too large: %s\n", filename);
     goto close_raw;
   }
