@@ -814,9 +814,17 @@ close_savefile_:
         goto close_file;
     }
   } else if ((node->n.info & WZ_TYPE) == WZ_VEX) {
-    printf("(vex)\n");
+    printf("(vex: ");
+    wzvex * vex = node->n.val.vex;
+    for (uint32_t i = 0; i < vex->len; i++) {
+      printf("%d %d", vex->ary[i].x, vex->ary[i].y);
+      if (i < vex->len - 1)
+        printf(", ");
+    }
+    printf(")\n");
   } else if ((node->n.info & WZ_TYPE) == WZ_VEC) {
-    printf("(vec)\n");
+    wzvec * vec = &node->n64.val.vec;
+    printf("(vec: %d %d)\n", vec->x, vec->y);
   } else if ((node->n.info & WZ_TYPE) == WZ_UOL) {
     printf("(uol)\n");
   } else if ((node->n.info & WZ_TYPE) == WZ_STR) {
