@@ -19,7 +19,7 @@ endif()
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR
     "${CMAKE_C_COMPILER_ID}" MATCHES  "Clang")
   set(FLAGS
-    "-std=c99 -pthread -pedantic -g"
+    "-std=c99 -pthread -g"
     #"-fsyntax-only"
     #"-fmax-errors"
     "-Wpedantic"
