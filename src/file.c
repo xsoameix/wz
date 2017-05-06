@@ -376,7 +376,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
       break;
     }
     if (inplace == UNK)
-      return wz_error("Unsupported string type: 0x%02hhx\n", fmt), ret;
+      return wz_error("Unsupported string type: 0x%02"PRIx8"\n", fmt), ret;
     if (!inplace) {
       uint32_t offset;
       if (wz_read_le32(&offset, file))
@@ -599,7 +599,7 @@ wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
       child->n.name_len = 0;
       child->n.info = WZ_EMBED | WZ_NIL | WZ_LEAF;
     } else {
-      wz_error("Unsupported node type: 0x%02hhx\n", type);
+      wz_error("Unsupported node type: 0x%02"PRIx8"\n", type);
       goto free_child;
     }
     child->n.parent = node;
@@ -737,7 +737,7 @@ wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint8_t * ret_key,
           WZ_ERR_GOTO(free_entities);
         entity->addr_enc = 0; // no need to decode
       } else {
-        wz_error("Unsupported node type: 0x%02hhx\n", type);
+        wz_error("Unsupported node type: 0x%02"PRIx8"\n", type);
         goto free_entities;
       }
     }
@@ -926,7 +926,7 @@ wz_read_list(void ** ret_ary, uint8_t nodes_off, uint8_t len_off,
       name_capa = sizeof(child->na_e.name_buf);
       info = WZ_UNK;
     } else {
-      wz_error("Unsupported primitive type: 0x%02hhx\n", type);
+      wz_error("Unsupported primitive type: 0x%02"PRIx8"\n", type);
       goto free_child;
     }
     uint8_t * bytes;
@@ -1066,7 +1066,7 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   case 0: scale_size =  1; break; // pow(2, 0) == 1
   case 4: scale_size = 16; break; // pow(2, 4) == 16
   default: {
-    wz_error("Unsupported color scale %hhd\n", scale);
+    wz_error("Unsupported color scale %"PRIu16"\n", scale);
     goto free_out;
   }}
   uint32_t depth_size;
@@ -1077,7 +1077,7 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   case WZ_COLOR_DXT3:
   case WZ_COLOR_DXT5: depth_size = 1; break;
   default: {
-    wz_error("Unsupported color depth %hhd\n", depth);
+    wz_error("Unsupported color depth %"PRIu16"\n", depth);
     goto free_out;
   }}
   if (size * (scale_size * scale_size) != pixels * depth_size)
@@ -1230,7 +1230,7 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
     break;
   }
   default: {
-    wz_error("Unsupported color depth %hhd\n", depth);
+    wz_error("Unsupported color depth %"PRIu16"\n", depth);
     goto free_out;
   }}
   if (scale_size > 1 && sw) {
@@ -1529,7 +1529,7 @@ free_ao_data:
           goto free_ao;
         }
       } else {
-        wz_error("Unsupported audio format: 0x%hx\n", wav.format);
+        wz_error("Unsupported audio format: 0x%"PRIx16"\n", wav.format);
         goto free_ao;
       }
       ao->format = wav.format;
@@ -1627,512 +1627,6 @@ wz_free_lv1(wznode * node) {
   default:
     break;
   }
-}
-
-struct wz_read_lv1_thrd_node {
-  wznode *  root;
-  uint32_t  w;
-  uint32_t  h;
-  uint16_t  depth;
-  uint16_t  scale;
-  uint32_t  size;
-  uint8_t * data;
-};
-
-struct wz_read_lv1_thrd_arg {
-  uint8_t id;
-  uint8_t _[sizeof(void *) - 1]; // padding
-  pthread_mutex_t * mutex;
-  pthread_cond_t * work_cond;
-  pthread_cond_t * done_cond;
-  uint8_t * exit;
-  struct wz_read_lv1_thrd_node * nodes;
-  size_t len;
-  size_t * remain;
-};
-
-void *
-wz_read_lv1_thrd(void * arg) {
-  struct wz_read_lv1_thrd_arg * targ = arg;
-  pthread_mutex_t * mutex = targ->mutex;
-  pthread_cond_t * work_cond = targ->work_cond;
-  pthread_cond_t * done_cond = targ->done_cond;
-  uint8_t * exit = targ->exit;
-  size_t * remain = targ->remain;
-  size_t len = 0;
-  int node_err = 0;
-  for (;;) {
-    int err = 0;
-    if ((err = pthread_mutex_lock(mutex)) != 0)
-      return (void *) !NULL;
-    if (len) {
-      (* remain) -= len;
-      if (!* remain && (err = pthread_cond_signal(done_cond)) != 0)
-        goto unlock_mutex;
-      targ->len = 0;
-    }
-    uint8_t leave;
-    struct wz_read_lv1_thrd_node * nodes;
-    while (!(leave = * exit) && !(len = targ->len))
-      if ((err = pthread_cond_wait(work_cond, mutex)) != 0)
-        goto unlock_mutex;
-    if (!leave && len)
-      nodes = targ->nodes;
-    int unlock_err;
-unlock_mutex:
-    if ((unlock_err = pthread_mutex_unlock(mutex)) != 0)
-      return (void *) !NULL;
-    if (err)
-      return (void *) !NULL;
-    if (leave)
-      break;
-    for (uint32_t i = 0; i < len; i++) {
-      struct wz_read_lv1_thrd_node * node = nodes + i;
-      wznode * root = node->root;
-      wzfile * file = root->n.root.file;
-      wzctx * ctx = file->ctx;
-      uint8_t key = root->n.info & WZ_EMBED ? root->na_e.key : root->na.key;
-      if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
-                         node->depth, node->scale, node->size,
-                         ctx->keys + key * WZ_KEY_UTF8_MAX_LEN))
-        node_err = 1;
-    }
-  }
-  if (node_err)
-    return (void *) !NULL;
-  return NULL;
-}
-
-int // Non recursive DFS
-wz_read_lv1_thrd_r(wznode * root, wzfile * file, wzctx * ctx,
-                   uint8_t tlen, struct wz_read_lv1_thrd_arg * targs,
-                   pthread_mutex_t * mutex,
-                   pthread_cond_t * work_cond,
-                   pthread_cond_t * done_cond, size_t * remain) {
-  int ret = 1;
-  int node_err = 0;
-  size_t stack_capa = 1;
-  wznode ** stack;
-  if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
-    return ret;
-  size_t stack_len = 0;
-  stack[stack_len++] = root;
-  char * blank = NULL;
-  size_t blank_capa = 0;
-  size_t blank_len = 0;
-  struct wz_read_lv1_thrd_node * queue = NULL;
-  size_t queue_capa = 0;
-  size_t queue_len = 0;
-  while (stack_len) {
-    wznode * node = stack[--stack_len];
-    if (node == NULL) {
-      wz_free_lv1(stack[--stack_len]);
-      continue;
-    }
-    size_t blank_req = 0;
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      blank_req++;
-    if (blank_req + 1 > blank_capa) { // null byte
-      size_t l = blank_capa;
-      do { l = l < 4 ? 4 : l + l / 4; } while (l < blank_req + 1); // null byte
-      void * mem;
-      if ((mem = realloc(blank, l)) == NULL)
-        goto free_queue;
-      blank = mem, blank_capa = l;
-    }
-    while (blank_len < blank_req)
-      blank[blank_len++] = ' ';
-    blank[blank_len = blank_req] = '\0';
-    //printf("%s name   %s\n",
-    //       blank, var->n.info & WZ_EMBED ? var->n.name_e : var->n.name);
-    if ((node->n.info & WZ_TYPE) == WZ_UNK)
-      if (wz_read_lv1(node, root, file, ctx->keys, 0)) {
-        node_err = 1;
-        continue;
-      }
-    //wznode * root_ = wz_invert_node(node);
-    //for (wznode * n = root_; (n = n->n.parent) != NULL; )
-    //  printf("/%s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
-    //printf(": ");
-    //wz_invert_node(root_);
-    //if ((node->n.info & WZ_TYPE) == WZ_STR) {
-    //  wzstr * str = node->n.val.str;
-    //  printf("str {%s}", str->bytes);
-    //} else if ((node->n.info & WZ_TYPE) == WZ_IMG) {
-    //  wzimg * img = node->n.val.img;
-    //  const char * depth = "unk";
-    //  switch (img->depth) {
-    //  case WZ_COLOR_8888: depth = "8888"; break;
-    //  case WZ_COLOR_4444: depth = "4444"; break;
-    //  case WZ_COLOR_565:  depth = "565";  break;
-    //  case WZ_COLOR_DXT3: depth = "dxt3"; break;
-    //  case WZ_COLOR_DXT5: depth = "dxt5"; break;
-    //  }
-    //  uint8_t scale = 0;
-    //  switch (img->scale) {
-    //  case 0: scale =  1; break; // pow(2, 0) == 1
-    //  case 4: scale = 16; break; // pow(2, 4) == 16
-    //  }
-    //  printf("img %s/%hhu", depth, scale);
-    //} else if ((node->n.info & WZ_TYPE) == WZ_AO) {
-    //  wzao * ao = node->n.val.ao;
-    //  const char * format = "unk";
-    //  switch (ao->format) {
-    //  case WZ_AUDIO_PCM: format = "pcm"; break;
-    //  case WZ_AUDIO_MP3: format = "mp3"; break;
-    //  }
-    //  printf("ao %s", format);
-    //} else if ((node->n.info & WZ_TYPE) == WZ_NIL) {
-    //  printf("nil");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_I16) {
-    //  printf("i16");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_I32) {
-    //  printf("i32");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_I64) {
-    //  printf("i64");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_F32) {
-    //  printf("f32");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_F64) {
-    //  printf("f64");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_VEC) {
-    //  printf("vec");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-    //  printf("ary");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_VEX) {
-    //  printf("vex");
-    //} else if ((node->n.info & WZ_TYPE) == WZ_UOL) {
-    //  printf("uol");
-    //}
-    //printf("\n");
-    uint32_t len;
-    wznode * nodes;
-    if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-      wzary * ary = node->n.val.ary;
-      len = ary->len;
-      nodes = ary->nodes;
-    } else if ((node->n.info & WZ_TYPE) == WZ_IMG) {
-      size_t req = queue_len + 1;
-      if (req > queue_capa) {
-        size_t l = queue_capa;
-        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        struct wz_read_lv1_thrd_node * mem;
-        if ((mem = realloc(queue, l * sizeof(* queue))) == NULL)
-          goto free_queue;
-        queue = mem, queue_capa = l;
-      }
-      wzimg * img = node->n.val.img;
-      struct wz_read_lv1_thrd_node * tnode = queue + queue_len;
-      tnode->root = root;
-      tnode->w = img->w;
-      tnode->h = img->h;
-      tnode->depth = img->depth;
-      tnode->scale = img->scale;
-      tnode->size = img->size;
-      tnode->data = img->data;
-      img->data = NULL;
-      queue_len++;
-      len = img->len;
-      nodes = img->nodes;
-    } else if ((node->n.info & WZ_TYPE) > WZ_UNK) {
-      wz_free_lv1(node);
-      continue;
-    } else {
-      continue;
-    }
-    size_t req = stack_len + 2 + len;
-    if (req > stack_capa) {
-      size_t l = stack_capa;
-      do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-      wznode ** mem;
-      if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-        goto free_queue;
-      stack = mem, stack_capa = l;
-    }
-    stack[stack_len++] = node;
-    stack[stack_len++] = NULL;
-    for (uint32_t i = 0; i < len; i++)
-      stack[stack_len++] = nodes + len - i - 1;
-  }
-  if (queue_len) {
-    int err;
-    if ((err = pthread_mutex_lock(mutex)) != 0)
-      goto free_queue;
-    size_t start = 0;
-    size_t slice = (queue_len + tlen - 1) / tlen;
-    for (uint8_t i = 0; i < tlen; i++) {
-      struct wz_read_lv1_thrd_arg * targ = targs + i;
-      if (start < queue_len) {
-        targ->nodes = queue + start;
-        targ->len = start + slice < queue_len ? slice : queue_len - start;
-      } else {
-        targ->nodes = NULL;
-        targ->len = 0;
-      }
-      start += slice;
-    }
-    * remain = queue_len;
-    if ((err = pthread_cond_broadcast(work_cond)) != 0)
-      goto unlock_mutex;
-    while (* remain)
-      if ((err = pthread_cond_wait(done_cond, mutex)) != 0)
-        goto unlock_mutex;
-    for (size_t i = 0; i < queue_len; i++)
-      free(queue[i].data);
-    int unlock_err;
-unlock_mutex:
-    if ((unlock_err = pthread_mutex_unlock(mutex)) != 0)
-      goto free_queue;
-    if (err)
-      goto free_queue;
-  }
-  if (!node_err)
-    ret = 0;
-free_queue:
-  free(queue);
-  free(blank);
-  free(stack);
-  return ret;
-}
-
-int // Non recursive DFS
-wz_read_lv1_r(wznode * root, wzfile * file, wzctx * ctx) {
-  int ret = 1;
-  int err = 0;
-  size_t stack_capa = 1;
-  wznode ** stack;
-  if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
-    return ret;
-  size_t stack_len = 0;
-  stack[stack_len++] = root;
-  while (stack_len) {
-    wznode * node = stack[--stack_len];
-    if (node == NULL) {
-      wz_free_lv1(stack[--stack_len]);
-      continue;
-    }
-    if ((node->n.info & WZ_TYPE) == WZ_UNK) {
-      if (wz_read_lv1(node, root, file, ctx->keys, 1)) {
-        err = 1;
-      } else if ((node->n.info & WZ_TYPE) == WZ_STR) {
-      } else if ((node->n.info & WZ_TYPE) == WZ_ARY ||
-                 (node->n.info & WZ_TYPE) == WZ_IMG) {
-        uint32_t len;
-        wznode * nodes;
-        if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-          wzary * ary = node->n.val.ary;
-          len   = ary->len;
-          nodes = ary->nodes;
-        } else {
-          wzimg * img = node->n.val.img;
-          len   = img->len;
-          nodes = img->nodes;
-        }
-        size_t req = stack_len + 2 + len;
-        if (req > stack_capa) {
-          size_t l = stack_capa;
-          do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-          wznode ** mem;
-          if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-            goto free_stack;
-          stack = mem, stack_capa = l;
-        }
-        stack[stack_len++] = node;
-        stack[stack_len++] = NULL;
-        for (uint32_t i = 0; i < len; i++)
-          stack[stack_len++] = nodes + len - i - 1;
-      } else if ((node->n.info & WZ_TYPE) == WZ_VEX) {
-        wz_free_lv1(node);
-      } else if ((node->n.info & WZ_TYPE) == WZ_VEC) {
-        wz_free_lv1(node);
-      } else if ((node->n.info & WZ_TYPE) == WZ_AO) {
-        wz_free_lv1(node);
-      } else if ((node->n.info & WZ_TYPE) == WZ_UOL) {
-        wz_free_lv1(node);
-      }
-    } else if ((node->n.info & WZ_TYPE) == WZ_NIL) {
-    } else if ((node->n.info & WZ_TYPE) == WZ_I16 ||
-               (node->n.info & WZ_TYPE) == WZ_I32 ||
-               (node->n.info & WZ_TYPE) == WZ_I64) {
-    } else if ((node->n.info & WZ_TYPE) == WZ_F32 ||
-               (node->n.info & WZ_TYPE) == WZ_F64) {
-    } else if ((node->n.info & WZ_TYPE) == WZ_STR) {
-    }
-  }
-  if (!err)
-    ret = 0;
-free_stack:
-  free(stack);
-  return ret;
-}
-
-int
-wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx, uint8_t tcapa) {
-  int ret = 1;
-  int node_err = 0;
-  int err = 0;
-  pthread_mutex_t mutex;
-  pthread_cond_t work_cond;
-  pthread_cond_t done_cond;
-  pthread_attr_t attr;
-  struct wz_read_lv1_thrd_arg * targs;
-  pthread_t * thrds;
-  uint8_t tlen = 0;
-  uint8_t exit = 0;
-  size_t remain = 0;
-  if ((err = pthread_mutex_init(&mutex, NULL)) != 0)
-    return ret;
-  if ((err = pthread_cond_init(&work_cond, NULL)) != 0)
-    goto destroy_mutex;
-  if ((err = pthread_cond_init(&done_cond, NULL)) != 0)
-    goto destroy_work_cond;
-  if ((err = pthread_attr_init(&attr)) != 0)
-    goto destroy_done_cond;
-  if ((err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE)) != 0)
-    goto destroy_attr;
-  if (tcapa == 0)
-    tcapa = 1;
-  if ((targs = malloc(tcapa * sizeof(* targs))) == NULL)
-    goto destroy_attr;
-  if ((thrds = malloc(tcapa * sizeof(* thrds))) == NULL)
-    goto free_targs;
-  if ((err = pthread_mutex_lock(&mutex)) != 0)
-    goto free_thrds;
-  for (uint8_t i = 0; i < tcapa; i++) {
-    struct wz_read_lv1_thrd_arg * targ = targs + i;
-    targ->id = i;
-    targ->mutex = &mutex;
-    targ->work_cond = &work_cond;
-    targ->done_cond = &done_cond;
-    targ->exit = &exit;
-    targ->nodes = NULL;
-    targ->len = 0;
-    targ->remain = &remain;
-    if ((err = pthread_create(thrds + i, &attr, wz_read_lv1_thrd, targ)) != 0)
-      goto broadcast_work_cond;
-    tlen++;
-  }
-  int unlock_err;
-  if ((unlock_err = pthread_mutex_unlock(&mutex)) != 0)
-    goto broadcast_work_cond;
-  assert(tlen == tcapa);
-  size_t stack_capa = 1;
-  wznode ** stack;
-  if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
-    goto broadcast_work_cond;
-  size_t stack_len = 0;
-  stack[stack_len++] = root;
-  uint32_t * sizes = NULL;
-  size_t sizes_size = 0;
-  size_t sizes_len = 0;
-  size_t stack_max_len = 0;
-  while (stack_len) {
-    wznode * node = stack[--stack_len];
-    if (node == NULL) {
-      wz_free_lv0(stack[--stack_len]);
-      continue;
-    }
-    printf("node      ");
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      printf(" ");
-    uint8_t * name;
-    uint32_t  addr;
-    if (node->n.info & WZ_EMBED) {
-      name = node->n.name_e;
-      addr = node->na_e.addr;
-    } else {
-      name = node->n.name;
-      addr = node->na.addr;
-    }
-    printf("%-30s [%8x]", name, addr);
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      printf(" < %s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
-    printf("\n");
-    fflush(stdout);
-    if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-      if (wz_read_lv0(node, file, ctx->keys)) {
-        node_err = 1;
-        continue;
-      }
-      wzary * ary = node->n.val.ary;
-      uint32_t len = ary->len;
-      wznode * nodes = ary->nodes;
-      size_t req = stack_len + 2 + len;
-      if (req > stack_capa) {
-        size_t l = stack_capa;
-        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        wznode ** mem;
-        if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-          goto free_sizes;
-        stack = mem, stack_capa = l;
-      }
-      stack[stack_len++] = node;
-      stack[stack_len++] = NULL;
-      for (uint32_t i = 0; i < len; i++)
-        stack[stack_len++] = nodes + len - i - 1;
-      req = sizes_len + 1;
-      if (req > sizes_size) {
-        size_t l = sizes_size;
-        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        void * mem;
-        if ((mem = realloc(sizes, l * sizeof(* sizes))) == NULL)
-          goto free_sizes;
-        sizes = mem, sizes_size = l;
-      }
-      sizes[sizes_len++] = len;
-      if (stack_len > stack_max_len) stack_max_len = stack_len;
-    } else if ((node->n.info & WZ_TYPE) == WZ_UNK) {
-      if (wz_read_lv1_thrd_r(node, file, ctx, tlen, targs,
-                             &mutex, &work_cond, &done_cond, &remain))
-        node_err = 1;
-    }
-  }
-  printf("node usage: %"PRIu32" / %"PRIu32"\n",
-         (uint32_t) stack_max_len, (uint32_t) stack_capa);
-  for (uint32_t i = 0; i < sizes_len; i++) {
-    printf("lv0 len %"PRIu32"\n", sizes[i]);
-  }
-  if (!node_err)
-    ret = 0;
-free_sizes:
-  free(sizes);
-  free(stack);
-  if ((err = pthread_mutex_lock(&mutex)) != 0) {
-    ret = 1;
-    goto free_thrds;
-  }
-broadcast_work_cond:
-  exit = 1;
-  if ((err = pthread_cond_broadcast(&work_cond)) != 0)
-    ret = 1;
-  if ((unlock_err = pthread_mutex_unlock(&mutex)) != 0) {
-    ret = 1;
-    goto free_thrds;
-  }
-  // if broadcast failed, give up safely joining the threads
-  if (!err)
-    for (uint8_t i = 0; i < tlen; i++) {
-      void * status;
-      if ((err = pthread_join(thrds[i], &status)) != 0 ||
-          status != NULL)
-        ret = 1;
-    }
-free_thrds:
-  free(thrds);
-free_targs:
-  free(targs);
-destroy_attr:
-  if ((err = pthread_attr_destroy(&attr)) != 0)
-    ret = 1;
-destroy_done_cond:
-  if ((err = pthread_cond_destroy(&done_cond)) != 0)
-    ret = 1;
-destroy_work_cond:
-  if ((err = pthread_cond_destroy(&work_cond)) != 0)
-    ret = 1;
-destroy_mutex:
-  if ((err = pthread_mutex_destroy(&mutex)) != 0)
-    ret = 1;
-  return ret;
 }
 
 typedef struct {
@@ -2368,8 +1862,7 @@ destroy_attr:
     if (stack_len > stack_max_len)
       stack_max_len = stack_len;
   }
-  printf("node usage: %"PRIu32" / %"PRIu32"\n",
-         (uint32_t) stack_max_len, (uint32_t) stack_capa);
+  printf("node usage: %"PRIu32" / %"PRIu32"\n", stack_max_len, stack_capa);
   if (!err)
     ret = 0;
 free_stack:

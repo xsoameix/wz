@@ -138,7 +138,6 @@ cmd_all(int argc, char ** argv) {
       printf("file: %s\n", argv[i]);
       wzfile file;
       if (wz_open_file(&file, argv[i], &ctx)) goto cleanup_ctx;
-      //if (wz_read_node_thrd_r(&file.root, &file, &ctx, 8)) goto cleanup_file;
       if (wz_iter_node(&file.root)) goto cleanup_file;
       read_err = 0;
 cleanup_file: wz_close_file(&file);
