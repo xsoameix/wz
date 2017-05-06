@@ -2213,9 +2213,6 @@ wz_iter_node(wznode * node) {
   if (node->n.info & WZ_LEVEL) {
     root = node->n.root.node;
     file = root->n.root.file;
-  } else if (node->n.info & WZ_LEAF) {
-    root = node;
-    file = root->n.root.file;
   } else {
     root = NULL;
     file = node->n.root.file;
@@ -2436,79 +2433,54 @@ wzao *  wz_get_ao(wznode * node)  { return node->n.val.ao; }
 
 wznode *
 wz_open_node(wznode * node, const char * path) {
-  int       found = 0;
-  wznode *  root;
-  wzfile *  file;
-  uint8_t * keys;
-  if (!(node->n.info & WZ_LEVEL)) {
-    file = node->n.root.file;
-    keys = file->ctx->keys;
-    for (;;) {
-      if (node->n.info & WZ_LEAF)
-        break;
-      if (node->n.val.ary == NULL)
-        if (wz_read_lv0(node, file, keys))
-          WZ_ERR_GOTO(exit);
-      const char * name;
-      size_t name_len = wz_next_tok(&name, &path, path, '/');
-      if (name == NULL) {
-        found = 1;
-        goto exit;
-      }
-      wzary * ary = node->n.val.ary;
-      uint32_t len = ary->len;
-      wznode * nodes = ary->nodes;
-      wznode * next = NULL;
-      for (uint32_t i = 0; i < len; i++) {
-        wznode * child = nodes + i;
-        uint32_t name_len_ = child->n.name_len;
-        uint8_t * name_ = (child->n.info & WZ_EMBED ?
-                           child->n.name_e : child->n.name);
-        if (name_len_ == name_len &&
-            !strncmp((char *) name_, name, name_len)) {
-          next = child;
-          break;
-        }
-      }
-      if (next == NULL)
-        WZ_ERR_GOTO(exit);
-      node = next;
-    }
-    root = node;
-  } else {
+  wznode * root;
+  wzfile * file;
+  if (node->n.info & WZ_LEVEL) {
     root = node->n.root.node;
     file = root->n.root.file;
-    keys = file->ctx->keys;
+  } else {
+    root = NULL;
+    file = node->n.root.file;
   }
+  uint8_t * keys = file->ctx->keys;
   char * search = NULL;
-  size_t slen = 0;
+  size_t search_capa = 0;
+  uint8_t found = 0;
   for (;;) {
+    if (node->n.info & WZ_LEAF)
+      root = node;
     if ((node->n.info & WZ_TYPE) >= WZ_UNK &&
         node->n.val.ary == NULL) {
-      if (wz_read_lv1(node, root, file, keys, 1))
-        WZ_ERR_GOTO(free_search);
-      if ((node->n.info & WZ_TYPE) == WZ_UOL) {
-        wzstr * uol = node->n.val.str;
-        if (path == NULL) {
-          path = (char *) uol->bytes;
-        } else {
-          char * str = search;
-          size_t plen = strlen(path);
-          size_t len = uol->len + 1 + plen + 1;
-          if (len > slen) {
-            if ((str = realloc(str, len)) == NULL)
-              WZ_ERR_GOTO(free_search);
-            search = str;
-            slen = len;
-          }
-          strcpy(str, (char *) uol->bytes), str += uol->len;
-          strcat(str, "/"),                 str += 1;
-          strcat(str, path);
-          path = search;
-        }
-        if ((node = node->n.parent) == NULL)
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF)) {
+        if (wz_read_lv1(node, root, file, keys, 1))
           WZ_ERR_GOTO(free_search);
-        continue;
+        if ((node->n.info & WZ_TYPE) == WZ_UOL) {
+          wzstr * uol = node->n.val.str;
+          if (path == NULL) {
+            path = (char *) uol->bytes;
+          } else {
+            char * str = search;
+            size_t req = uol->len + 1 + strlen(path) + 1;
+            if (req > search_capa) {
+              size_t l = search_capa;
+              do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
+              if ((str = realloc(str, l)) == NULL)
+                WZ_ERR_GOTO(free_search);
+              search = str;
+              search_capa = l;
+            }
+            strcpy(str, (char *) uol->bytes), str += uol->len;
+            strcat(str, "/"),                 str += 1;
+            strcat(str, path);
+            path = search;
+          }
+          if ((node = node->n.parent) == NULL)
+            WZ_ERR_GOTO(free_search);
+          continue;
+        }
+      } else {
+        if (wz_read_lv0(node, file, keys))
+          WZ_ERR_GOTO(free_search);
       }
     }
     const char * name;
@@ -2520,7 +2492,7 @@ wz_open_node(wznode * node, const char * path) {
     }
     if (name == NULL) {
       found = 1;
-      break;
+      goto free_search;
     }
     uint32_t len;
     wznode * nodes;
@@ -2558,7 +2530,6 @@ wz_open_node(wznode * node, const char * path) {
   }
 free_search:
   free(search);
-exit:
   return found ? node : NULL;
 }
 
