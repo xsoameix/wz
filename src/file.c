@@ -2143,36 +2143,36 @@ typedef struct {
   uint32_t  size;
   uint8_t * data;
   uint8_t * key;
-} wz_iter_node2_thrd_node;
+} wz_iter_node_thrd_node;
 
 typedef struct {
   pthread_mutex_t mutex;
   pthread_cond_t cond;
   uint32_t capa;
   uint32_t len;
-  wz_iter_node2_thrd_node * nodes;
+  wz_iter_node_thrd_node * nodes;
   uint8_t exit;
   uint8_t _[sizeof(void *) - 1];
-} wz_iter_node2_thrd_queue;
+} wz_iter_node_thrd_queue;
 
 typedef struct {
   pthread_t tid;
   uint16_t id;
   uint8_t _[sizeof(void *) - 2]; // padding
-  wz_iter_node2_thrd_queue * queue;
-} wz_iter_node2_thrd_data;
+  wz_iter_node_thrd_queue * queue;
+} wz_iter_node_thrd_data;
 
 enum {WZ_ITER_NODE_CAPA = 4};
 
 void *
-wz_iter_node2_thrd(wz_iter_node2_thrd_data * data) {
+wz_iter_node_thrd(wz_iter_node_thrd_data * data) {
   uint8_t err = 0;
-  wz_iter_node2_thrd_queue * queue = data->queue;
+  wz_iter_node_thrd_queue * queue = data->queue;
   for (;;) {
     if (pthread_mutex_lock(&queue->mutex))
       WZ_ERR_GOTO(exit);
     uint8_t exit;
-    wz_iter_node2_thrd_node nodes[WZ_ITER_NODE_CAPA];
+    wz_iter_node_thrd_node nodes[WZ_ITER_NODE_CAPA];
     uint8_t nodes_len;
     for (;;) {
       nodes_len = 0;
@@ -2193,7 +2193,7 @@ wz_iter_node2_thrd(wz_iter_node2_thrd_data * data) {
     if (!nodes_len && exit)
       goto exit;
     for (uint8_t i = 0; i < nodes_len; i++) {
-      wz_iter_node2_thrd_node * node = nodes + i;
+      wz_iter_node_thrd_node * node = nodes + i;
       if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
                          node->depth, node->scale, node->size, node->key))
         err = 1;
@@ -2205,7 +2205,7 @@ exit:
 }
 
 int
-wz_iter_node2(wznode * node) {
+wz_iter_node(wznode * node) {
   int ret = 1;
   int err = 0;
   wznode * root;
@@ -2222,7 +2222,7 @@ wz_iter_node2(wznode * node) {
   }
   uint8_t * keys = file->ctx->keys;
 #ifndef WZ_NO_THRD
-  wz_iter_node2_thrd_queue queue;
+  wz_iter_node_thrd_queue queue;
   queue.capa = 0;
   queue.len = 0;
   queue.nodes = NULL;
@@ -2238,7 +2238,7 @@ wz_iter_node2(wznode * node) {
   uint16_t thrds_init = 0;
   uint8_t attr_err = 1;
   pthread_attr_t attr;
-  wz_iter_node2_thrd_data * thrds = NULL;
+  wz_iter_node_thrd_data * thrds = NULL;
   if (pthread_attr_init(&attr))
     WZ_ERR_GOTO(destroy_cond);
   if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE))
@@ -2246,11 +2246,11 @@ wz_iter_node2(wznode * node) {
   if ((thrds = malloc(thrds_len * sizeof(* thrds))) == NULL)
     WZ_ERR_GOTO(destroy_attr);
   for (uint16_t i = 0; i < thrds_len; i++) {
-    wz_iter_node2_thrd_data * thrd = thrds + i;
+    wz_iter_node_thrd_data * thrd = thrds + i;
     thrd->id = i;
     thrd->queue = &queue;
     if (pthread_create(&thrd->tid, &attr,
-                       (void * (*)(void *)) wz_iter_node2_thrd, thrd))
+                       (void * (*)(void *)) wz_iter_node_thrd, thrd))
       WZ_ERR_GOTO(destroy_attr);
     thrds_init++;
   }
@@ -2331,12 +2331,12 @@ destroy_attr:
       if (req > queue.capa) {
         uint32_t l = queue.capa;
         do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        wz_iter_node2_thrd_node * mem;
+        wz_iter_node_thrd_node * mem;
         if ((mem = realloc(queue.nodes, l * sizeof(* queue.nodes))) == NULL)
           WZ_ERR_GOTO(free_stack);
         queue.nodes = mem, queue.capa = l;
       }
-      wz_iter_node2_thrd_node * tnode = queue.nodes + queue.len;
+      wz_iter_node_thrd_node * tnode = queue.nodes + queue.len;
       tnode->w     = img->w;
       tnode->h     = img->h;
       tnode->depth = img->depth;
@@ -2387,7 +2387,7 @@ join_thrds:
   if (pthread_mutex_unlock(&queue.mutex))
     ret = 1;
   for (uint16_t i = 0; i < thrds_init; i++) {
-    wz_iter_node2_thrd_data * thrd = thrds + i;
+    wz_iter_node_thrd_data * thrd = thrds + i;
     void * status;
     if (pthread_join(thrd->tid, &status) ||
         status != NULL)
@@ -2402,240 +2402,6 @@ destroy_mutex:
     ret = 1;
   free(queue.nodes);
 #endif
-  return ret;
-}
-
-typedef struct {
-  uint32_t  w;
-  uint32_t  h;
-  uint16_t  depth;
-  uint16_t  scale;
-  uint32_t  size;
-  uint8_t * data;
-  uint8_t * key;
-} wz_iter_node_thrd_node;
-
-typedef struct {
-  pthread_t tid;
-  uint16_t id;
-  uint8_t _[4 - 2]; // padding
-  uint32_t len;
-  wz_iter_node_thrd_node * nodes;
-} wz_iter_node_thrd_data;
-
-void *
-wz_iter_node_thrd(void * arg) {
-  int err = 0;
-  wz_iter_node_thrd_data * data = arg;
-  wz_iter_node_thrd_node * nodes = data->nodes;
-  uint32_t len = data->len;
-  for (uint32_t i = 0; i < len; i++) {
-    wz_iter_node_thrd_node * node = nodes + i;
-    if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
-                       node->depth, node->scale, node->size, node->key))
-      err = 1;
-    free(node->data);
-  }
-  return err ? (void *) !NULL : NULL;
-}
-
-int
-wz_iter_node(wznode * node) {
-  int ret = 1;
-  int err = 0;
-  wznode * root;
-  wzfile * file;
-  if (node->n.info & WZ_LEVEL) {
-    root = node->n.root.node;
-    file = root->n.root.file;
-  } else if (node->n.info & WZ_LEAF) {
-    root = node;
-    file = root->n.root.file;
-  } else {
-    root = NULL;
-    file = node->n.root.file;
-  }
-  uint8_t * keys = file->ctx->keys;
-#ifndef WZ_NO_THRD
-  uint32_t queue_capa = 0;
-  uint32_t queue_len = 0;
-  wz_iter_node_thrd_node * queue = NULL;
-  uint64_t queue_size = 0;
-  uint8_t resume = 0;
-#endif
-  uint32_t stack_capa = 1;
-  uint32_t stack_len = 0;
-  uint32_t stack_max_len;
-  wznode ** stack;
-  if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
-    WZ_ERR_RET(ret);
-  stack[stack_len++] = node;
-  stack_max_len = stack_len;
-  while (stack_len) {
-    node = stack[--stack_len];
-    if (node == NULL) {
-      node = stack[--stack_len];
-      if (node->n.info & (WZ_LEVEL | WZ_LEAF))
-        wz_free_lv1(node);
-      else
-        wz_free_lv0(node);
-      continue;
-    }
-    if (node->n.info & WZ_LEAF) {
-      //wznode * root_ = wz_invert_node(node);
-      //printf("[%8x] ", (node->n.info & WZ_EMBED ?
-      //                  node->na_e.addr : node->na.addr));
-      //for (wznode * n = root_; (n = n->n.parent) != NULL;)
-      //  printf("/%s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
-      //printf("\n");
-      //wz_invert_node(root_);
-      root = node;
-    }
-    if ((node->n.info & WZ_TYPE) >= WZ_UNK &&
-        node->n.val.ary == NULL) {
-      if (node->n.info & (WZ_LEVEL | WZ_LEAF)) {
-#ifdef WZ_NO_THRD
-        if (wz_read_lv1(node, root, file, keys, 1)) {
-#else
-        if (wz_read_lv1(node, root, file, keys, 0)) {
-#endif
-          err = 1;
-          continue;
-        }
-      } else {
-        if (wz_read_lv0(node, file, keys)) {
-          err = 1;
-          continue;
-        }
-      }
-    }
-    uint8_t type = node->n.info & WZ_TYPE;
-    if (type < WZ_UNK)
-      continue;
-    if (type > WZ_IMG) {
-      wz_free_lv1(node);
-      continue;
-    }
-    uint32_t len;
-    wznode * nodes;
-    if (type == WZ_ARY) {
-      wzary * ary = node->n.val.ary;
-      len   = ary->len;
-      nodes = ary->nodes;
-    } else {
-      wzimg * img = node->n.val.img;
-      len   = img->len;
-      nodes = img->nodes;
-#ifndef WZ_NO_THRD
-      uint32_t req = queue_len + 1;
-      if (req > queue_capa) {
-        uint32_t l = queue_capa;
-        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        wz_iter_node_thrd_node * mem;
-        if ((mem = realloc(queue, l * sizeof(* queue))) == NULL)
-          WZ_ERR_GOTO(free_queue);
-        queue = mem, queue_capa = l;
-      }
-      wz_iter_node_thrd_node * tnode = queue + queue_len;
-      tnode->w     = img->w;
-      tnode->h     = img->h;
-      tnode->depth = img->depth;
-      tnode->scale = img->scale;
-      tnode->size  = img->size;
-      tnode->data  = img->data;
-      tnode->key   = keys + ((root->n.info & WZ_EMBED ?
-                              root->na_e.key : root->na.key) *
-                             WZ_KEY_UTF8_MAX_LEN);
-      img->data = NULL;
-      queue_len++;
-      queue_size += (img->w * img->h) << 2;
-      if (queue_size >= INT32_MAX) {
-        resume = 1;
-        goto clear_queue;
-      }
-resume:
-      ;
-#endif
-    }
-    uint32_t req = stack_len + 2 + len;
-    if (req > stack_capa) {
-      uint32_t l = stack_capa;
-      do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-      wznode ** mem;
-      if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-        WZ_ERR_GOTO(free_queue);
-      stack = mem, stack_capa = l;
-    }
-    stack_len++;
-    stack[stack_len++] = NULL;
-    for (uint32_t i = len; i--;)
-      stack[stack_len++] = nodes + i;
-    if (stack_len > stack_max_len)
-      stack_max_len = stack_len;
-  }
-#ifndef WZ_NO_THRD
-  if (queue_len) {
-clear_queue:
-    ;
-    long thrds_avail_l;
-    if ((thrds_avail_l = sysconf(_SC_NPROCESSORS_ONLN)) < 1)
-      WZ_ERR_GOTO(free_queue);
-    uint16_t thrds_avail = (uint16_t) thrds_avail_l;
-    uint16_t thrds_len = (uint16_t) (queue_len < thrds_avail ?
-                                     queue_len : thrds_avail);
-    uint16_t thrds_init = 0;
-    uint32_t start = 0;
-    uint32_t slice = queue_len / thrds_len;
-    uint32_t extra = queue_len % thrds_len;
-    pthread_attr_t attr;
-    wz_iter_node_thrd_data * thrds;
-    if (pthread_attr_init(&attr))
-      WZ_ERR_GOTO(free_queue);
-    if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE))
-      WZ_ERR_GOTO(destroy_attr);
-    if ((thrds = malloc(thrds_len * sizeof(* thrds))) == NULL)
-      WZ_ERR_GOTO(destroy_attr);
-    for (uint16_t i = 0; i < thrds_len; i++) {
-      wz_iter_node_thrd_data * thrd = thrds + i;
-      thrd->id = i;
-      thrd->nodes = queue + start;
-      thrd->len = slice + (extra > 0);
-      if (pthread_create(&thrd->tid, &attr, wz_iter_node_thrd, thrd))
-        WZ_ERR_GOTO(join_thrds);
-      thrds_init++;
-      if (extra)
-        extra--;
-      start += thrd->len;
-    }
-join_thrds:
-    for (uint16_t i = 0; i < thrds_init; i++) {
-      wz_iter_node_thrd_data * thrd = thrds + i;
-      void * status;
-      if (pthread_join(thrd->tid, &status) ||
-          status != NULL)
-        err = 1;
-    }
-    free(thrds);
-destroy_attr:
-    if (pthread_attr_destroy(&attr))
-      err = 1;
-    if (resume) {
-      queue_len = 0;
-      queue_size = 0;
-      resume = 0;
-      goto resume;
-    }
-  }
-#endif
-  printf("node usage: %"PRIu32" / %"PRIu32"\n",
-         (uint32_t) stack_max_len, (uint32_t) stack_capa);
-  if (!err)
-    ret = 0;
-free_queue:
-#ifndef WZ_NO_THRD
-  free(queue);
-#endif
-  free(stack);
   return ret;
 }
 

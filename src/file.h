@@ -314,7 +314,7 @@ int      wz_read_lv1(wznode * node, wznode * root, wzfile * file,
                      uint8_t * keys, uint8_t eager);
 void     wz_free_lv1(wznode * node);
 
-int      wz_iter_node2(wznode * node);
+int      wz_iter_node(wznode * node);
 int      wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx,
                              uint8_t tcapa);
 
