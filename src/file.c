@@ -430,12 +430,12 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     if ((bytes_ptr = malloc(padding + len + 1)) == NULL)
       WZ_ERR_RET(ret);
   }
+  uint8_t * utf8_ptr = NULL;
+  uint32_t  utf8_len = 0;
   bytes = bytes_ptr + padding;
   if (wz_read_bytes(bytes, len, file))
     WZ_ERR_GOTO(free_bytes_ptr);
   bytes[len] = '\0';
-  uint8_t * utf8_ptr = NULL;
-  uint32_t  utf8_len = 0;
   if (key != 0xff) {
     if (wz_decode_chars(bytes, len, key, keys, enc))
       WZ_ERR_GOTO(free_bytes_ptr);
@@ -518,7 +518,7 @@ wz_seek(uint32_t pos, int origin, wzfile * file) {
 }
 
 int
-wz_read_lv0(wznode * node, uint8_t * keys, wzfile * file) {
+wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
   int ret = 1;
   if (wz_seek(node->n.info & WZ_EMBED ?
               node->na_e.addr : node->na.addr, SEEK_SET, file))
@@ -641,16 +641,24 @@ wz_free_lv0(wznode * node) {
 
 void
 wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec) {
-  uint8_t chars[5 + 1]; // 0xffff.to_s.size == 5
-  int len = sprintf((char *) chars, "%"PRIu16, dec);
-  assert(len >= 0);
+  uint8_t b[5 + 1];
+  uint8_t i = 5;
+  b[5] = '\0';
+  if (dec == 0)
+    b[--i] = '0';
+  else
+    do {
+      b[--i] = (uint8_t) (dec % 10 + '0');
+    } while (dec /= 10);
   uint32_t hash = 0;
-  for (int i = 0; i < len; i++)
-    hash = (hash << 5) + chars[i] + 1;
-  uint16_t enc = 0xff;
-  for (size_t i = 0; i < sizeof(hash); i++)
-    enc = (enc ^ ((uint8_t *) &hash)[i]) & 0xff;
-  * ret_enc = enc, * ret_hash = hash;
+  for (uint8_t c; (c = b[i++]) != 0;)
+    hash = (hash << 5) + c + 1;
+  uint16_t enc = (uint8_t) ~(((hash      ) & 0xff) ^
+                             ((hash >>  8) & 0xff) ^
+                             ((hash >> 16) & 0xff) ^
+                             ((hash >> 24)       ));
+  * ret_enc = enc;
+  * ret_hash = hash;
 }
 
 int // if string key is found, the string is also decoded.
@@ -1005,7 +1013,7 @@ wz_inflate_bitmap(uint32_t * written,
   strm.next_out = out;
   strm.avail_out = out_len;
   if (inflate(&strm, Z_NO_FLUSH) != Z_OK)
-    WZ_ERR_GOTO(inflate_end);
+    goto inflate_end;
   * written = (uint32_t) strm.total_out;
   ret = 0;
 inflate_end:
@@ -1109,13 +1117,18 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   case WZ_COLOR_DXT5: {
     uint8_t * src = in;
     wzcolor * dst = (wzcolor *) out; // cast to pixel based type
+    uint8_t lw = sw & 0x03; // last block width
+    uint8_t lh = sh & 0x03; // last block height
+    uint32_t bw = (sw >> 2) + (lw > 0); // number of blocks in width
+    uint32_t bh = (sh >> 2) + (lh > 0); // number of blocks in height
+    uint32_t bn = sw * (4 - 1); // goto next row of blocks
     wzcolor c[4]; // 4 codes
     c[0].a = 0;
     c[1].a = 0;
     c[2].a = 0;
     c[3].a = 0;
-    for (uint32_t y = 0; y < sh; y += 4, dst += sw << 2) // goto the next row
-      for (uint32_t x = 0; x < sw; x += 4, src += 16) { // goto the next block
+    for (uint32_t y = 0; y < bh; y++) { // goto the next row
+      for (uint32_t x = 0; x < bw; x++) { // goto the next block
         wzcolor block[16]; // inflate 4x4 block
         uint64_t alpha  = WZ_LE64TOH(* (uint64_t *) (src     )); // indices
         uint16_t color0 = WZ_LE16TOH(* (uint16_t *) (src +  8)); // color code 0
@@ -1203,13 +1216,17 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
           block[15].a = a[(alpha >> 61) & 0x7];
         }
         wzcolor * from = block;
-        wzcolor * to = dst + x;
-        uint32_t ph = sh - y < 4 ? sh - y : 4; // the pixel may be out of image
-        uint32_t pw = sw - x < 4 ? sw - x : 4;
+        wzcolor * to = dst;
+        uint32_t pw = (x + 1 < bw || !lw) ? 4 : lw; // the pixel may be
+        uint32_t ph = (y + 1 < bh || !lh) ? 4 : lh; //  out of image
         for (uint32_t py = 0; py < ph; py++, to += sw, from += 4)
           for (uint32_t px = 0; px < pw; px++)
             to[px] = from[px]; // write to correct location
+        src += 16;
+        dst += pw;
       }
+      dst += bn;
+    }
     break;
   }
   default: {
@@ -1887,30 +1904,12 @@ wz_read_lv1_r(wznode * root, wzfile * file, wzctx * ctx) {
     return ret;
   size_t stack_len = 0;
   stack[stack_len++] = root;
-  char * blank = NULL;
-  size_t blank_capa = 0;
-  size_t blank_len = 0;
   while (stack_len) {
     wznode * node = stack[--stack_len];
     if (node == NULL) {
       wz_free_lv1(stack[--stack_len]);
       continue;
     }
-    size_t blank_req = 0;
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      blank_req++;
-    if (blank_req + 1 > blank_capa) { // null byte
-      size_t l = blank_capa;
-      do { l = l < 4 ? 4 : l + l / 4; } while (l < blank_req + 1); // null byte
-      void * mem;
-      if ((mem = realloc(blank, l)) == NULL)
-        goto free_blank;
-      blank = mem, blank_capa = l;
-    }
-    while (blank_len < blank_req)
-      blank[blank_len++] = ' ';
-    blank[blank_len = blank_req] = '\0';
-    //printf("%s name   %s\n", blank, var->name.bytes);
     if ((node->n.info & WZ_TYPE) == WZ_UNK) {
       if (wz_read_lv1(node, root, file, ctx->keys, 1)) {
         err = 1;
@@ -1934,7 +1933,7 @@ wz_read_lv1_r(wznode * root, wzfile * file, wzctx * ctx) {
           do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
           wznode ** mem;
           if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-            goto free_blank;
+            goto free_stack;
           stack = mem, stack_capa = l;
         }
         stack[stack_len++] = node;
@@ -1942,44 +1941,26 @@ wz_read_lv1_r(wznode * root, wzfile * file, wzctx * ctx) {
         for (uint32_t i = 0; i < len; i++)
           stack[stack_len++] = nodes + len - i - 1;
       } else if ((node->n.info & WZ_TYPE) == WZ_VEX) {
-        //wzvex * vex = (wzvex *) obj;
-        //for (uint32_t i = 0; i < vex->len; i++) {
-        //  wz2d * val = &vex->vals[i];
-        //  printf("%s %"PRId32"\n", blank, i);
-        //  printf("%s  %"PRId32"\n", blank, val->x);
-        //  printf("%s  %"PRId32"\n", blank, val->y);
-        //}
         wz_free_lv1(node);
       } else if ((node->n.info & WZ_TYPE) == WZ_VEC) {
-        //wzvec * vec = (wzvec *) obj;
-        //printf("%s %"PRId32"\n", blank, vec->val.x);
-        //printf("%s %"PRId32"\n", blank, vec->val.y);
         wz_free_lv1(node);
       } else if ((node->n.info & WZ_TYPE) == WZ_AO) {
         wz_free_lv1(node);
       } else if ((node->n.info & WZ_TYPE) == WZ_UOL) {
         wz_free_lv1(node);
       }
-      //printf("%s type   %.*s [%p]\n", blank,
-      //       (int) obj->type.len, obj->type.bytes, obj);
     } else if ((node->n.info & WZ_TYPE) == WZ_NIL) {
-      //printf("%s (nil)\n", blank);
     } else if ((node->n.info & WZ_TYPE) == WZ_I16 ||
                (node->n.info & WZ_TYPE) == WZ_I32 ||
                (node->n.info & WZ_TYPE) == WZ_I64) {
-      //printf("%s %"PRId64"\n", blank, var->val.i);
     } else if ((node->n.info & WZ_TYPE) == WZ_F32 ||
                (node->n.info & WZ_TYPE) == WZ_F64) {
-      //printf("%s %f\n", blank, var->val.f);
     } else if ((node->n.info & WZ_TYPE) == WZ_STR) {
-      //wzstr * val = &var->val.str;
-      //printf("%s %s\n", blank, val->bytes);
     }
   }
   if (!err)
     ret = 0;
-free_blank:
-  free(blank);
+free_stack:
   free(stack);
   return ret;
 }
@@ -2068,7 +2049,7 @@ wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx, uint8_t tcapa) {
     printf("\n");
     fflush(stdout);
     if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-      if (wz_read_lv0(node, ctx->keys, file)) {
+      if (wz_read_lv0(node, file, ctx->keys)) {
         node_err = 1;
         continue;
       }
@@ -2100,47 +2081,9 @@ wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx, uint8_t tcapa) {
       sizes[sizes_len++] = len;
       if (stack_len > stack_max_len) stack_max_len = stack_len;
     } else if ((node->n.info & WZ_TYPE) == WZ_UNK) {
-      //if (!wz_strcmp(&node->name, "WorldMap21.img")) {
-      //if (!wz_strcmp(&node->name, "000020000.img")) {
-      //if (!wz_strcmp(&node->name, "NightMarketTW.img")) { // convex and image
-      //if (!wz_strcmp(&node->name, "acc8.img")) { // vector
-      //if (!wz_strcmp(&node->name, "926120300.img")) { // multiple string key
-      //if (!wz_strcmp(&node->name, "926120200.img")) { // multiple string key ? and minimap
-      //if (!wz_strcmp(&node->name, "Effect2.img")) { // multiple string key x
-      //if (!wz_strcmp(&node->name, "dryRock.img")) { // canvas, scale 4
-      //if (!wz_strcmp(&node->name, "vicportTown.img")) { // last canvas
-      //if (!wz_strcmp(&node->name, "MapHelper.img")) { // audio
-      //if (!wz_strcmp(&node->name, "BgmGL.img")) { // audio
-      //if (!wz_strcmp(&node->name, "8881000.img")) { // large string
-      //if (!wz_strcmp(&node->name, "main.lua")) { // lua script
       if (wz_read_lv1_thrd_r(node, file, ctx, tlen, targs,
                              &mutex, &work_cond, &done_cond, &remain))
         node_err = 1;
-      //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
-      // MapList/0/mapNo/0 => 211040300
-      //printf("i = %ld\n", i);
-      // wzlist * list = (wzlist *) node->data.var->val.obj;
-      // get_list(list, "MapList");
-      //
-      // wzlist * ret;
-      // get_list(&ret, list, 2);
-      // # ((wzlist *) list->vars[2].val.obj)
-      //
-      // wzlist * ret;
-      // get_list(&ret, list, "MapList");
-      //
-      // int64 ret;
-      // get_int(&ret, list, "MapList/0/mapNo/0");
-      // get_float
-      // get_chars
-      //
-      // get_list
-      // get_img
-      // get_vex
-      // get_vec
-      // get_snd
-      // get_uol
-      //}
     }
   }
   printf("node usage: %"PRIu32" / %"PRIu32"\n",
@@ -2192,127 +2135,506 @@ destroy_mutex:
   return ret;
 }
 
+typedef struct {
+  uint32_t  w;
+  uint32_t  h;
+  uint16_t  depth;
+  uint16_t  scale;
+  uint32_t  size;
+  uint8_t * data;
+  uint8_t * key;
+} wz_iter_node2_thrd_node;
+
+typedef struct {
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  uint32_t capa;
+  uint32_t len;
+  wz_iter_node2_thrd_node * nodes;
+  uint8_t exit;
+  uint8_t _[sizeof(void *) - 1];
+} wz_iter_node2_thrd_queue;
+
+typedef struct {
+  pthread_t tid;
+  uint16_t id;
+  uint8_t _[sizeof(void *) - 2]; // padding
+  wz_iter_node2_thrd_queue * queue;
+} wz_iter_node2_thrd_data;
+
+enum {WZ_ITER_NODE_CAPA = 4};
+
+void *
+wz_iter_node2_thrd(wz_iter_node2_thrd_data * data) {
+  uint8_t err = 0;
+  wz_iter_node2_thrd_queue * queue = data->queue;
+  for (;;) {
+    if (pthread_mutex_lock(&queue->mutex))
+      WZ_ERR_GOTO(exit);
+    uint8_t exit;
+    wz_iter_node2_thrd_node nodes[WZ_ITER_NODE_CAPA];
+    uint8_t nodes_len;
+    for (;;) {
+      nodes_len = 0;
+      exit = queue->exit;
+      if (queue->len) {
+        do {
+          nodes[nodes_len++] = queue->nodes[--queue->len];
+        } while (queue->len && nodes_len < WZ_ITER_NODE_CAPA);
+        break;
+      } else if (exit) {
+        break;
+      }
+      if (pthread_cond_wait(&queue->cond, &queue->mutex))
+        WZ_ERR_GOTO(exit);
+    }
+    if (pthread_mutex_unlock(&queue->mutex))
+      WZ_ERR_GOTO(exit);
+    if (!nodes_len && exit)
+      goto exit;
+    for (uint8_t i = 0; i < nodes_len; i++) {
+      wz_iter_node2_thrd_node * node = nodes + i;
+      if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
+                         node->depth, node->scale, node->size, node->key))
+        err = 1;
+      free(node->data);
+    }
+  }
+exit:
+  return err ? (void *) !NULL : NULL;
+}
+
 int
-wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx) {
+wz_iter_node2(wznode * node) {
   int ret = 1;
   int err = 0;
-  size_t stack_capa = 1;
+  wznode * root;
+  wzfile * file;
+  if (node->n.info & WZ_LEVEL) {
+    root = node->n.root.node;
+    file = root->n.root.file;
+  } else if (node->n.info & WZ_LEAF) {
+    root = node;
+    file = root->n.root.file;
+  } else {
+    root = NULL;
+    file = node->n.root.file;
+  }
+  uint8_t * keys = file->ctx->keys;
+#ifndef WZ_NO_THRD
+  wz_iter_node2_thrd_queue queue;
+  queue.capa = 0;
+  queue.len = 0;
+  queue.nodes = NULL;
+  queue.exit = 0;
+  if (pthread_mutex_init(&queue.mutex, NULL))
+    WZ_ERR_RET(ret);
+  if (pthread_cond_init(&queue.cond, NULL))
+    WZ_ERR_GOTO(destroy_mutex);
+  long thrds_avail_l;
+  if ((thrds_avail_l = sysconf(_SC_NPROCESSORS_ONLN)) < 1)
+    WZ_ERR_GOTO(destroy_cond);
+  uint16_t thrds_len = (uint16_t) thrds_avail_l;
+  uint16_t thrds_init = 0;
+  uint8_t attr_err = 1;
+  pthread_attr_t attr;
+  wz_iter_node2_thrd_data * thrds = NULL;
+  if (pthread_attr_init(&attr))
+    WZ_ERR_GOTO(destroy_cond);
+  if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE))
+    WZ_ERR_GOTO(destroy_attr);
+  if ((thrds = malloc(thrds_len * sizeof(* thrds))) == NULL)
+    WZ_ERR_GOTO(destroy_attr);
+  for (uint16_t i = 0; i < thrds_len; i++) {
+    wz_iter_node2_thrd_data * thrd = thrds + i;
+    thrd->id = i;
+    thrd->queue = &queue;
+    if (pthread_create(&thrd->tid, &attr,
+                       (void * (*)(void *)) wz_iter_node2_thrd, thrd))
+      WZ_ERR_GOTO(destroy_attr);
+    thrds_init++;
+  }
+  attr_err = 0;
+destroy_attr:
+  if (pthread_attr_destroy(&attr))
+    WZ_ERR_GOTO(join_thrds);
+  if (attr_err)
+    goto join_thrds;
+#endif
+  uint32_t stack_capa = 1;
+  uint32_t stack_len = 0;
+  uint32_t stack_max_len;
   wznode ** stack;
   if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
-    return ret;
-  size_t stack_len = 0;
-  stack[stack_len++] = root;
-  uint32_t * sizes = NULL;
-  size_t sizes_size = 0;
-  size_t sizes_len = 0;
-  size_t stack_max_len = 0;
+    WZ_ERR_GOTO(join_thrds);
+  stack[stack_len++] = node;
+  stack_max_len = stack_len;
   while (stack_len) {
-    wznode * node = stack[--stack_len];
+    node = stack[--stack_len];
     if (node == NULL) {
-      wz_free_lv0(stack[--stack_len]);
+      node = stack[--stack_len];
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF))
+        wz_free_lv1(node);
+      else
+        wz_free_lv0(node);
       continue;
     }
-    printf("node      ");
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      printf(" ");
-    uint8_t * name;
-    uint32_t  addr;
-    if (node->n.info & WZ_EMBED) {
-      name = node->n.name_e;
-      addr = node->na_e.addr;
-    } else {
-      name = node->n.name_e;
-      addr = node->na.addr;
+    if (node->n.info & WZ_LEAF) {
+      //wznode * root_ = wz_invert_node(node);
+      //printf("[%8x] ", (node->n.info & WZ_EMBED ?
+      //                  node->na_e.addr : node->na.addr));
+      //for (wznode * n = root_; (n = n->n.parent) != NULL;)
+      //  printf("/%s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
+      //printf("\n");
+      //wz_invert_node(root_);
+      root = node;
     }
-    printf("%-30s [%8x]", name, addr);
-    for (wznode * n = node; (n = n->n.parent) != NULL;)
-      printf(" < %s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
-    printf("\n");
-    fflush(stdout);
-    if ((node->n.info & WZ_TYPE) == WZ_ARY) {
-      if (wz_read_lv0(node, ctx->keys, file)) {
-        err = 1;
-        continue;
+    if ((node->n.info & WZ_TYPE) >= WZ_UNK &&
+        node->n.val.ary == NULL) {
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF)) {
+#ifdef WZ_NO_THRD
+        if (wz_read_lv1(node, root, file, keys, 1)) {
+#else
+        if (wz_read_lv1(node, root, file, keys, 0)) {
+#endif
+          err = 1;
+          continue;
+        }
+      } else {
+        if (wz_read_lv0(node, file, keys)) {
+          err = 1;
+          continue;
+        }
       }
+    }
+    uint8_t type = node->n.info & WZ_TYPE;
+    if (type < WZ_UNK)
+      continue;
+    if (type > WZ_IMG) {
+      wz_free_lv1(node);
+      continue;
+    }
+    uint32_t len;
+    wznode * nodes;
+    if (type == WZ_ARY) {
       wzary * ary = node->n.val.ary;
-      uint32_t len = ary->len;
-      wznode * nodes = ary->nodes;
-      size_t req = stack_len + 2 + len;
-      if (req > stack_capa) {
-        size_t l = stack_capa;
+      len   = ary->len;
+      nodes = ary->nodes;
+    } else {
+      wzimg * img = node->n.val.img;
+      len   = img->len;
+      nodes = img->nodes;
+#ifndef WZ_NO_THRD
+      if (pthread_mutex_lock(&queue.mutex))
+        WZ_ERR_GOTO(free_stack);
+      uint32_t req = queue.len + 1;
+      if (req > queue.capa) {
+        uint32_t l = queue.capa;
         do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        wznode ** mem;
-        if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
-          goto free_sizes;
-        stack = mem, stack_capa = l;
+        wz_iter_node2_thrd_node * mem;
+        if ((mem = realloc(queue.nodes, l * sizeof(* queue.nodes))) == NULL)
+          WZ_ERR_GOTO(free_stack);
+        queue.nodes = mem, queue.capa = l;
       }
-      stack[stack_len++] = node;
-      stack[stack_len++] = NULL;
-      for (uint32_t i = 0; i < len; i++)
-        stack[stack_len++] = nodes + len - i - 1;
-      req = sizes_len + 1;
-      if (req > sizes_size) {
-        size_t l = sizes_size;
-        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        void * mem;
-        if ((mem = realloc(sizes, l * sizeof(* sizes))) == NULL)
-          goto free_sizes;
-        sizes = mem, sizes_size = l;
-      }
-      sizes[sizes_len++] = len;
-      if (stack_len > stack_max_len) stack_max_len = stack_len;
-    } else if ((node->n.info & WZ_TYPE) == WZ_UNK) {
-      //if (!wz_strcmp(&node->name, "WorldMap21.img")) {
-      //if (!wz_strcmp(&node->name, "000020000.img")) {
-      //if (!wz_strcmp(&node->name, "NightMarketTW.img")) { // convex and image
-      //if (!wz_strcmp(&node->name, "acc8.img")) { // vector
-      //if (!wz_strcmp(&node->name, "926120300.img")) { // multiple string key
-      //if (!wz_strcmp(&node->name, "926120200.img")) { // multiple string key ? and minimap
-      //if (!wz_strcmp(&node->name, "Effect2.img")) { // multiple string key x
-      //if (!wz_strcmp(&node->name, "dryRock.img")) { // canvas, scale 4
-      //if (!wz_strcmp(&node->name, "vicportTown.img")) { // last canvas
-      //if (!wz_strcmp(&node->name, "MapHelper.img")) { // audio
-      //if (!wz_strcmp(&node->name, "BgmGL.img")) { // audio
-      //if (!wz_strcmp(&node->name, "8881000.img")) { // large string
-      //if (!wz_strcmp(&node->name, "main.lua")) { // lua script
-      if (wz_read_lv1_r(node, file, ctx))
-        err = 1;
-      //int64_t i = ((wzlist *) ((wzlist *) ((wzlist *) ((wzlist *) node->data.var->val.obj)->vars[2].val.obj)->vars[0].val.obj)->vars[2].val.obj)->vars[0].val.i;
-      // MapList/0/mapNo/0 => 211040300
-      //printf("i = %ld\n", i);
-      // wzlist * list = (wzlist *) node->data.var->val.obj;
-      // get_list(list, "MapList");
-      //
-      // wzlist * ret;
-      // get_list(&ret, list, 2);
-      // # ((wzlist *) list->vars[2].val.obj)
-      //
-      // wzlist * ret;
-      // get_list(&ret, list, "MapList");
-      //
-      // int64 ret;
-      // get_int(&ret, list, "MapList/0/mapNo/0");
-      // get_float
-      // get_chars
-      //
-      // get_list
-      // get_img
-      // get_vex
-      // get_vec
-      // get_snd
-      // get_uol
-      //}
+      wz_iter_node2_thrd_node * tnode = queue.nodes + queue.len;
+      tnode->w     = img->w;
+      tnode->h     = img->h;
+      tnode->depth = img->depth;
+      tnode->scale = img->scale;
+      tnode->size  = img->size;
+      tnode->data  = img->data;
+      tnode->key   = keys + ((root->n.info & WZ_EMBED ?
+                              root->na_e.key : root->na.key) *
+                             WZ_KEY_UTF8_MAX_LEN);
+      img->data = NULL;
+      queue.len++;
+      if (queue.len >= WZ_ITER_NODE_CAPA)
+        if (pthread_cond_signal(&queue.cond))
+          WZ_ERR_GOTO(free_stack);
+      if (pthread_mutex_unlock(&queue.mutex))
+        WZ_ERR_GOTO(free_stack);
+#endif
     }
+    uint32_t req = stack_len + 2 + len;
+    if (req > stack_capa) {
+      uint32_t l = stack_capa;
+      do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
+      wznode ** mem;
+      if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
+        WZ_ERR_GOTO(free_stack);
+      stack = mem, stack_capa = l;
+    }
+    stack_len++;
+    stack[stack_len++] = NULL;
+    for (uint32_t i = len; i--;)
+      stack[stack_len++] = nodes + i;
+    if (stack_len > stack_max_len)
+      stack_max_len = stack_len;
   }
   printf("node usage: %"PRIu32" / %"PRIu32"\n",
          (uint32_t) stack_max_len, (uint32_t) stack_capa);
-  for (uint32_t i = 0; i < sizes_len; i++) {
-    printf("lv0 len %"PRIu32"\n", sizes[i]);
-  }
   if (!err)
     ret = 0;
-free_sizes:
-  free(sizes);
+free_stack:
+  free(stack);
+join_thrds:
+#ifndef WZ_NO_THRD
+  if (pthread_mutex_lock(&queue.mutex))
+    ret = 1;
+  queue.exit = 1;
+  if (pthread_cond_broadcast(&queue.cond))
+    ret = 1;
+  if (pthread_mutex_unlock(&queue.mutex))
+    ret = 1;
+  for (uint16_t i = 0; i < thrds_init; i++) {
+    wz_iter_node2_thrd_data * thrd = thrds + i;
+    void * status;
+    if (pthread_join(thrd->tid, &status) ||
+        status != NULL)
+      ret = 1;
+  }
+  free(thrds);
+destroy_cond:
+  if (pthread_cond_destroy(&queue.cond))
+    ret = 1;
+destroy_mutex:
+  if (pthread_mutex_destroy(&queue.mutex))
+    ret = 1;
+  free(queue.nodes);
+#endif
+  return ret;
+}
+
+typedef struct {
+  uint32_t  w;
+  uint32_t  h;
+  uint16_t  depth;
+  uint16_t  scale;
+  uint32_t  size;
+  uint8_t * data;
+  uint8_t * key;
+} wz_iter_node_thrd_node;
+
+typedef struct {
+  pthread_t tid;
+  uint16_t id;
+  uint8_t _[4 - 2]; // padding
+  uint32_t len;
+  wz_iter_node_thrd_node * nodes;
+} wz_iter_node_thrd_data;
+
+void *
+wz_iter_node_thrd(void * arg) {
+  int err = 0;
+  wz_iter_node_thrd_data * data = arg;
+  wz_iter_node_thrd_node * nodes = data->nodes;
+  uint32_t len = data->len;
+  for (uint32_t i = 0; i < len; i++) {
+    wz_iter_node_thrd_node * node = nodes + i;
+    if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
+                       node->depth, node->scale, node->size, node->key))
+      err = 1;
+    free(node->data);
+  }
+  return err ? (void *) !NULL : NULL;
+}
+
+int
+wz_iter_node(wznode * node) {
+  int ret = 1;
+  int err = 0;
+  wznode * root;
+  wzfile * file;
+  if (node->n.info & WZ_LEVEL) {
+    root = node->n.root.node;
+    file = root->n.root.file;
+  } else if (node->n.info & WZ_LEAF) {
+    root = node;
+    file = root->n.root.file;
+  } else {
+    root = NULL;
+    file = node->n.root.file;
+  }
+  uint8_t * keys = file->ctx->keys;
+#ifndef WZ_NO_THRD
+  uint32_t queue_capa = 0;
+  uint32_t queue_len = 0;
+  wz_iter_node_thrd_node * queue = NULL;
+  uint64_t queue_size = 0;
+  uint8_t resume = 0;
+#endif
+  uint32_t stack_capa = 1;
+  uint32_t stack_len = 0;
+  uint32_t stack_max_len;
+  wznode ** stack;
+  if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
+    WZ_ERR_RET(ret);
+  stack[stack_len++] = node;
+  stack_max_len = stack_len;
+  while (stack_len) {
+    node = stack[--stack_len];
+    if (node == NULL) {
+      node = stack[--stack_len];
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF))
+        wz_free_lv1(node);
+      else
+        wz_free_lv0(node);
+      continue;
+    }
+    if (node->n.info & WZ_LEAF) {
+      //wznode * root_ = wz_invert_node(node);
+      //printf("[%8x] ", (node->n.info & WZ_EMBED ?
+      //                  node->na_e.addr : node->na.addr));
+      //for (wznode * n = root_; (n = n->n.parent) != NULL;)
+      //  printf("/%s", n->n.info & WZ_EMBED ? n->n.name_e : n->n.name);
+      //printf("\n");
+      //wz_invert_node(root_);
+      root = node;
+    }
+    if ((node->n.info & WZ_TYPE) >= WZ_UNK &&
+        node->n.val.ary == NULL) {
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF)) {
+#ifdef WZ_NO_THRD
+        if (wz_read_lv1(node, root, file, keys, 1)) {
+#else
+        if (wz_read_lv1(node, root, file, keys, 0)) {
+#endif
+          err = 1;
+          continue;
+        }
+      } else {
+        if (wz_read_lv0(node, file, keys)) {
+          err = 1;
+          continue;
+        }
+      }
+    }
+    uint8_t type = node->n.info & WZ_TYPE;
+    if (type < WZ_UNK)
+      continue;
+    if (type > WZ_IMG) {
+      wz_free_lv1(node);
+      continue;
+    }
+    uint32_t len;
+    wznode * nodes;
+    if (type == WZ_ARY) {
+      wzary * ary = node->n.val.ary;
+      len   = ary->len;
+      nodes = ary->nodes;
+    } else {
+      wzimg * img = node->n.val.img;
+      len   = img->len;
+      nodes = img->nodes;
+#ifndef WZ_NO_THRD
+      uint32_t req = queue_len + 1;
+      if (req > queue_capa) {
+        uint32_t l = queue_capa;
+        do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
+        wz_iter_node_thrd_node * mem;
+        if ((mem = realloc(queue, l * sizeof(* queue))) == NULL)
+          WZ_ERR_GOTO(free_queue);
+        queue = mem, queue_capa = l;
+      }
+      wz_iter_node_thrd_node * tnode = queue + queue_len;
+      tnode->w     = img->w;
+      tnode->h     = img->h;
+      tnode->depth = img->depth;
+      tnode->scale = img->scale;
+      tnode->size  = img->size;
+      tnode->data  = img->data;
+      tnode->key   = keys + ((root->n.info & WZ_EMBED ?
+                              root->na_e.key : root->na.key) *
+                             WZ_KEY_UTF8_MAX_LEN);
+      img->data = NULL;
+      queue_len++;
+      queue_size += (img->w * img->h) << 2;
+      if (queue_size >= INT32_MAX) {
+        resume = 1;
+        goto clear_queue;
+      }
+resume:
+      ;
+#endif
+    }
+    uint32_t req = stack_len + 2 + len;
+    if (req > stack_capa) {
+      uint32_t l = stack_capa;
+      do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
+      wznode ** mem;
+      if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
+        WZ_ERR_GOTO(free_queue);
+      stack = mem, stack_capa = l;
+    }
+    stack_len++;
+    stack[stack_len++] = NULL;
+    for (uint32_t i = len; i--;)
+      stack[stack_len++] = nodes + i;
+    if (stack_len > stack_max_len)
+      stack_max_len = stack_len;
+  }
+#ifndef WZ_NO_THRD
+  if (queue_len) {
+clear_queue:
+    ;
+    long thrds_avail_l;
+    if ((thrds_avail_l = sysconf(_SC_NPROCESSORS_ONLN)) < 1)
+      WZ_ERR_GOTO(free_queue);
+    uint16_t thrds_avail = (uint16_t) thrds_avail_l;
+    uint16_t thrds_len = (uint16_t) (queue_len < thrds_avail ?
+                                     queue_len : thrds_avail);
+    uint16_t thrds_init = 0;
+    uint32_t start = 0;
+    uint32_t slice = queue_len / thrds_len;
+    uint32_t extra = queue_len % thrds_len;
+    pthread_attr_t attr;
+    wz_iter_node_thrd_data * thrds;
+    if (pthread_attr_init(&attr))
+      WZ_ERR_GOTO(free_queue);
+    if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE))
+      WZ_ERR_GOTO(destroy_attr);
+    if ((thrds = malloc(thrds_len * sizeof(* thrds))) == NULL)
+      WZ_ERR_GOTO(destroy_attr);
+    for (uint16_t i = 0; i < thrds_len; i++) {
+      wz_iter_node_thrd_data * thrd = thrds + i;
+      thrd->id = i;
+      thrd->nodes = queue + start;
+      thrd->len = slice + (extra > 0);
+      if (pthread_create(&thrd->tid, &attr, wz_iter_node_thrd, thrd))
+        WZ_ERR_GOTO(join_thrds);
+      thrds_init++;
+      if (extra)
+        extra--;
+      start += thrd->len;
+    }
+join_thrds:
+    for (uint16_t i = 0; i < thrds_init; i++) {
+      wz_iter_node_thrd_data * thrd = thrds + i;
+      void * status;
+      if (pthread_join(thrd->tid, &status) ||
+          status != NULL)
+        err = 1;
+    }
+    free(thrds);
+destroy_attr:
+    if (pthread_attr_destroy(&attr))
+      err = 1;
+    if (resume) {
+      queue_len = 0;
+      queue_size = 0;
+      resume = 0;
+      goto resume;
+    }
+  }
+#endif
+  printf("node usage: %"PRIu32" / %"PRIu32"\n",
+         (uint32_t) stack_max_len, (uint32_t) stack_capa);
+  if (!err)
+    ret = 0;
+free_queue:
+#ifndef WZ_NO_THRD
+  free(queue);
+#endif
   free(stack);
   return ret;
 }
@@ -2359,7 +2681,7 @@ wz_open_node(wznode * node, const char * path) {
       if (node->n.info & WZ_LEAF)
         break;
       if (node->n.val.ary == NULL)
-        if (wz_read_lv0(node, keys, file))
+        if (wz_read_lv0(node, file, keys))
           WZ_ERR_GOTO(exit);
       const char * name;
       size_t name_len = wz_next_tok(&name, &path, path, '/');
@@ -2486,11 +2808,11 @@ wz_close_node(wznode * node) {
   while (stack_len) {
     node = stack[--stack_len];
     if (node == NULL) {
-      wznode * parent = stack[--stack_len];
-      if (parent->n.info & (WZ_LEVEL | WZ_LEAF))
-        wz_free_lv1(parent);
+      node = stack[--stack_len];
+      if (node->n.info & (WZ_LEVEL | WZ_LEAF))
+        wz_free_lv1(node);
       else
-        wz_free_lv0(parent);
+        wz_free_lv0(node);
       continue;
     }
     if ((node->n.info & WZ_TYPE) <= WZ_UNK ||
@@ -2641,7 +2963,8 @@ wz_encode_aes(uint8_t * cipher, uint32_t len,
               uint8_t * key, const uint8_t * iv) {
   aes256_context ctx;
   aes256_init(&ctx, key);
-  for (uint32_t i = 0; i < len; i += 16) {
+  len >>= 4;
+  for (uint32_t i = 0; i < len; i++) {
     for (uint8_t j = 0; j < 16 / 4; j++)
       ((uint32_t *) cipher)[j] = ((const uint32_t *) iv)[j];
     aes256_encrypt_ecb(&ctx, cipher);

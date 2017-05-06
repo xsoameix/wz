@@ -243,12 +243,12 @@ enum {
   WZ_F64,
   WZ_VEC,  // "Shape2D#Vector2D"
   WZ_UNK,  // not read yet
-  WZ_STR,
   WZ_ARY,  // "Property"
   WZ_IMG,  // "Canvas"
   WZ_VEX,  // "Shape2D#Convex2D"
   WZ_AO,   // "Sound_DX8"
   WZ_UOL,  // "UOL"
+  WZ_STR,
   WZ_LEN
 };
 
@@ -298,7 +298,7 @@ void     wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
 
 int      wz_seek(uint32_t pos, int origin, wzfile * file);
 
-int      wz_read_lv0(wznode * node, uint8_t * keys, wzfile * file);
+int      wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys);
 void     wz_free_lv0(wznode * node);
 
 void     wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec);
@@ -314,7 +314,7 @@ int      wz_read_lv1(wznode * node, wznode * root, wzfile * file,
                      uint8_t * keys, uint8_t eager);
 void     wz_free_lv1(wznode * node);
 
-int      wz_read_node_r(wznode * root, wzfile * file, wzctx * ctx);
+int      wz_iter_node2(wznode * node);
 int      wz_read_node_thrd_r(wznode * root, wzfile * file, wzctx * ctx,
                              uint8_t tcapa);
 
