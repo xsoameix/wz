@@ -172,112 +172,99 @@ const uint16_t wz_cp1252_to_unicode[128] = {
 };
 
 int
-wz_cp1252_to_utf8(uint8_t * u8_bytes, uint32_t * u8_len,
-                  const uint8_t * cp1252_bytes, uint32_t cp1252_len) {
-  uint32_t        cp1252_last = cp1252_len;
-  const uint8_t * cp1252      = cp1252_bytes;
-  uint8_t *       u8          = u8_bytes == NULL ? 0 : u8_bytes;
-  while (cp1252_last) {
-    uint16_t code = * cp1252;
+wz_cp1252_to_utf8(uint8_t * ret_u8, uint32_t * ret_u8_len,
+                  const uint8_t * cp1252, uint32_t cp1252_len) {
+  uint8_t * u8 = ret_u8 == NULL ? 0 : ret_u8;
+  for (; cp1252_len; cp1252_len--) {
+    uint16_t code = * cp1252++;
     if (code >= 0x80)
       code = wz_cp1252_to_unicode[code - 0x80];
-    uint8_t u8_size;
     if (code < 0x80) {
-      u8_size = 1;
-      if (u8_bytes != NULL) {
+      if (ret_u8 != NULL)
         u8[0] = (uint8_t) code;
-      }
+      u8++;
     } else if (code < 0x800) {
-      u8_size = 2;
-      if (u8_bytes != NULL) {
-        u8[0] = (uint8_t) (((code >> 6) & 0x1f) | 0xc0);
+      if (ret_u8 != NULL) {
+        u8[0] = (uint8_t) (((code >> 6)       ) | 0xc0);
         u8[1] = (uint8_t) (((code     ) & 0x3f) | 0x80);
       }
+      u8 += 2;
     } else if (code < 0xffff) {
-      u8_size = 3;
-      if (u8_bytes != NULL) {
-        u8[0] = (uint8_t) (((code >> 12) & 0x0f) | 0xe0);
+      if (ret_u8 != NULL) {
+        u8[0] = (uint8_t) (((code >> 12)       ) | 0xe0);
         u8[1] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
         u8[2] = (uint8_t) (((code      ) & 0x3f) | 0x80);
       }
+      u8 += 3;
     } else {
       WZ_ERR_RET(1);
     }
-    cp1252      += 1;
-    cp1252_last -= 1;
-    u8          += u8_size;
   }
-  if (u8_bytes == NULL)
-    * u8_len = (uint32_t) (uintptr_t) u8;
+  if (ret_u8 == NULL)
+    * ret_u8_len = (uint32_t) (uintptr_t) u8;
   else
     * u8 = '\0';
   return 0;
 }
 
 int
-wz_utf16le_to_utf8(uint8_t * u8_bytes, uint32_t * u8_len,
-                   const uint8_t * u16_bytes, uint32_t u16_len) {
-  uint32_t        u16_last = u16_len;
-  const uint8_t * u16      = u16_bytes;
-  uint8_t *       u8       = u8_bytes == NULL ? 0 : u8_bytes;
-  while (u16_last) {
-    uint8_t  u16_size;
+wz_utf16le_to_utf8(uint8_t * ret_u8, uint32_t * ret_u8_len,
+                   const uint8_t * u16, uint32_t u16_len) {
+  uint8_t * u8 = ret_u8 == NULL ? 0 : ret_u8;
+  while (u16_len) {
     uint32_t code; // unicode
-    if (u16_last < 2)
+    if (u16_len < 2)
       WZ_ERR_RET(1);
     if ((u16[1] & 0xfc) == 0xd8) {
-      if (u16_last < 4)
+      if (u16_len < 4)
         WZ_ERR_RET(1);
       if ((u16[3] & 0xfc) == 0xdc) {
-        u16_size = 4;
         code = (uint32_t) ((u16[1] & 0x03) << 18 |
                            (u16[0]       ) << 10 |
                            (u16[3] & 0x03) <<  8 |
-                           (u16[2]       ) <<  0);
+                           (u16[2]       )      );
+        u16     += 4;
+        u16_len -= 4;
       } else {
         WZ_ERR_RET(1);
       }
     } else {
-      u16_size = 2;
       code = (uint32_t) ((u16[1] << 8) |
                          (u16[0]     ));
+      u16     += 2;
+      u16_len -= 2;
     }
-    uint8_t u8_size;
     if (code < 0x80) {
-      u8_size = 1;
-      if (u8_bytes != NULL) {
+      if (ret_u8 != NULL)
         u8[0] = (uint8_t) code;
-      }
+      u8++;
     } else if (code < 0x800) {
-      u8_size = 2;
-      if (u8_bytes != NULL) {
-        u8[0] = (uint8_t) (((code >> 6) & 0x1f) | 0xc0);
+      if (ret_u8 != NULL) {
+        u8[0] = (uint8_t) (((code >> 6)       ) | 0xc0);
         u8[1] = (uint8_t) (((code     ) & 0x3f) | 0x80);
       }
+      u8 += 2;
     } else if (code < 0x10000) {
-      u8_size = 3;
-      if (u8_bytes != NULL) {
-        u8[0] = (uint8_t) (((code >> 12) & 0x0f) | 0xe0);
+      if (ret_u8 != NULL) {
+        u8[0] = (uint8_t) (((code >> 12)       ) | 0xe0);
         u8[1] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
         u8[2] = (uint8_t) (((code      ) & 0x3f) | 0x80);
       }
+      u8 += 3;
     } else if (code < 0x110000) {
-      u8_size = 4;
-      if (u8_bytes != NULL) {
-        u8[0] = (uint8_t) (((code >> 18) & 0x07) | 0xf0);
+      if (ret_u8 != NULL) {
+        u8[0] = (uint8_t) (((code >> 18)       ) | 0xf0);
         u8[1] = (uint8_t) (((code >> 12) & 0x3f) | 0x80);
         u8[2] = (uint8_t) (((code >>  6) & 0x3f) | 0x80);
         u8[3] = (uint8_t) (((code      ) & 0x3f) | 0x80);
       }
+      u8 += 4;
     } else {
       WZ_ERR_RET(1);
     }
-    u16      += u16_size;
-    u16_last -= u16_size;
-    u8       += u8_size;
   }
-  if (u8_bytes == NULL)
-    * u8_len = (uint32_t) (uintptr_t) u8;
+  if (ret_u8 == NULL)
+    * ret_u8_len = (uint32_t) (uintptr_t) u8;
   else
     * u8 = '\0';
   return 0;
