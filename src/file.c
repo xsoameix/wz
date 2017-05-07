@@ -98,7 +98,7 @@ wz_error(const char * format, ...) {
 
 int
 wz_read_bytes(void * bytes, uint32_t len, wzfile * file) {
-  if (file->pos + len > file->size) WZ_ERR_RET(1);
+  if (len > file->size - file->pos) WZ_ERR_RET(1);
   if (!len) return 0;
   if (fread(bytes, len, 1, file->raw) != 1) WZ_ERR_RET(1);
   return file->pos += len, 0;
@@ -106,14 +106,14 @@ wz_read_bytes(void * bytes, uint32_t len, wzfile * file) {
 
 int
 wz_read_byte(uint8_t * byte, wzfile * file) {
-  if (file->pos + 1 > file->size) WZ_ERR_RET(1);
+  if (1 > file->size - file->pos) WZ_ERR_RET(1);
   if (fread(byte, 1, 1, file->raw) != 1) WZ_ERR_RET(1);
   return file->pos += 1, 0;
 }
 
 int
 wz_read_le16(uint16_t * le16, wzfile * file) {
-  if (file->pos + 2 > file->size) WZ_ERR_RET(1);
+  if (2 > file->size - file->pos) WZ_ERR_RET(1);
   if (fread(le16, 2, 1, file->raw) != 1) WZ_ERR_RET(1);
   * le16 = WZ_LE16TOH(* le16);
   return file->pos += 2, 0;
@@ -121,7 +121,7 @@ wz_read_le16(uint16_t * le16, wzfile * file) {
 
 int
 wz_read_le32(uint32_t * le32, wzfile * file) {
-  if (file->pos + 4 > file->size) WZ_ERR_RET(1);
+  if (4 > file->size - file->pos) WZ_ERR_RET(1);
   if (fread(le32, 4, 1, file->raw) != 1) WZ_ERR_RET(1);
   * le32 = WZ_LE32TOH(* le32);
   return file->pos += 4, 0;
@@ -129,7 +129,7 @@ wz_read_le32(uint32_t * le32, wzfile * file) {
 
 int
 wz_read_le64(uint64_t * le64, wzfile * file) {
-  if (file->pos + 8 > file->size) WZ_ERR_RET(1);
+  if (8 > file->size - file->pos) WZ_ERR_RET(1);
   if (fread(le64, 8, 1, file->raw) != 1) WZ_ERR_RET(1);
   * le64 = WZ_LE64TOH(* le64);
   return file->pos += 8, 0;
@@ -498,10 +498,25 @@ wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
 
 int
 wz_seek(uint32_t pos, int origin, wzfile * file) {
-  if (pos > INT32_MAX) WZ_ERR_RET(1);
-  if (fseek(file->raw, pos, origin)) WZ_ERR_RET(1);
-  if (origin == SEEK_CUR) return file->pos += pos, 0;
-  return file->pos = pos, 0;
+  switch (origin) {
+  case SEEK_CUR:
+    if (pos > file->size - file->pos)
+      WZ_ERR_RET(1);
+    if (fseek(file->raw, pos, origin))
+      WZ_ERR_RET(1);
+    file->pos += pos;
+    break;
+  case SEEK_SET:
+    if (pos > file->size)
+      WZ_ERR_RET(1);
+    if (fseek(file->raw, pos, origin))
+      WZ_ERR_RET(1);
+    file->pos = pos;
+    break;
+  default:
+    WZ_ERR_RET(1);
+  }
+  return 0;
 }
 
 int
