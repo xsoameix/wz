@@ -392,7 +392,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
   if (wz_read_byte((uint8_t *) &byte, file))
     WZ_ERR_RET(ret);
   uint32_t len;
-  if (byte <= 0) { // cp1252
+  if (byte <= 0) { // cp1252/ascii/utf8
     if (byte == INT8_MIN) {
       if (wz_read_le32(&len, file))
         WZ_ERR_RET(ret);
