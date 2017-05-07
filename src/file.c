@@ -321,6 +321,13 @@ wz_decode_chars(uint8_t * bytes, uint32_t len,
   return 0;
 }
 
+int (* const wz_to_utf8[])(uint8_t *, uint32_t *, const uint8_t *, uint32_t) = {
+  [WZ_ENC_AUTO]    = NULL,
+  [WZ_ENC_CP1252]  = wz_cp1252_to_utf8,
+  [WZ_ENC_UTF16LE] = wz_utf16le_to_utf8,
+  [WZ_ENC_UTF8]    = NULL
+};
+
 int // read characters (cp1252, utf16le, or utf8)
 wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
               uint32_t capa, uint32_t addr, uint8_t type,
@@ -385,7 +392,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
   if (wz_read_byte((uint8_t *) &byte, file))
     WZ_ERR_RET(ret);
   uint32_t len;
-  if (byte <= 0) { // CP1252
+  if (byte <= 0) { // cp1252
     if (byte == INT8_MIN) {
       if (wz_read_le32(&len, file))
         WZ_ERR_RET(ret);
@@ -394,7 +401,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     }
     if (enc == WZ_ENC_AUTO)
       enc = WZ_ENC_CP1252;
-  } else { // UTF16-LE
+  } else { // utf16-le
     if (byte == INT8_MAX) {
       if (wz_read_le32(&len, file))
         WZ_ERR_RET(ret);
@@ -427,14 +434,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     if (wz_decode_chars(bytes, len, key, keys, enc))
       WZ_ERR_GOTO(free_bytes_ptr);
     int (* to)(uint8_t *, uint32_t *, const uint8_t *, uint32_t);
-    if (enc == WZ_ENC_CP1252) {
-      to = wz_cp1252_to_utf8;
-    } else if (enc == WZ_ENC_UTF16LE) {
-      to = wz_utf16le_to_utf8;
-    } else {
-      to = NULL;
-    }
-    if (to != NULL) { // malloc new string only if capa == 0 && utf8_len > len
+    if ((to = wz_to_utf8[enc]) != NULL) {
       if (to(NULL, &utf8_len, bytes, len))
         WZ_ERR_GOTO(free_bytes_ptr);
       if (capa && (utf8_len >= capa))
@@ -443,7 +443,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
       uint8_t * utf8;
       if (utf8_len < sizeof(utf8_buf) && (utf8_len <= len || capa)) {
         utf8 = utf8_buf;
-      } else {
+      } else { // malloc new string only if capa == 0 && utf8_len > len
         if ((utf8_ptr = malloc(padding + utf8_len + 1)) == NULL)
           WZ_ERR_GOTO(free_bytes_ptr);
         utf8 = utf8_ptr + padding;
