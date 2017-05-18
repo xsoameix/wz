@@ -10,8 +10,9 @@ set(CMAKE_MACOSX_RPATH 1)
 
 project(wz C)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake")
 enable_testing()
 
+include(CMake/CFlags.cmake)
 add_subdirectory(src)
 add_subdirectory(tests)
