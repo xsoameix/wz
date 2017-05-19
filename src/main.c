@@ -44,8 +44,8 @@ static const wzcmd wz_cmds[] = {
 
 static int
 cmd_version(int argc, char ** argv) {
-  // wz -v
-  // wz --version
+  /* wz -v */
+  /* wz --version */
   (void) argc;
   (void) argv;
   printf("wz version 1.0.0\n"
@@ -60,13 +60,15 @@ cmd_version(int argc, char ** argv) {
 
 static int
 cmd_help(int argc, char ** argv) {
-  // wz -h     [<command>]
-  // wz --help [<command>]
-  // wz help   [<command>]
+  /* wz -h     [<command>] */
+  /* wz --help [<command>] */
+  /* wz help   [<command>] */
   int (* func)(int, char **) = NULL;
   if (argc > 2) {
     const char * cmd = argv[2];
-    for (size_t i = 0, len = sizeof(wz_cmds) / sizeof(* wz_cmds); i < len; i++)
+    size_t len = sizeof(wz_cmds) / sizeof(* wz_cmds);
+    size_t i;
+    for (i = 0; i < len; i++)
       if (!strcmp(wz_cmds[i].name, cmd)) {
         func = wz_cmds[i].func;
         break;
@@ -102,30 +104,33 @@ cmd_help(int argc, char ** argv) {
 
 static int
 cmd_ls(int argc, char ** argv) {
-  // wz ls <file> [<path>]
-  // show the contents of given path in the wz file
+  /* wz ls <file> [<path>] */
+  /* show the contents of given path in the wz file */
   int ret = 1;
+  const char * filename;
+  const char * nodepath;
+  const char * savename;
+  wzctx * ctx;
+  wzfile * file;
+  wznode * node_root;
+  wznode * node;
   if (argc < 3) {
     fprintf(stderr,
             "wz: missing file operand.\n"
             "See 'wz help ls'.\n");
     return ret;
   }
-  const char * filename = argv[2];
-  const char * nodepath = argc >= 4 ? argv[3] : "";
-  const char * savename = argc >= 5 ? argv[4] : NULL;
-  wzctx * ctx;
+  filename = argv[2];
+  nodepath = argc >= 4 ? argv[3] : "";
+  savename = argc >= 5 ? argv[4] : NULL;
   if ((ctx = wz_init_ctx()) == NULL)
     return ret;
-  wzfile * file;
   if ((file = wz_open_file(filename, ctx)) == NULL)
     goto free_ctx;
-  wznode * node_root;
   if ((node_root = wz_open_root(file)) == NULL) {
     fprintf(stderr, "Error: Unable to open the root node\n");
     goto close_file;
   }
-  wznode * node;
   if ((node = wz_open_node(node_root, nodepath)) == NULL) {
     fprintf(stderr, "Error: Unable to open the node: %s\n", nodepath);
     goto close_file;
@@ -133,8 +138,9 @@ cmd_ls(int argc, char ** argv) {
   switch (wz_get_type(node)) {
   case WZ_ARY: {
     uint32_t len;
+    uint32_t i;
     (void) wz_get_len(&len, node);
-    for (uint32_t i = 0; i < len; i++) {
+    for (i = 0; i < len; i++) {
       printf("%s\n", wz_get_name(wz_open_node_at(node, i)));
     }
     break;
@@ -146,6 +152,8 @@ cmd_ls(int argc, char ** argv) {
     uint8_t scale;
     uint8_t * data = wz_get_img(&w, &h, &depth, &scale, node);
     if (savename == NULL) {
+      uint32_t len;
+      uint32_t i;
       const char * depth_name;
       switch (depth) {
       case WZ_COLOR_8888: depth_name = "8888"; break;
@@ -156,15 +164,14 @@ cmd_ls(int argc, char ** argv) {
       default:            depth_name = "unk";  break;
       }
       switch (scale) {
-      case 0:  scale =  1; break; // pow(2, 0) == 1
-      case 4:  scale = 16; break; // pow(2, 4) == 16
+      case 0:  scale =  1; break; /* pow(2, 0) == 1 */
+      case 4:  scale = 16; break; /* pow(2, 4) == 16 */
       default: scale =  0; break;
       }
       printf("(image: %"PRIu32" %"PRIu32" %s/%"PRIu16")\n",
              w, h, depth_name, scale);
-      uint32_t len;
       (void) wz_get_len(&len, node);
-      for (uint32_t i = 0; i < len; i++) {
+      for (i = 0; i < len; i++) {
         printf("%s\n", wz_get_name(wz_open_node_at(node, i)));
       }
     } else {
@@ -224,9 +231,10 @@ close_savefile_:
   }
   case WZ_VEX: {
     uint32_t len;
+    uint32_t i;
     (void) wz_get_vex_len(&len, node);
     printf("(vex: ");
-    for (uint32_t i = 0; i < len; i++) {
+    for (i = 0; i < len; i++) {
       int32_t x;
       int32_t y;
       (void) wz_get_vex_at(&x, &y, i, node);
@@ -293,43 +301,50 @@ free_ctx:
 
 static int
 cmd_time(int argc, char ** argv) {
-  // wz time <file> [<file>...]
-  // timing of parsing wz file(s)
+  /* wz time <file> [<file>...] */
+  /* timing of parsing wz file(s) */
   int ret = 1;
+  uint8_t err = 0;
+  wzctx * ctx;
+#if defined(WZ_WINDOWS)
+  LARGE_INTEGER freq;
+  LARGE_INTEGER start;
+  LARGE_INTEGER end;
+#elif defined(WZ_MACOS)
+  mach_timebase_info_data_t info;
+  uint64_t start;
+#else
+  struct timespec start;
+  struct timespec end;
+#endif
+  uint64_t duration;
+  int i;
   if (argc < 3) {
     fprintf(stderr,
             "wz: missing file operand.\n"
             "See 'wz help time'.\n");
     return ret;
   }
-  wzctx * ctx;
   if ((ctx = wz_init_ctx()) == NULL)
     return ret;
-  uint8_t err = 0;
 #if defined(WZ_WINDOWS)
-  LARGE_INTEGER freq;
-  LARGE_INTEGER start;
-  LARGE_INTEGER end;
   if (QueryPerformanceFrequency(&freq) == FALSE)
     goto free_ctx;
   if (QueryPerformanceCounter(&start) == FALSE)
     goto free_ctx;
 #elif defined(WZ_MACOS)
-  mach_timebase_info_data_t info;
   if (mach_timebase_info(&info) != KERN_SUCCESS)
     goto free_ctx;
-  uint64_t start = mach_absolute_time();
+  start = mach_absolute_time();
 #else
-  struct timespec start;
-  struct timespec end;
   if (clock_gettime(CLOCK_MONOTONIC, &start))
     goto free_ctx;
 #endif
-  for (int i = 2; i < argc; i++) {
+  for (i = 2; i < argc; i++) {
     if (strstr(argv[i], "List.wz") == NULL &&
         strstr(argv[i], "Data.wz") == NULL) {
-      printf("parsing: %s\n", argv[i]);
       wzfile * file;
+      printf("parsing: %s\n", argv[i]);
       if ((file = wz_open_file(argv[i], ctx)) == NULL) {
         err = 1;
         continue;
@@ -347,15 +362,15 @@ close_file:
 #if defined(WZ_WINDOWS)
   if (QueryPerformanceCounter(&end) == FALSE)
     goto free_ctx;
-  uint64_t duration = (uint64_t) ((end.QuadPart - start.QuadPart) *
-                                  1000000000 / freq.QuadPart);
+  duration = (uint64_t) ((end.QuadPart - start.QuadPart) *
+                         1000000000 / freq.QuadPart);
 #elif defined(WZ_MACOS)
-  uint64_t duration = (mach_absolute_time() - start) * info.numer / info.denom;
+  duration = (mach_absolute_time() - start) * info.numer / info.denom;
 #else
   if (clock_gettime(CLOCK_MONOTONIC, &end))
     goto free_ctx;
-  uint64_t duration = (uint64_t) ((end.tv_sec - start.tv_sec) * 1000000000 +
-                                  (end.tv_nsec - start.tv_nsec));
+  duration = (uint64_t) ((end.tv_sec - start.tv_sec) * 1000000000 +
+                         (end.tv_nsec - start.tv_nsec));
 #endif
   printf("took %3"PRIu64".%09"PRIu64" seconds, %s occurred\n",
          duration / 1000000000,
@@ -371,7 +386,9 @@ int
 main(int argc, char ** argv) {
   if (argc > 1) {
     const char * cmd = argv[1];
-    for (size_t i = 0, len = sizeof(wz_cmds) / sizeof(* wz_cmds); i < len; i++)
+    size_t len = sizeof(wz_cmds) / sizeof(* wz_cmds);
+    size_t i;
+    for (i = 0; i < len; i++)
       if (!strcmp(wz_cmds[i].name, cmd))
         return wz_cmds[i].func(argc, argv);
     if (cmd[0] == '-')

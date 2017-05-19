@@ -12,13 +12,13 @@ enum {
   WZ_I64,
   WZ_F32,
   WZ_F64,
-  WZ_VEC,  // "Shape2D#Vector2D"
-  WZ_UNK,  // not read yet
-  WZ_ARY,  // "Property"
-  WZ_IMG,  // "Canvas"
-  WZ_VEX,  // "Shape2D#Convex2D"
-  WZ_AO,   // "Sound_DX8"
-  WZ_UOL,  // "UOL"
+  WZ_VEC,  /* "Shape2D#Vector2D" */
+  WZ_UNK,  /* not read yet */
+  WZ_ARY,  /* "Property" */
+  WZ_IMG,  /* "Canvas" */
+  WZ_VEX,  /* "Shape2D#Convex2D" */
+  WZ_AO,   /* "Sound_DX8" */
+  WZ_UOL,  /* "UOL" */
   WZ_STR,
   WZ_LEN
 };
@@ -31,7 +31,7 @@ enum {
   WZ_COLOR_DXT5 = 2050
 };
 
-enum { // microsoft define these values in Mmreg.h
+enum { /* microsoft define these values in Mmreg.h */
   WZ_AUDIO_PCM = 0x0001,
   WZ_AUDIO_MP3 = 0x0055
 };

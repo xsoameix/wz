@@ -4,7 +4,7 @@
 #  pragma warning(push, 3)
 #endif
 
-// Standard Library
+/* Standard Library */
 
 #ifndef WZ_NO_THRD
 #  ifdef WZ_WINDOWS
@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-// Third Party Library
+/* Third Party Library */
 
 #include <aes256.h>
 #include <zlib.h>
@@ -33,7 +33,7 @@
 #  pragma warning(pop)
 #endif
 
-// This Library
+/* This Library */
 
 #include "byteorder.h"
 #include "file.h"
@@ -74,19 +74,19 @@ typedef struct {
   uint16_t  block_align;
   uint16_t  bits_per_sample;
   uint16_t  extra_size;
-  uint8_t   _[2]; // padding
-} wzwav;  // microsoft WAVEFORMATEX structure
+  uint8_t   _[2]; /* padding */
+} wzwav;  /* microsoft WAVEFORMATEX structure */
 
 typedef struct {
   wzwav     wav;
   uint16_t  id;
-  uint8_t   _1[2]; // padding
+  uint8_t   _1[2]; /* padding */
   uint32_t  flags;
   uint16_t  block_size;
   uint16_t  frames_per_block;
   uint16_t  codec_delay;
-  uint8_t   _2[2]; // padding
-} wzmp3;  // microsoft MPEGLAYER3WAVEFORMAT structure
+  uint8_t   _2[2]; /* padding */
+} wzmp3;  /* microsoft MPEGLAYER3WAVEFORMAT structure */
 
 typedef struct {
   uint32_t  chunk_id;
@@ -106,77 +106,77 @@ typedef struct {
 
 typedef struct { int32_t x; int32_t y; } wzvec;
 
-// wznode format:
-// 0    4    8    12   16   20   24   28   32   36   40
-// p--- ---- n--- ---- tlb- ---- b--- ---- ---- --2-
-// p--- ---- n--- ---- tlb- ---- b--- ---- ---- 4---
-// p--- ---- n--- ---- tlb- ---- b--- ---- 8--- ----
-// p--- ---- n--- ---- tlb- ---- b--- ---- o--- ----
-// p--- ---- f--- ---- tlb- ---- b--- ---- d--- ----
-// p--- ---- f--- ---- tlb- ---- ---k a--- d--- ----
-// p--- ---- f--- ---- tlk. a--- b--- ---- d--- ----
-//
-// p--- n--- tlb- b--- ---- --2-
-// p--- n--- tlb- b--- ---- 4---
-// p--- n--- tlb- b--- 8--- ----
-// p--- n--- tlb- b--- ---- o---
-// p--- f--- tlb- b--- ---- d---
-// p--- f--- tlb- ---k a--- d---
-// p--- f--- tlk. b--- a--- d---
+/* wznode format:
+   0    4    8    12   16   20   24   28   32   36   40
+   p--- ---- n--- ---- tlb- ---- b--- ---- ---- --2-
+   p--- ---- n--- ---- tlb- ---- b--- ---- ---- 4---
+   p--- ---- n--- ---- tlb- ---- b--- ---- 8--- ----
+   p--- ---- n--- ---- tlb- ---- b--- ---- o--- ----
+   p--- ---- f--- ---- tlb- ---- b--- ---- d--- ----
+   p--- ---- f--- ---- tlb- ---- ---k a--- d--- ----
+   p--- ---- f--- ---- tlk. a--- b--- ---- d--- ----
+
+   p--- n--- tlb- b--- ---- --2-
+   p--- n--- tlb- b--- ---- 4---
+   p--- n--- tlb- b--- 8--- ----
+   p--- n--- tlb- b--- ---- o---
+   p--- f--- tlb- b--- ---- d---
+   p--- f--- tlb- ---k a--- d---
+   p--- f--- tlk. b--- a--- d--- */
 
 typedef struct {
-  uint8_t   _[4 * sizeof(void *) + 8 - 2]; // padding
+  uint8_t   _[4 * sizeof(void *) + 8 - 2]; /* padding */
   int16_t   val;
 } wznode_16;
 
 typedef struct {
-  uint8_t   _[4 * sizeof(void *) + 8 - 4]; // padding
+  uint8_t   _[4 * sizeof(void *) + 8 - 4]; /* padding */
   union     { int32_t i; float f; } val;
 } wznode_32;
 
 typedef struct {
-  uint8_t   _[4 * sizeof(void *)]; // padding
+  uint8_t   _[4 * sizeof(void *)]; /* padding */
   union     { int64_t i; double f; wzvec vec; } val;
 } wznode_64;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8];
 } wznode_nil_embed;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - 2];
 } wznode_16_embed;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - 4];
 } wznode_32_embed;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *)];
 } wznode_64_embed;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + sizeof(void *) + 8 - sizeof(void *)];
 } wznode_ptr_embed;
 
 typedef struct {
-  uint8_t   _[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   name_buf[sizeof(void *) - 2 + 4 - 1];
   uint8_t   key;
   uint32_t  addr;
 } wznode_addr_embed;
 
 typedef struct {
-  uint8_t   _1[2 * sizeof(void *) + 2]; // padding
+  uint8_t   _1[2 * sizeof(void *) + 2]; /* padding */
   uint8_t   key;
-  uint8_t   _2[1]; // padding
+  uint8_t   _2[1]; /* padding */
 #if UINTPTR_MAX <= UINT32_MAX
-  uint8_t   _3[sizeof(void *)]; // name in prototype
+  uint8_t   _3[sizeof(void *)]; /* name in prototype */
 #endif
   uint32_t  addr;
 } wznode_addr;
@@ -192,7 +192,7 @@ typedef struct {
   uint8_t        name_e[sizeof(void *) - 2];
   uint8_t *      name;
 #if UINTPTR_MAX <= UINT32_MAX
-  uint8_t        _[4]; // addr in wznode_addr
+  uint8_t        _[4]; /* addr in wznode_addr */
 #endif
   union {
     struct wzstr * str;
@@ -201,7 +201,7 @@ typedef struct {
     struct wzvex * vex;
     struct wzao  * ao;
   }              val;
-} wznode_proto; // prototype
+} wznode_proto; /* prototype */
 
 union wznode {
   wznode_nil_embed   nil_e;
@@ -219,13 +219,13 @@ union wznode {
 
 typedef struct wzstr {
   uint32_t  len;
-  uint8_t   bytes[4]; // variable array
+  uint8_t   bytes[4]; /* variable array */
 } wzstr;
 
 typedef struct wzary {
   uint32_t  len;
-  uint8_t   _[4]; // padding
-  wznode    nodes[1]; // variable array
+  uint8_t   _[4]; /* padding */
+  wznode    nodes[1]; /* variable array */
 } wzary;
 
 typedef struct wzimg {
@@ -234,25 +234,25 @@ typedef struct wzimg {
   uint8_t * data;
   uint16_t  depth;
   uint8_t   scale;
-  uint8_t   _1[1]; // padding
+  uint8_t   _1[1]; /* padding */
   uint32_t  size;
   uint32_t  len;
 #if UINTPTR_MAX > UINT32_MAX
-  uint8_t   _2[4]; // padding
+  uint8_t   _2[4]; /* padding */
 #endif
-  wznode    nodes[1]; // variable array
+  wznode    nodes[1]; /* variable array */
 } wzimg;
 
 typedef struct wzvex {
   uint32_t  len;
-  wzvec     ary[1]; // variable array
+  wzvec     ary[1]; /* variable array */
 } wzvex;
 
 typedef struct wzao {
   uint32_t  size;
   uint32_t  ms;
   uint16_t  format;
-  uint8_t   _[sizeof(void *) - 2]; // padding
+  uint8_t   _[sizeof(void *) - 2]; /* padding */
   uint8_t * data;
 } wzao;
 
@@ -264,7 +264,7 @@ struct wzfile {
   uint32_t  start;
   uint32_t  hash;
   uint8_t   key;
-  uint8_t   _[8 - 1]; // padding
+  uint8_t   _[8 - 1]; /* padding */
   wznode    root;
 };
 
@@ -286,36 +286,39 @@ typedef union {
 } wzptr;
 
 static const uint8_t wz_aes_key[32 / 4] = {
-  // These value would be expanded to aes key
+  /* These value would be expanded to aes key */
   0x13, 0x08, 0x06, 0xb4, 0x1b, 0x0f, 0x33, 0x52
 };
 
 static const uint32_t wz_aes_ivs[] = {
-  // These values would be expanded to aes ivs
+  /* These values would be expanded to aes ivs */
   0x2bc7234d,
-  0xe9637db9 // used to decode UTF8 (lua script)
+  0xe9637db9 /* used to decode UTF8 (lua script) */
 };
 
 enum {
   WZ_KEYS_LEN = sizeof(wz_aes_ivs) / sizeof(* wz_aes_ivs),
-  // Get the index of the last key, which is empty and filled with zeros
+
+  /* Get the index of the last key, which is empty and filled with zeros */
   WZ_KEY_EMPTY = WZ_KEYS_LEN,
-  // There may be a giant json string which is large than 0x10000 bytes and
-  //  use only first 0x10000 bytes of the key to decode the characters,
-  //  which is encoded in ascii
-  // The image chunk and wav header, which are small than 0x10000 bytes,
-  //  also use the key to decode itself
+
+  /* There may be a giant json string which is large than 0x10000 bytes and
+      use only first 0x10000 bytes of the key to decode the characters,
+      which is encoded in ascii
+     The image chunk and wav header, which are small than 0x10000 bytes,
+      also use the key to decode itself */
   WZ_KEY_ASCII_MAX_LEN = 0x10000,
-  // The largest lua script (jms v357: Etc.wz: /Script/BattleScene.lua)
-  //  we found is 0x1106c bytes and fully encoded in utf8,
-  //  so we set a number bigger than this
+
+  /* The largest lua script (jms v357: Etc.wz: /Script/BattleScene.lua)
+      we found is 0x1106c bytes and fully encoded in utf8,
+      so we set a number bigger than this */
   WZ_KEY_UTF8_MAX_LEN  = 0x12000
 };
 
-enum { // bit fields of wznode->info
+enum { /* bit fields of wznode->info */
   WZ_TYPE  = 0x0f,
   WZ_LEVEL = 0x10,
-  WZ_LEAF  = 0x20, // is it a leaf in level 0 or not
+  WZ_LEAF  = 0x20, /* is it a leaf in level 0 or not */
   WZ_EMBED = 0x40
 };
 
@@ -335,8 +338,8 @@ enum {
 };
 
 enum {
-  WZ_AUDIO_WAV_SIZE = 18, // sizeof(packed wzwav)
-  WZ_AUDIO_PCM_SIZE = 44  // sizeof(packed wzpcm)
+  WZ_AUDIO_WAV_SIZE = 18, /* sizeof(packed wzwav) */
+  WZ_AUDIO_PCM_SIZE = 44  /* sizeof(packed wzpcm) */
 };
 
 #ifdef WZ_MSVC
@@ -365,7 +368,7 @@ enum {
     (printf("free(%p) at %s:%s:%d\n", \
             (void *) ptr, __func__, __FILE__, __LINE__), \
      free(ptr))
-     */
+*/
 
 static void
 wz_error(const char * format, ...) {
@@ -415,7 +418,7 @@ wz_read_le64(uint64_t * le64, wzfile * file) {
   return file->pos += 8, 0;
 }
 
-static int // read packed integer (int8 or int32)
+static int /* read packed integer (int8 or int32) */
 wz_read_int32(uint32_t * int32, wzfile * file) {
   int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file)) WZ_ERR_RET(1);
@@ -423,7 +426,7 @@ wz_read_int32(uint32_t * int32, wzfile * file) {
   return * (int32_t *) int32 = byte, 0;
 }
 
-static int // read packed long (int8 or int64)
+static int /* read packed long (int8 or int64) */
 wz_read_int64(uint64_t * int64, wzfile * file) {
   int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file)) WZ_ERR_RET(1);
@@ -455,7 +458,7 @@ wz_seek(uint32_t pos, int origin, wzfile * file) {
 }
 
 static const uint16_t wz_cp1252_to_unicode[128] = {
-  // 0x80 to 0xff, cp1252 only, code 0xffff means the char is undefined
+  /* 0x80 to 0xff, cp1252 only, code 0xffff means the char is undefined */
   0x20ac, 0xffff, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021,
   0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0xffff, 0x017d, 0xffff,
   0xffff, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
@@ -515,7 +518,7 @@ wz_utf16le_to_utf8(uint8_t * ret_u8, uint32_t * ret_u8_len,
                    const uint8_t * u16, uint32_t u16_len) {
   uint8_t * u8 = ret_u8 == NULL ? 0 : ret_u8;
   while (u16_len) {
-    uint32_t code; // unicode
+    uint32_t code; /* unicode */
     if (u16_len < 2)
       WZ_ERR_RET(1);
     if ((u16[1] & 0xfc) == 0xd8) {
@@ -576,65 +579,67 @@ wz_utf16le_to_utf8(uint8_t * ret_u8, uint32_t * ret_u8_len,
 static int
 wz_decode_chars(uint8_t * bytes, uint32_t len,
                 uint8_t key_i, const uint8_t * keys, uint8_t enc) {
+  uint32_t min_len;
+  wzptr key;
+  wzptr dst;
+  uint8_t mask_8;
+  uint16_t mask_16;
+  uint32_t i;
   if (enc == WZ_ENC_CP1252) {
-    uint32_t        min_len;
-    const uint8_t * key;
     if (key_i == WZ_KEY_EMPTY) {
       min_len = 0;
-      key = NULL;
+      key.c8 = NULL;
     } else {
       if (len <= WZ_KEY_ASCII_MAX_LEN)
         min_len = len;
       else
         min_len = WZ_KEY_ASCII_MAX_LEN;
-      key = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
+      key.c8 = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
     }
-    uint8_t mask = 0xaa;
-    for (uint32_t i = 0; i < min_len; i++)
-      bytes[i] ^= (uint8_t) (mask++ ^ key[i]);
-    for (uint32_t i = min_len; i < len; i++)
-      bytes[i] ^= (uint8_t) mask++;
+    mask_8 = 0xaa;
+    for (i = 0; i < min_len; i++)
+      bytes[i] ^= (uint8_t) (mask_8++ ^ key.c8[i]);
+    for (i = min_len; i < len; i++)
+      bytes[i] ^= (uint8_t) mask_8++;
   } else if (enc == WZ_ENC_UTF16LE) {
-    uint32_t u16_len = len >> 1;
-    uint32_t u16_min_len;
-    wzptr    u16;
-    wzptr    u16_key;
-    u16.u8 = bytes;
+    dst.u8 = bytes;
     if (key_i == WZ_KEY_EMPTY) {
-      u16_min_len = 0;
-      u16_key.c8 = NULL;
+      len >>= 1;
+      min_len = 0;
+      key.c8 = NULL;
     } else {
       if (len > WZ_KEY_ASCII_MAX_LEN)
         WZ_ERR_RET(1);
-      u16_min_len = u16_len;
-      u16_key.c8 = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
+      len >>= 1;
+      min_len = len;
+      key.c8 = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
     }
-    uint16_t mask = 0xaaaa;
-    for (uint32_t i = 0; i < u16_min_len; i++)
-      u16.u16[i] = WZ_HTOLE16(WZ_LE16TOH(u16.u16[i]) ^ mask++ ^
-                              WZ_LE16TOH(u16_key.c16[i]));
-    for (uint32_t i = u16_min_len; i < u16_len; i++)
-      u16.u16[i] = WZ_HTOLE16(WZ_LE16TOH(u16.u16[i]) ^ mask++);
+    mask_16 = 0xaaaa;
+    for (i = 0; i < min_len; i++)
+      dst.u16[i] = WZ_HTOLE16(WZ_LE16TOH(dst.u16[i]) ^ mask_16++ ^
+                              WZ_LE16TOH(key.c16[i]));
+    for (i = min_len; i < len; i++)
+      dst.u16[i] = WZ_HTOLE16(WZ_LE16TOH(dst.u16[i]) ^ mask_16++);
   } else {
     assert(enc == WZ_ENC_UTF8);
     if (len > WZ_KEY_UTF8_MAX_LEN)
       WZ_ERR_RET(1);
-    const uint8_t * key = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
-    for (uint32_t i = 0; i < len; i++)
-      bytes[i] ^= key[i];
+    key.c8 = keys + key_i * WZ_KEY_UTF8_MAX_LEN;
+    for (i = 0; i < len; i++)
+      bytes[i] ^= key.c8[i];
   }
   return 0;
 }
 
 static int (* const wz_to_utf8[])(uint8_t *, uint32_t *,
                                   const uint8_t *, uint32_t) = {
-  [WZ_ENC_AUTO]    = NULL,
-  [WZ_ENC_CP1252]  = wz_cp1252_to_utf8,
-  [WZ_ENC_UTF16LE] = wz_utf16le_to_utf8,
-  [WZ_ENC_UTF8]    = NULL
+  /* WZ_ENC_AUTO    */ NULL,
+  /* WZ_ENC_CP1252  */ wz_cp1252_to_utf8,
+  /* WZ_ENC_UTF16LE */ wz_utf16le_to_utf8,
+  /* WZ_ENC_UTF8    */ NULL
 };
 
-static int // read characters (cp1252, utf16le, or utf8)
+static int /* read characters (cp1252, utf16le, or utf8) */
 wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
               uint32_t capa, uint32_t addr, uint8_t type,
               uint8_t key, uint8_t * keys, wzfile * file) {
@@ -642,12 +647,19 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
   uint8_t enc = WZ_ENC_AUTO;
   uint32_t pos = 0;
   uint8_t padding = 0;
+  int8_t byte;
+  uint32_t len;
+  uint8_t * bytes_ptr;
+  uint8_t * bytes;
+  uint8_t * utf8_ptr;
+  uint32_t  utf8_len;
   if (type != WZ_LV0_NAME) {
     uint8_t fmt;
+    enum {UNK = 2};
+    uint8_t inplace;
     if (wz_read_byte(&fmt, file))
       WZ_ERR_RET(ret);
-    enum {UNK = 2};
-    uint8_t inplace = UNK;
+    inplace = UNK;
     switch (type) {
     case WZ_LV1_NAME:
     case WZ_LV1_STR:
@@ -694,11 +706,9 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
       padding = sizeof(uint32_t);
     }
   }
-  int8_t byte;
   if (wz_read_byte((uint8_t *) &byte, file))
     WZ_ERR_RET(ret);
-  uint32_t len;
-  if (byte <= 0) { // cp1252/ascii/utf8
+  if (byte <= 0) { /* cp1252/ascii/utf8 */
     if (byte == INT8_MIN) {
       if (wz_read_le32(&len, file))
         WZ_ERR_RET(ret);
@@ -707,7 +717,7 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     }
     if (enc == WZ_ENC_AUTO)
       enc = WZ_ENC_CP1252;
-  } else { // utf16-le
+  } else { /* utf16-le */
     if (byte == INT8_MAX) {
       if (wz_read_le32(&len, file))
         WZ_ERR_RET(ret);
@@ -718,8 +728,6 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     if (enc == WZ_ENC_AUTO)
       enc = WZ_ENC_UTF16LE;
   }
-  uint8_t * bytes_ptr;
-  uint8_t * bytes;
   if (capa) {
     if (len >= capa)
       WZ_ERR_RET(ret);
@@ -730,26 +738,26 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
     if ((bytes_ptr = malloc(padding + len + 1)) == NULL)
       WZ_ERR_RET(ret);
   }
-  uint8_t * utf8_ptr = NULL;
-  uint32_t  utf8_len = 0;
+  utf8_ptr = NULL;
   bytes = bytes_ptr + padding;
   if (wz_read_bytes(bytes, len, file))
     WZ_ERR_GOTO(free_bytes_ptr);
   bytes[len] = '\0';
+  utf8_len = 0;
   if (key != 0xff) {
+    int (* to)(uint8_t *, uint32_t *, const uint8_t *, uint32_t);
     if (wz_decode_chars(bytes, len, key, keys, enc))
       WZ_ERR_GOTO(free_bytes_ptr);
-    int (* to)(uint8_t *, uint32_t *, const uint8_t *, uint32_t);
     if ((to = wz_to_utf8[enc]) != NULL) {
+      uint8_t   utf8_buf[256];
+      uint8_t * utf8;
       if (to(NULL, &utf8_len, bytes, len))
         WZ_ERR_GOTO(free_bytes_ptr);
       if (capa && (utf8_len >= capa))
         WZ_ERR_GOTO(free_bytes_ptr);
-      uint8_t   utf8_buf[256];
-      uint8_t * utf8;
       if (utf8_len < sizeof(utf8_buf) && (utf8_len <= len || capa)) {
         utf8 = utf8_buf;
-      } else { // malloc new string only if capa == 0 && utf8_len > len
+      } else { /* malloc new string only if capa == 0 && utf8_len > len */
         if ((utf8_ptr = malloc(padding + utf8_len + 1)) == NULL)
           WZ_ERR_GOTO(free_bytes_ptr);
         utf8 = utf8_ptr + padding;
@@ -757,7 +765,8 @@ wz_read_chars(uint8_t ** ret_bytes, uint32_t * ret_len, uint8_t * ret_enc,
       if (to(utf8, NULL, bytes, len))
         WZ_ERR_GOTO(free_utf8_ptr);
       if (utf8_len <= len || capa) {
-        for (uint32_t i = 0; i < utf8_len; i++)
+        uint32_t i;
+        for (i = 0; i < utf8_len; i++)
           bytes[i] = utf8[i];
         bytes[utf8_len] = '\0';
         if (utf8_ptr != NULL) {
@@ -798,44 +807,51 @@ wz_decode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
   uint32_t key = 0x581c3f6d;
   uint32_t x = ~(pos - start) * hash - key;
   uint32_t n = x & 0x1f;
-  x = (x << n) | (x >> (32 - n)); // rotate left n bit
+  x = (x << n) | (x >> (32 - n)); /* rotate left n bit */
   * ret_val = (x ^ val) + start * 2;
 }
 
 static int
 wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
   int ret = 1;
-  if (wz_seek(node->n.info & WZ_EMBED ?
-              node->na_e.addr : node->na.addr, SEEK_SET, file))
-    WZ_ERR_RET(ret);
   uint32_t len;
-  if (wz_read_int32(&len, file))
-    WZ_ERR_RET(ret);
   wzary * ary;
-  if ((ary = malloc(offsetof(wzary, nodes) +
-                    len * sizeof(* ary->nodes))) == NULL)
-    WZ_ERR_RET(ret);
-  wznode * nodes = ary->nodes;
+  wznode * nodes;
+  uint8_t  key;
+  uint32_t start;
+  uint32_t hash;
   uint8_t   name[UINT8_MAX];
   uint8_t * name_ptr = name;
   uint32_t  name_len;
-  uint8_t   key   = file->key;
-  uint32_t  start = file->start;
-  uint32_t  hash  = file->hash;
-  for (uint32_t i = 0; i < len; i++) {
+  uint32_t i;
+  uint32_t j;
+  if (wz_seek(node->n.info & WZ_EMBED ?
+              node->na_e.addr : node->na.addr, SEEK_SET, file))
+    WZ_ERR_RET(ret);
+  if (wz_read_int32(&len, file))
+    WZ_ERR_RET(ret);
+  if ((ary = malloc(offsetof(wzary, nodes) +
+                    len * sizeof(* ary->nodes))) == NULL)
+    WZ_ERR_RET(ret);
+  nodes = ary->nodes;
+  key   = file->key;
+  start = file->start;
+  hash  = file->hash;
+  for (i = 0; i < len; i++) {
     int err = 1;
     wznode * child = nodes + i;
     uint8_t type;
+    uint32_t pos;
     if (wz_read_byte(&type, file))
       WZ_ERR_GOTO(free_child);
-    uint32_t pos = 0;
+    pos = 0;
     if (WZ_IS_LV0_LINK(type)) {
       uint32_t offset;
       if (wz_read_le32(&offset, file))
         WZ_ERR_GOTO(free_child);
       pos = file->pos;
       if (wz_seek(file->start + offset, SEEK_SET, file) ||
-          wz_read_byte(&type, file)) // type and name are in the other place
+          wz_read_byte(&type, file)) /* type and name are in the other place */
         WZ_ERR_GOTO(free_child);
     }
     if (WZ_IS_LV0_ARY(type) ||
@@ -844,6 +860,7 @@ wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
       uint32_t check;
       uint32_t addr;
       uint32_t addr_pos;
+      uint8_t * bytes;
       if (wz_read_chars(&name_ptr, &name_len, NULL, sizeof(name),
                         0, WZ_LV0_NAME, key, keys, file) ||
           (pos && wz_seek(pos, SEEK_SET, file)) ||
@@ -854,7 +871,6 @@ wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
       if (wz_read_le32(&addr, file))
         WZ_ERR_GOTO(free_child);
       wz_decode_addr(&addr, addr, addr_pos, start, hash);
-      uint8_t * bytes;
       if (name_len < sizeof(child->na_e.name_buf)) {
         bytes = child->n.name_e;
         child->na_e.addr = addr;
@@ -868,17 +884,16 @@ wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
         child->na.key = 0xff;
         child->n.info = 0;
       }
-      for (uint32_t j = 0; j < name_len; j++)
+      for (j = 0; j < name_len; j++)
         bytes[j] = name[j];
       bytes[name_len] = '\0';
       child->n.name_len = (uint8_t) name_len;
-      if (WZ_IS_LV0_ARY(type)) {
+      if (WZ_IS_LV0_ARY(type))
         child->n.info |= WZ_ARY;
-      } else {
+      else
         child->n.info |= WZ_UNK | WZ_LEAF;
-      }
     } else if (WZ_IS_LV0_NIL(type)) {
-      if (wz_seek(10, SEEK_CUR, file)) // unknown 10 bytes
+      if (wz_seek(10, SEEK_CUR, file)) /* unknown 10 bytes */
         WZ_ERR_GOTO(free_child);
       child->n.name_e[0] = '\0';
       child->n.name_len = 0;
@@ -893,7 +908,7 @@ wz_read_lv0(wznode * node, wzfile * file, uint8_t * keys) {
     err = 0;
 free_child:
     if (err) {
-      for (uint32_t j = 0; j < i; j++) {
+      for (j = 0; j < i; j++) {
         wznode * child_ = nodes + j;
         if (!(child_->n.info & WZ_EMBED))
           wz_free_chars(child_->n.name);
@@ -915,7 +930,8 @@ wz_free_lv0(wznode * node) {
   wzary * ary = node->n.val.ary;
   uint32_t len = ary->len;
   wznode * nodes = ary->nodes;
-  for (uint32_t i = 0; i < len; i++) {
+  uint32_t i;
+  for (i = 0; i < len; i++) {
     wznode * child = nodes + i;
     if (!(child->n.info & WZ_EMBED))
       wz_free_chars(child->n.name);
@@ -928,6 +944,9 @@ static void
 wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec) {
   uint8_t b[5 + 1];
   uint8_t i = 5;
+  uint8_t c;
+  uint32_t hash;
+  uint16_t enc;
   b[5] = '\0';
   if (dec == 0)
     b[--i] = '0';
@@ -935,23 +954,25 @@ wz_encode_ver(uint16_t * ret_enc, uint32_t * ret_hash, uint16_t dec) {
     do {
       b[--i] = (uint8_t) (dec % 10 + '0');
     } while (dec /= 10);
-  uint32_t hash = 0;
-  for (uint8_t c; (c = b[i++]) != 0;)
+  hash = 0;
+  while ((c = b[i++]) != 0)
     hash = (hash << 5) + c + 1;
-  uint16_t enc = (uint8_t) ~(((hash      ) & 0xff) ^
-                             ((hash >>  8) & 0xff) ^
-                             ((hash >> 16) & 0xff) ^
-                             ((hash >> 24)       ));
+  enc = (uint8_t) ~(((hash      ) & 0xff) ^
+                    ((hash >>  8) & 0xff) ^
+                    ((hash >> 16) & 0xff) ^
+                    ((hash >> 24)       ));
   * ret_enc = enc;
   * ret_hash = hash;
 }
 
-static int // if string key is found, the string is also decoded.
+static int /* if string key is found, the string is also decoded. */
 wz_deduce_key(uint8_t * ret_key, uint8_t * bytes, uint32_t len,
               const uint8_t * keys) {
-  for (uint8_t i = 0; i <= WZ_KEY_EMPTY; i++) {
+  uint8_t i;
+  uint32_t j;
+  for (i = 0; i <= WZ_KEY_EMPTY; i++) {
     if (wz_decode_chars(bytes, len, i, keys, WZ_ENC_CP1252)) continue;
-    for (uint32_t j = 0; j < len && isprint(bytes[j]); j++)
+    for (j = 0; j < len && isprint(bytes[j]); j++)
       if (j == len - 1) return * ret_key = (uint8_t) i, 0;
     if (wz_decode_chars(bytes, len, i, keys, WZ_ENC_CP1252)) continue;
   }
@@ -964,12 +985,13 @@ wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint8_t * ret_key,
               uint32_t addr, uint32_t start, uint32_t size, FILE * raw,
               const uint8_t * keys) {
   int ret = 1;
+  uint32_t len;
+  uint32_t i;
   wzfile file;
   file.raw = raw;
-  file.size = size; // used in read_lv0/int32/byte/bytes
+  file.size = size; /* used in read_lv0/int32/byte */
   if (wz_seek(addr, SEEK_SET, &file))
     WZ_ERR_RET(ret);
-  uint32_t len;
   if (wz_read_int32(&len, &file))
     WZ_ERR_RET(ret);
   if (len) {
@@ -981,21 +1003,27 @@ wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint8_t * ret_key,
       uint32_t addr_enc;
       uint32_t addr_pos;
     } * entities;
+    int guessed;
+    uint16_t g_dec;
+    uint32_t g_hash;
+    uint16_t g_enc;
+    uint8_t key;
     if ((entities = malloc(len * sizeof(* entities))) == NULL)
       WZ_ERR_RET(ret);
-    for (uint32_t i = 0; i < len; i++) {
+    for (i = 0; i < len; i++) {
       struct entity * entity = entities + i;
       uint8_t type;
+      uint32_t pos;
       if (wz_read_byte(&type, &file))
         WZ_ERR_GOTO(free_entities);
-      uint32_t pos = 0;
+      pos = 0;
       if (WZ_IS_LV0_LINK(type)) {
         uint32_t offset;
         if (wz_read_le32(&offset, &file))
           WZ_ERR_GOTO(free_entities);
         pos = file.pos;
         if (wz_seek(start + offset, SEEK_SET, &file) ||
-            wz_read_byte(&type, &file)) // type and name are in the other place
+            wz_read_byte(&type, &file)) /* type & name are in the other place */
           WZ_ERR_GOTO(free_entities);
       }
       if (WZ_IS_LV0_ARY(type) ||
@@ -1018,23 +1046,21 @@ wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint8_t * ret_key,
         entity->addr_enc = addr_enc;
         entity->addr_pos = addr_pos;
       } else if (WZ_IS_LV0_NIL(type)) {
-        if (wz_seek(10, SEEK_CUR, &file)) // unknown 10 bytes
+        if (wz_seek(10, SEEK_CUR, &file)) /* unknown 10 bytes */
           WZ_ERR_GOTO(free_entities);
-        entity->addr_enc = 0; // no need to decode
+        entity->addr_enc = 0; /* no need to decode */
       } else {
         wz_error("Unsupported node type: 0x%02"PRIx8"\n", type);
         goto free_entities;
       }
     }
-    int guessed = 0;
-    uint16_t g_dec = 0;
-    uint32_t g_hash = 0;
-    uint16_t g_enc;
-    for (g_dec = 0; g_dec < 512; g_dec++) { // guess dec
+    guessed = 0;
+    g_hash = 0;
+    for (g_dec = 0; g_dec < 512; g_dec++) { /* guess dec */
       wz_encode_ver(&g_enc, &g_hash, g_dec);
       if (g_enc == enc) {
         int addr_err = 0;
-        for (uint32_t i = 0; i < len; i++) {
+        for (i = 0; i < len; i++) {
           struct entity * entity = entities + i;
           uint32_t addr_enc = entity->addr_enc;
           if (addr_enc) {
@@ -1055,8 +1081,8 @@ wz_deduce_ver(uint16_t * ret_dec, uint32_t * ret_hash, uint8_t * ret_key,
     }
     if (!guessed)
       WZ_ERR_GOTO(free_entities);
-    uint8_t key = 0xff;
-    for (uint32_t i = 0; i < len; i++) {
+    key = 0xff;
+    for (i = 0; i < len; i++) {
       struct entity * entity = entities + i;
       uint32_t addr_enc = entity->addr_enc;
       if (addr_enc) {
@@ -1082,6 +1108,10 @@ free_entities:
     free(entities);
     if (err)
       goto exit;
+  } else {
+    * ret_dec = 0;
+    * ret_hash = 0;
+    * ret_key = 0xff;
   }
   ret = 0;
 exit:
@@ -1090,7 +1120,7 @@ exit:
 
 #ifdef DEBUG
 static wznode *
-wz_invert_node(wznode * node) { // node must not be NULL
+wz_invert_node(wznode * node) { /* node must not be NULL */
   wznode * root;
   wznode * c = node;
   wznode * n = c->n.parent;
@@ -1119,28 +1149,32 @@ wz_read_list(void ** ret_ary, uint8_t nodes_off, uint8_t len_off,
              uint32_t root_addr, uint8_t root_key,
              uint8_t * keys, wznode * node, wznode * root, wzfile * file) {
   int ret = 1;
-  if (wz_seek(2, SEEK_CUR, file))
-    WZ_ERR_RET(ret);
   uint32_t len;
-  if (wz_read_int32(&len, file))
-    WZ_ERR_RET(ret);
-  wzptr nodes;
+  uint32_t i;
+  uint32_t j;
   void * ary;
-  if ((ary = malloc(nodes_off + len * sizeof(* nodes.n))) == NULL)
-    WZ_ERR_RET(ret);
-  nodes.u8 = (uint8_t *) ary + nodes_off;
+  wzptr len_ptr;
+  wzptr nodes;
   uint8_t   name[UINT8_MAX];
   uint8_t * name_ptr = name;
   uint32_t  name_len;
-  for (uint32_t i = 0; i < len; i++) {
+  if (wz_seek(2, SEEK_CUR, file))
+    WZ_ERR_RET(ret);
+  if (wz_read_int32(&len, file))
+    WZ_ERR_RET(ret);
+  if ((ary = malloc(nodes_off + len * sizeof(* nodes.n))) == NULL)
+    WZ_ERR_RET(ret);
+  nodes.u8 = (uint8_t *) ary + nodes_off;
+  for (i = 0; i < len; i++) {
     int err = 1;
     wznode * child = nodes.n + i;
+    uint8_t type;
+    uint8_t name_capa;
+    uint8_t info;
+    uint8_t * bytes;
     if (wz_read_chars(&name_ptr, &name_len, NULL, sizeof(name),
                       root_addr, WZ_LV1_NAME, root_key, keys, file))
       WZ_ERR_GOTO(free_child);
-    uint8_t name_capa;
-    uint8_t info;
-    uint8_t type;
     if (wz_read_byte(&type, file))
       WZ_ERR_GOTO(free_child);
     if (WZ_IS_LV1_NIL(type)) {
@@ -1200,9 +1234,10 @@ wz_read_list(void ** ret_ary, uint8_t nodes_off, uint8_t len_off,
       info = WZ_STR;
     } else if (WZ_IS_LV1_OBJ(type)) {
       uint32_t size;
+      uint32_t pos;
       if (wz_read_le32(&size, file))
         WZ_ERR_GOTO(free_child);
-      uint32_t pos = file->pos;
+      pos = file->pos;
       if (wz_seek(size, SEEK_CUR, file))
         WZ_ERR_GOTO(free_child);
       if (name_len < sizeof(child->na_e.name_buf))
@@ -1216,7 +1251,6 @@ wz_read_list(void ** ret_ary, uint8_t nodes_off, uint8_t len_off,
       wz_error("Unsupported primitive type: 0x%02"PRIx8"\n", type);
       goto free_child;
     }
-    uint8_t * bytes;
     if (name_len < name_capa) {
       bytes = child->n.name_e;
       info |= WZ_EMBED;
@@ -1225,7 +1259,7 @@ wz_read_list(void ** ret_ary, uint8_t nodes_off, uint8_t len_off,
         WZ_ERR_GOTO(free_str);
       child->n.name = bytes;
     }
-    for (uint32_t j = 0; j < name_len; j++)
+    for (j = 0; j < name_len; j++)
       bytes[j] = name[j];
     bytes[name_len] = '\0';
     child->n.name_len = (uint8_t) name_len;
@@ -1238,7 +1272,7 @@ free_str:
       wz_free_chars((uint8_t *) child->n.val.str);
 free_child:
     if (err) {
-      for (uint32_t j = 0; j < i; j++) {
+      for (j = 0; j < i; j++) {
         wznode * child_ = nodes.n + j;
         if ((child_->n.info & WZ_TYPE) == WZ_STR)
           wz_free_chars((uint8_t *) child_->n.val.str);
@@ -1248,7 +1282,6 @@ free_child:
       goto free_ary;
     }
   }
-  wzptr len_ptr;
   len_ptr.u8 = (uint8_t *) ary + len_off;
   * len_ptr.u32 = len;
   * ret_ary = ary;
@@ -1263,11 +1296,12 @@ static void
 wz_free_list(void * ary, uint8_t nodes_off, uint8_t len_off) {
   wzptr len_ptr;
   uint32_t len;
+  uint32_t i;
   wzptr nodes;
   len_ptr.u8 = (uint8_t *) ary + len_off;
   len = * len_ptr.u32;
   nodes.u8 = (uint8_t *) ary + nodes_off;
-  for (uint32_t i = 0; i < len; i++) {
+  for (i = 0; i < len; i++) {
     wznode * child = nodes.n + i;
     if ((child->n.info & WZ_TYPE) == WZ_STR)
       wz_free_chars((uint8_t *) child->n.val.str);
@@ -1281,14 +1315,15 @@ static int
 wz_decode_bitmap(uint32_t * written,
                  uint8_t * out, uint8_t * in, uint32_t size, uint8_t * key) {
   wzptr src;
-  src.u8 = in;
   uint8_t * src_end = in + size;
   uint32_t wrote = 0;
+  src.u8 = in;
   while (src.u8 < src_end) {
     uint32_t len = WZ_LE32TOH(* src.u32++);
+    uint32_t i;
     if (len > WZ_KEY_ASCII_MAX_LEN)
       return wz_error("Image chunk size is too large: %"PRIu32"\n", len), 1;
-    for (uint32_t i = 0; i < len; i++)
+    for (i = 0; i < len; i++)
       out[wrote++] = * src.u8++ ^ key[i];
   }
   return * written = wrote, 0;
@@ -1299,7 +1334,10 @@ wz_inflate_bitmap(uint32_t * written,
                   uint8_t * out, uint32_t out_len,
                   uint8_t * in, uint32_t in_len) {
   int ret = 1;
-  z_stream strm = {.zalloc = Z_NULL, .zfree = Z_NULL, .opaque = Z_NULL};
+  z_stream strm;
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
   strm.next_in = in;
   strm.avail_in = in_len;
   if (inflateInit(&strm) != Z_OK)
@@ -1316,19 +1354,19 @@ inflate_end:
 }
 
 static const uint8_t wz_u4[16] = {
-  // unpack 4 bit to 8 bit color: (i << 4) | i
+  /* unpack 4 bit to 8 bit color: (i << 4) | i */
   0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
 };
 static const uint8_t wz_u5[32] = {
-  // unpack 5 bit to 8 bit color: (i << 3) | (i >> 2)
+  /* unpack 5 bit to 8 bit color: (i << 3) | (i >> 2) */
   0x00, 0x08, 0x10, 0x18, 0x21, 0x29, 0x31, 0x39,
   0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
   0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
   0xc6, 0xce, 0xd6, 0xde, 0xe7, 0xef, 0xf7, 0xff
 };
 static const uint8_t wz_u6[64] = {
-  // unpack 6 bit to 8 bit color: (i << 2) | (i >> 4)
+  /* unpack 6 bit to 8 bit color: (i << 2) | (i >> 4) */
   0x00, 0x04, 0x08, 0x0c, 0x10, 0x14, 0x18, 0x1c,
   0x20, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x3c,
   0x41, 0x45, 0x49, 0x4d, 0x51, 0x55, 0x59, 0x5d,
@@ -1346,10 +1384,15 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   int ret = 1;
   uint32_t pixels = w * h;
   uint32_t full_size = pixels * (uint32_t) sizeof(wzcolor);
-  uint32_t max_size = size > full_size ? size : full_size; // inflated > origin
+  uint32_t max_size = size > full_size ? size : full_size;
   uint8_t * in = (uint8_t *) * data;
   uint8_t * tmp;
   uint8_t * out;
+  uint32_t scale_size;
+  uint32_t depth_size;
+  uint32_t sw;
+  uint32_t sh;
+  int dxt3;
   if ((out = malloc(max_size)) == NULL)
     WZ_ERR_RET(ret);
   if (wz_inflate_bitmap(&size, out, full_size, in, size)) {
@@ -1362,15 +1405,13 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   } else {
     tmp = in, in = out, out = tmp;
   }
-  uint32_t scale_size;
   switch (scale) {
-  case 0: scale_size =  1; break; // pow(2, 0) == 1
-  case 4: scale_size = 16; break; // pow(2, 4) == 16
+  case 0: scale_size =  1; break; /* pow(2, 0) == 1 */
+  case 4: scale_size = 16; break; /* pow(2, 4) == 16 */
   default: {
     wz_error("Unsupported color scale %"PRIu16"\n", scale);
     goto free_out;
   }}
-  uint32_t depth_size;
   switch (depth) {
   case WZ_COLOR_8888: depth_size = 4; break;
   case WZ_COLOR_4444:
@@ -1383,17 +1424,18 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   }}
   if (size * (scale_size * scale_size) != pixels * depth_size)
     WZ_ERR_GOTO(free_out);
-  uint32_t sw = w / scale_size; // shrunk by scale_size
-  uint32_t sh = h / scale_size; // shrunk by scale_size
-  int dxt3 = 0;
+  sw = w / scale_size; /* shrunk by scale_size */
+  sh = h / scale_size; /* shrunk by scale_size */
+  dxt3 = 0;
   switch (depth) {
   case WZ_COLOR_8888: tmp = in, in = out, out = tmp; break;
   case WZ_COLOR_4444: {
     wzptr src;
-    src.u8 = in;
-    wzcolor * dst = (wzcolor *) out; // cast to pixel based type
+    wzcolor * dst = (wzcolor *) out; /* cast to pixel based type */
     uint32_t len = sw * sh;
-    for (uint32_t i = 0; i < len; i++, dst++) {
+    uint32_t i;
+    src.u8 = in;
+    for (i = 0; i < len; i++, dst++) {
       uint16_t pixel = WZ_LE16TOH(* src.u16++);
       dst->b = wz_u4[(pixel      ) & 0x0f];
       dst->g = wz_u4[(pixel >>  4) & 0x0f];
@@ -1404,10 +1446,11 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   }
   case WZ_COLOR_565: {
     wzptr src;
-    src.u8 = in;
-    wzcolor * dst = (wzcolor *) out; // cast to pixel based type
+    wzcolor * dst = (wzcolor *) out; /* cast to pixel based type */
     uint32_t len = sw * sh;
-    for (uint32_t i = 0; i < len; i++, dst++) {
+    uint32_t i;
+    src.u8 = in;
+    for (i = 0; i < len; i++, dst++) {
       uint16_t pixel = WZ_LE16TOH(* src.u16++);
       dst->b = wz_u5[(pixel      ) & 0x1f];
       dst->g = wz_u6[(pixel >>  5) & 0x3f];
@@ -1419,38 +1462,46 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
   case WZ_COLOR_DXT3: dxt3 = 1;
   case WZ_COLOR_DXT5: {
     wzptr src;
-    src.u8 = in;
-    wzcolor * dst = (wzcolor *) out; // cast to pixel based type
-    uint8_t lw = sw & 0x03; // last block width
-    uint8_t lh = sh & 0x03; // last block height
-    uint32_t bw = (sw >> 2) + (lw > 0); // number of blocks in width
-    uint32_t bh = (sh >> 2) + (lh > 0); // number of blocks in height
-    uint32_t bn = sw * (4 - 1); // goto next row of blocks
-    wzcolor c[4]; // 4 codes
+    wzcolor * dst = (wzcolor *) out; /* cast to pixel based type */
+    uint8_t lw = sw & 0x03; /* last block width */
+    uint8_t lh = sh & 0x03; /* last block height */
+    uint32_t bw = (sw >> 2) + (lw > 0); /* number of blocks in width */
+    uint32_t bh = (sh >> 2) + (lh > 0); /* number of blocks in height */
+    uint32_t bn = sw * (4 - 1); /* goto next row of blocks */
+    uint32_t x;
+    uint32_t y;
+    wzcolor c[4]; /* 4 codes */
     c[0].a = 0;
     c[1].a = 0;
     c[2].a = 0;
     c[3].a = 0;
-    for (uint32_t y = 0; y < bh; y++) { // goto the next row
-      for (uint32_t x = 0; x < bw; x++) { // goto the next block
-        wzcolor block[16]; // inflate 4x4 block
-        uint64_t alpha  = WZ_LE64TOH(* src.u64++); // indices
-        uint16_t color0 = WZ_LE16TOH(* src.u16++); // color code 0
-        uint16_t color1 = WZ_LE16TOH(* src.u16++); // color code 1
-        uint32_t color  = WZ_LE32TOH(* src.u32++); // indices
+    src.u8 = in;
+    for (y = 0; y < bh; y++) { /* goto the next row */
+      for (x = 0; x < bw; x++) { /* goto the next block */
+        wzcolor block[16]; /* inflate 4x4 block */
+        uint64_t alpha  = WZ_LE64TOH(* src.u64++); /* indices */
+        uint16_t color0 = WZ_LE16TOH(* src.u16++); /* color code 0 */
+        uint16_t color1 = WZ_LE16TOH(* src.u16++); /* color code 1 */
+        uint32_t color  = WZ_LE32TOH(* src.u32++); /* indices */
+        wzcolor * from;
+        wzcolor * to;
+        uint32_t pw;
+        uint32_t ph;
+        uint32_t py;
+        uint32_t px;
         c[0].b = wz_u5[(color0      ) & 0x1f];
         c[0].g = wz_u6[(color0 >>  5) & 0x3f];
         c[0].r = wz_u5[(color0 >> 11) & 0x1f];
         c[1].b = wz_u5[(color1      ) & 0x1f];
         c[1].g = wz_u6[(color1 >>  5) & 0x3f];
         c[1].r = wz_u5[(color1 >> 11) & 0x1f];
-        c[2].b = (uint8_t) (((c[0].b << 1) + c[1].b) / 3); // color code 2
+        c[2].b = (uint8_t) (((c[0].b << 1) + c[1].b) / 3); /* color code 2 */
         c[2].g = (uint8_t) (((c[0].g << 1) + c[1].g) / 3);
         c[2].r = (uint8_t) (((c[0].r << 1) + c[1].r) / 3);
-        c[3].b = (uint8_t) ((c[0].b + (c[1].b << 1)) / 3); // color code 3
+        c[3].b = (uint8_t) ((c[0].b + (c[1].b << 1)) / 3); /* color code 3 */
         c[3].g = (uint8_t) ((c[0].g + (c[1].g << 1)) / 3);
         c[3].r = (uint8_t) ((c[0].r + (c[1].r << 1)) / 3);
-        block[0]  = c[(color      ) & 0x3]; // unpack color value
+        block[0]  = c[(color      ) & 0x3]; /* unpack color value */
         block[1]  = c[(color >>  2) & 0x3];
         block[2]  = c[(color >>  4) & 0x3];
         block[3]  = c[(color >>  6) & 0x3];
@@ -1467,7 +1518,7 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
         block[14] = c[(color >> 28) & 0x3];
         block[15] = c[(color >> 30) & 0x3];
         if (dxt3) {
-          block[0].a  = wz_u4[(alpha >>  0) & 0xf]; // unpack alpha value
+          block[0].a  = wz_u4[(alpha >>  0) & 0xf]; /* unpack alpha value */
           block[1].a  = wz_u4[(alpha >>  4) & 0xf];
           block[2].a  = wz_u4[(alpha >>  8) & 0xf];
           block[3].a  = wz_u4[(alpha >> 12) & 0xf];
@@ -1483,26 +1534,26 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
           block[13].a = wz_u4[(alpha >> 52) & 0xf];
           block[14].a = wz_u4[(alpha >> 56) & 0xf];
           block[15].a = wz_u4[(alpha >> 60) & 0xf];
-        } else { // dxt5
+        } else { /* dxt5 */
           uint8_t a[8];
-          a[0] = src.u8[-16]; // alpha 0
-          a[1] = src.u8[-15]; // alpha 1
+          a[0] = src.u8[-16]; /* alpha 0 */
+          a[1] = src.u8[-15]; /* alpha 1 */
           if (a[0] > a[1]) {
-            a[2] = (uint8_t) ((a[0] * 6 + a[1]    ) / 7); // alpha 2 if a0 > a1
-            a[3] = (uint8_t) ((a[0] * 5 + a[1] * 2) / 7); // alpha 3 if a0 > a1
-            a[4] = (uint8_t) ((a[0] * 4 + a[1] * 3) / 7); // alpha 4 if a0 > a1
-            a[5] = (uint8_t) ((a[0] * 3 + a[1] * 4) / 7); // alpha 5 if a0 > a1
-            a[6] = (uint8_t) ((a[0] * 2 + a[1] * 5) / 7); // alpha 6 if a0 > a1
-            a[7] = (uint8_t) ((a[0]     + a[1] * 6) / 7); // alpha 7 if a0 > a1
+            a[2] = (uint8_t) ((a[0] * 6 + a[1]    ) / 7); /* alpha 2 */
+            a[3] = (uint8_t) ((a[0] * 5 + a[1] * 2) / 7); /* alpha 3 */
+            a[4] = (uint8_t) ((a[0] * 4 + a[1] * 3) / 7); /* alpha 4 */
+            a[5] = (uint8_t) ((a[0] * 3 + a[1] * 4) / 7); /* alpha 5 */
+            a[6] = (uint8_t) ((a[0] * 2 + a[1] * 5) / 7); /* alpha 6 */
+            a[7] = (uint8_t) ((a[0]     + a[1] * 6) / 7); /* alpha 7 */
           } else {
-            a[2] = (uint8_t) ((a[0] * 4 + a[1]    ) / 5); // alpha 2 if a0 <= a1
-            a[3] = (uint8_t) ((a[0] * 3 + a[1] * 2) / 5); // alpha 3 if a0 <= a1
-            a[4] = (uint8_t) ((a[0] * 2 + a[1] * 3) / 5); // alpha 4 if a0 <= a1
-            a[5] = (uint8_t) ((a[0]     + a[1] * 4) / 5); // alpha 5 if a0 <= a1
-            a[6] = 0;                                     // alpha 6 if a0 <= a1
-            a[7] = 0xff;                                  // alpha 7 if a0 <= a1
+            a[2] = (uint8_t) ((a[0] * 4 + a[1]    ) / 5); /* alpha 2 */
+            a[3] = (uint8_t) ((a[0] * 3 + a[1] * 2) / 5); /* alpha 3 */
+            a[4] = (uint8_t) ((a[0] * 2 + a[1] * 3) / 5); /* alpha 4 */
+            a[5] = (uint8_t) ((a[0]     + a[1] * 4) / 5); /* alpha 5 */
+            a[6] = 0;                                     /* alpha 6 */
+            a[7] = 0xff;                                  /* alpha 7 */
           }
-          block[0].a  = a[(alpha >> 16) & 0x7]; // unpack alpha value
+          block[0].a  = a[(alpha >> 16) & 0x7]; /* unpack alpha value */
           block[1].a  = a[(alpha >> 19) & 0x7];
           block[2].a  = a[(alpha >> 22) & 0x7];
           block[3].a  = a[(alpha >> 25) & 0x7];
@@ -1519,13 +1570,13 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
           block[14].a = a[(alpha >> 58) & 0x7];
           block[15].a = a[(alpha >> 61) & 0x7];
         }
-        wzcolor * from = block;
-        wzcolor * to = dst;
-        uint32_t pw = (x + 1 < bw || !lw) ? 4 : lw; // the pixel may be
-        uint32_t ph = (y + 1 < bh || !lh) ? 4 : lh; //  out of image
-        for (uint32_t py = 0; py < ph; py++, to += sw, from += 4)
-          for (uint32_t px = 0; px < pw; px++)
-            to[px] = from[px]; // write to correct location
+        from = block;
+        to = dst;
+        pw = (x + 1 < bw || !lw) ? 4 : lw; /* the pixel may be */
+        ph = (y + 1 < bh || !lh) ? 4 : lh; /*  out of image */
+        for (py = 0; py < ph; py++, to += sw, from += 4)
+          for (px = 0; px < pw; px++)
+            to[px] = from[px]; /* write to correct location */
         dst += pw;
       }
       dst += bn;
@@ -1537,16 +1588,24 @@ wz_read_bitmap(wzcolor ** data, uint32_t w, uint32_t h,
     goto free_out;
   }}
   if (scale_size > 1 && sw) {
+    wzcolor * src;
+    wzcolor * dst;
+    uint32_t col;
+    uint32_t row;
+    uint32_t x;
+    uint32_t y;
+    uint32_t px;
+    uint32_t py;
     tmp = in, in = out, out = tmp;
-    wzcolor * src = (wzcolor *) in; // cast to pixel based type
-    wzcolor * dst = (wzcolor *) out;
-    uint32_t col = scale_size * (w - 1); // goto next col (block based)
-    uint32_t row = scale_size * (sw - 1); // goto next row (block based)
-    for (uint32_t y = 0; y < sh; y++)
-      for (uint32_t x = 0;;) {
+    src = (wzcolor *) in; /* cast to pixel based type */
+    dst = (wzcolor *) out;
+    col = scale_size * (w - 1); /* goto next col (block based) */
+    row = scale_size * (sw - 1); /* goto next row (block based) */
+    for (y = 0; y < sh; y++)
+      for (x = 0;;) {
         wzcolor pixel = * src++;
-        for (uint32_t py = 0; py < scale_size; py++, dst += w)
-          for (uint32_t px = 0; px < scale_size; px++)
+        for (py = 0; py < scale_size; py++, dst += w)
+          for (px = 0; px < scale_size; px++)
             dst[px] = pixel;
         if (++x < sw) {
           dst -= col;
@@ -1587,7 +1646,8 @@ wz_read_wav(wzwav * wav, uint8_t * data) {
 
 static void
 wz_decode_wav(uint8_t * wav, uint8_t size, uint8_t * key) {
-  for (uint8_t i = 0; i < size; i++)
+  uint8_t i;
+  for (i = 0; i < size; i++)
     wav[i] ^= key[i];
 }
 
@@ -1595,18 +1655,18 @@ static void
 wz_write_pcm(uint8_t * pcm, wzwav * wav, uint32_t size) {
   wzptr dst;
   dst.u8 = pcm;
-  * dst.u32++ = WZ_HTOBE32(0x52494646); // "RIFF"
-  * dst.u32++ = WZ_HTOLE32(36 + size);  // following
-  * dst.u32++ = WZ_HTOBE32(0x57415645); // "WAVE"
-  * dst.u32++ = WZ_HTOBE32(0x666d7420); // "fmt "
-  * dst.u32++ = WZ_HTOLE32(16);         // PCM = 16
+  * dst.u32++ = WZ_HTOBE32(0x52494646); /* "RIFF" */
+  * dst.u32++ = WZ_HTOLE32(36 + size);  /* following */
+  * dst.u32++ = WZ_HTOBE32(0x57415645); /* "WAVE" */
+  * dst.u32++ = WZ_HTOBE32(0x666d7420); /* "fmt " */
+  * dst.u32++ = WZ_HTOLE32(16);         /* PCM = 16 */
   * dst.u16++ = WZ_HTOLE16(wav->format);
   * dst.u16++ = WZ_HTOLE16(wav->channels);
   * dst.u32++ = WZ_HTOLE32(wav->sample_rate);
   * dst.u32++ = WZ_HTOLE32(wav->byte_rate);
   * dst.u16++ = WZ_HTOLE16(wav->block_align);
   * dst.u16++ = WZ_HTOLE16(wav->bits_per_sample);
-  * dst.u32++ = WZ_HTOBE32(0x64617461); // "data"
+  * dst.u32++ = WZ_HTOBE32(0x64617461); /* "data" */
   * dst.u32++ = WZ_HTOLE32(size);
 }
 
@@ -1616,6 +1676,11 @@ wz_read_lv1(wznode * node, wznode * root, wzfile * file, uint8_t * keys,
   int ret = 1;
   uint32_t  root_addr;
   uint8_t   root_key;
+  uint32_t  addr;
+  uint8_t   type_enc;
+  uint8_t   type[sizeof("Shape2D#Convex2D")];
+  uint8_t * type_ptr = type;
+  uint32_t  type_len;
   if (root->n.info & WZ_EMBED) {
     root_addr    = root->na_e.addr;
     root_key     = root->na_e.key;
@@ -1623,11 +1688,7 @@ wz_read_lv1(wznode * node, wznode * root, wzfile * file, uint8_t * keys,
     root_addr    = root->na.addr;
     root_key     = root->na.key;
   }
-  uint32_t  addr = node->n.info & WZ_EMBED ? node->na_e.addr : node->na.addr;
-  uint8_t   type_enc;
-  uint8_t   type[sizeof("Shape2D#Convex2D")];
-  uint8_t * type_ptr = type;
-  uint32_t  type_len;
+  addr = node->n.info & WZ_EMBED ? node->na_e.addr : node->na.addr;
   if (wz_seek(addr, SEEK_SET, file) ||
       wz_read_chars(&type_ptr, &type_len, &type_enc, sizeof(type),
                     root_addr, WZ_LV1_TYPENAME_OR_STR, root_key, keys, file))
@@ -1655,10 +1716,19 @@ wz_read_lv1(wznode * node, wznode * root, wzfile * file, uint8_t * keys,
   } else if (WZ_IS_LV1_IMG(type)) {
     int err = 1;
     uint8_t list;
+    wzimg * img;
+    uint32_t w;
+    uint32_t h;
+    uint32_t depth;
+    uint8_t  scale;
+    uint32_t size;
+    uint32_t pixels;
+    uint32_t full_size;
+    uint32_t max_size;
+    uint8_t * data;
     if (wz_seek(1, SEEK_CUR, file) ||
         wz_read_byte(&list, file))
       WZ_ERR_GOTO(exit);
-    wzimg * img;
     if (list == 1) {
       if (wz_read_list((void **) &img,
                        offsetof(wzimg, nodes), offsetof(wzimg, len),
@@ -1669,26 +1739,20 @@ wz_read_lv1(wznode * node, wznode * root, wzfile * file, uint8_t * keys,
         WZ_ERR_GOTO(exit);
       img->len = 0;
     }
-    uint32_t w;
-    uint32_t h;
-    uint32_t depth;
-    uint8_t  scale;
-    uint32_t size;
     if (wz_read_int32(&w, file)      ||
         wz_read_int32(&h, file)      ||
         wz_read_int32(&depth, file)  || depth > UINT16_MAX ||
         wz_read_byte(&scale, file)   ||
-        wz_seek(4, SEEK_CUR, file)   || // blank
+        wz_seek(4, SEEK_CUR, file)   || /* blank */
         wz_read_le32(&size, file)    ||
-        wz_seek(1, SEEK_CUR, file))     // blank
+        wz_seek(1, SEEK_CUR, file))     /* blank */
       WZ_ERR_GOTO(free_img);
     if (size <= 1)
       WZ_ERR_GOTO(free_img);
-    size--; // remove null terminator
-    uint32_t pixels = w * h;
-    uint32_t full_size = pixels * (uint32_t) sizeof(wzcolor);
-    uint32_t max_size = size > full_size ? size : full_size; // inflate > origin
-    uint8_t * data;
+    size--; /* remove null terminator */
+    pixels = w * h;
+    full_size = pixels * (uint32_t) sizeof(wzcolor);
+    max_size = size > full_size ? size : full_size;
     if ((data = malloc(max_size)) == NULL)
       WZ_ERR_GOTO(free_img);
     if (wz_read_bytes(data, size, file) ||
@@ -1715,14 +1779,16 @@ free_img:
   } else if (WZ_IS_LV1_VEX(type)) {
     int err = 1;
     uint32_t len;
+    uint32_t i;
+    wzvex * vex;
+    wzvec * vecs;
     if (wz_read_int32(&len, file))
       WZ_ERR_GOTO(exit);
-    wzvex * vex;
     if ((vex = malloc(offsetof(wzvex, ary) +
                       len * sizeof(* vex->ary))) == NULL)
       WZ_ERR_GOTO(exit);
-    wzvec * vecs = vex->ary;
-    for (uint32_t i = 0; i < len; i++) {
+    vecs = vex->ary;
+    for (i = 0; i < len; i++) {
       wzvec * vec = vecs + i;
       if (wz_read_chars(&type_ptr, &type_len, NULL, sizeof(type),
                         root_addr, WZ_LV1_TYPENAME, root_key, keys, file))
@@ -1755,24 +1821,24 @@ free_vex:
     int err = 1;
     uint32_t size;
     uint32_t ms;
-    uint8_t  guid[16];
+    uint8_t guid[16];
+    wzao * ao;
     if (wz_seek(1, SEEK_CUR, file) ||
         wz_read_int32(&size, file) ||
         wz_read_int32(&ms, file) ||
-        wz_seek(1 + 16 * 2 + 2, SEEK_CUR, file) || // major and subtype GUID
+        wz_seek(1 + 16 * 2 + 2, SEEK_CUR, file) || /* major and subtype GUID */
         wz_read_bytes(guid, sizeof(guid), file))
       WZ_ERR_GOTO(exit);
-    wzao * ao;
     if ((ao = malloc(sizeof(* ao))) == NULL)
       WZ_ERR_GOTO(exit);
     if (memcmp(guid, wz_guid_wav, sizeof(guid)) == 0) {
+      int hdr_err = 1;
+      uint8_t hsize; /* header size */
+      uint8_t * hdr; /* header */
       wzwav wav;
       wav.format = 0;
-      int hdr_err = 1;
-      uint8_t hsize; // header size
       if (wz_read_byte(&hsize, file))
         WZ_ERR_GOTO(free_ao);
-      uint8_t * hdr; // header
       if ((hdr = malloc(hsize)) == NULL)
         WZ_ERR_GOTO(free_ao);
       if (wz_read_bytes(hdr, hsize, file))
@@ -1780,7 +1846,8 @@ free_vex:
       wz_read_wav(&wav, hdr);
       if (WZ_AUDIO_WAV_SIZE + wav.extra_size != hsize) {
         uint8_t decoded = 0;
-        for (uint8_t i = 0; i < WZ_KEY_EMPTY; i++) {
+        uint8_t i;
+        for (i = 0; i < WZ_KEY_EMPTY; i++) {
           wz_decode_wav(hdr, hsize, keys + i * WZ_KEY_UTF8_MAX_LEN);
           wz_read_wav(&wav, hdr);
           if (WZ_AUDIO_WAV_SIZE + wav.extra_size == hsize) {
@@ -1835,7 +1902,8 @@ free_ao_data:
       ao->format = wav.format;
     } else {
       uint8_t empty = 1;
-      for (uint8_t i = 0; i < sizeof(guid); i++)
+      uint8_t i;
+      for (i = 0; i < sizeof(guid); i++)
         if (guid[i]) {
           empty = 0;
           break;
@@ -1872,7 +1940,7 @@ free_ao:
     }
   } else if (WZ_IS_LV1_UOL(type)) {
     wzstr * str;
-    uint32_t  str_len;
+    uint32_t str_len;
     if (wz_seek(1, SEEK_CUR, file) ||
         wz_read_chars((uint8_t **) &str, &str_len, NULL, 0, root_addr,
                       WZ_LV1_STR, root_key, keys, file))
@@ -1938,7 +2006,7 @@ typedef struct {
   uint32_t  size;
   uint8_t * data;
   uint8_t   key;
-  uint8_t   _[sizeof(void *) - 1]; // padding
+  uint8_t   _[sizeof(void *) - 1]; /* padding */
 } wz_iter_node_thrd_node;
 
 typedef struct {
@@ -1964,7 +2032,7 @@ typedef struct {
   pthread_t tid;
 #endif
   uint16_t id;
-  uint8_t _[sizeof(void *) - 2]; // padding
+  uint8_t _[sizeof(void *) - 2]; /* padding */
   wz_iter_node_thrd_queue * queue;
 } wz_iter_node_thrd_data;
 
@@ -1978,11 +2046,12 @@ wz_iter_node_thrd(wz_iter_node_thrd_data * data) {
   wz_iter_node_thrd_queue * queue = data->queue;
   uint8_t * keys = queue->keys;
   for (;;) {
-    if (WaitForSingleObject(queue->mutex, INFINITE) != WAIT_OBJECT_0)
-      WZ_ERR_GOTO(exit);
     uint8_t exit;
     wz_iter_node_thrd_node nodes[WZ_ITER_NODE_CAPA];
     uint8_t nodes_len;
+    uint8_t i;
+    if (WaitForSingleObject(queue->mutex, INFINITE) != WAIT_OBJECT_0)
+      WZ_ERR_GOTO(exit);
     for (;;) {
       nodes_len = 0;
       exit = queue->exit;
@@ -2007,7 +2076,7 @@ wz_iter_node_thrd(wz_iter_node_thrd_data * data) {
       WZ_ERR_GOTO(exit);
     if (!nodes_len && exit)
       break;
-    for (uint8_t i = 0; i < nodes_len; i++) {
+    for (i = 0; i < nodes_len; i++) {
       wz_iter_node_thrd_node * node = nodes + i;
       if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
                          node->depth, node->scale, node->size, node->key, keys))
@@ -2028,11 +2097,12 @@ wz_iter_node_thrd(wz_iter_node_thrd_data * data) {
   wz_iter_node_thrd_queue * queue = data->queue;
   uint8_t * keys = queue->keys;
   for (;;) {
-    if (pthread_mutex_lock(&queue->mutex))
-      WZ_ERR_GOTO(exit);
     uint8_t exit;
     wz_iter_node_thrd_node nodes[WZ_ITER_NODE_CAPA];
     uint8_t nodes_len;
+    uint8_t i;
+    if (pthread_mutex_lock(&queue->mutex))
+      WZ_ERR_GOTO(exit);
     for (;;) {
       nodes_len = 0;
       exit = queue->exit;
@@ -2051,7 +2121,7 @@ wz_iter_node_thrd(wz_iter_node_thrd_data * data) {
       WZ_ERR_GOTO(exit);
     if (!nodes_len && exit)
       break;
-    for (uint8_t i = 0; i < nodes_len; i++) {
+    for (i = 0; i < nodes_len; i++) {
       wz_iter_node_thrd_node * node = nodes + i;
       if (wz_read_bitmap((wzcolor **) &node->data, node->w, node->h,
                          node->depth, node->scale, node->size, node->key, keys))
@@ -2074,28 +2144,42 @@ wz_parse_file(wzfile * file) {
   wznode * node = &file->root;
   wznode * root = node;
   uint8_t * keys = file->ctx->keys;
+  uint32_t stack_capa;
+  uint32_t stack_len;
+  wznode ** stack;
 #ifndef WZ_NO_THRD
   wz_iter_node_thrd_queue queue;
+  uint16_t thrds_len;
+  uint16_t thrds_init;
+  uint16_t thrd_i;
+  wz_iter_node_thrd_data * thrds;
+# ifdef WZ_WINDOWS
+  SYSTEM_INFO info;
+# else
+  long thrds_avail_l;
+  pthread_attr_t attr;
+  uint8_t attr_err;
+# endif
+#endif
+#ifndef WZ_NO_THRD
   queue.capa = 0;
   queue.len = 0;
   queue.nodes = NULL;
   queue.keys = keys;
   queue.exit = 0;
-#ifdef WZ_WINDOWS
+# ifdef WZ_WINDOWS
   if ((queue.mutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
     WZ_ERR_RET(ret);
   if ((queue.event = CreateEvent(NULL, FALSE, FALSE, NULL)) == NULL)
     WZ_ERR_GOTO(close_mutex);
-  SYSTEM_INFO info;
   GetSystemInfo(&info);
-  uint16_t thrds_len = (uint16_t) info.dwNumberOfProcessors;
-  uint16_t thrds_init = 0;
-  wz_iter_node_thrd_data * thrds;
+  thrds_len = (uint16_t) info.dwNumberOfProcessors;
+  thrds_init = 0;
   if ((thrds = malloc(thrds_len * sizeof(*thrds))) == NULL)
     WZ_ERR_GOTO(close_event);
-  for (uint16_t i = 0; i < thrds_len; i++) {
-    wz_iter_node_thrd_data * thrd = thrds + i;
-    thrd->id = i;
+  for (thrd_i = 0; thrd_i < thrds_len; thrd_i++) {
+    wz_iter_node_thrd_data * thrd = thrds + thrd_i;
+    thrd->id = thrd_i;
     thrd->queue = &queue;
     if ((thrd->thrd = (HANDLE) _beginthreadex(
                 NULL, 0, (unsigned (__stdcall *)(void *)) wz_iter_node_thrd,
@@ -2103,28 +2187,26 @@ wz_parse_file(wzfile * file) {
       WZ_ERR_GOTO(join_thrds);
     thrds_init++;
   }
-#else
+# else
   if (pthread_mutex_init(&queue.mutex, NULL))
     WZ_ERR_RET(ret);
   if (pthread_cond_init(&queue.cond, NULL))
     WZ_ERR_GOTO(destroy_mutex);
-  long thrds_avail_l;
   if ((thrds_avail_l = sysconf(_SC_NPROCESSORS_ONLN)) < 1)
     WZ_ERR_GOTO(destroy_cond);
-  uint16_t thrds_len = (uint16_t) thrds_avail_l;
-  uint16_t thrds_init = 0;
-  uint8_t attr_err = 1;
-  pthread_attr_t attr;
-  wz_iter_node_thrd_data * thrds = NULL;
+  thrds_len = (uint16_t) thrds_avail_l;
+  thrds_init = 0;
+  attr_err = 1;
+  thrds = NULL;
   if (pthread_attr_init(&attr))
     WZ_ERR_GOTO(destroy_cond);
   if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE))
     WZ_ERR_GOTO(destroy_attr);
   if ((thrds = malloc(thrds_len * sizeof(* thrds))) == NULL)
     WZ_ERR_GOTO(destroy_attr);
-  for (uint16_t i = 0; i < thrds_len; i++) {
-    wz_iter_node_thrd_data * thrd = thrds + i;
-    thrd->id = i;
+  for (thrd_i = 0; thrd_i < thrds_len; thrd_i++) {
+    wz_iter_node_thrd_data * thrd = thrds + thrd_i;
+    thrd->id = thrd_i;
     thrd->queue = &queue;
     if (pthread_create(&thrd->tid, &attr,
                        (void * (*)(void *)) wz_iter_node_thrd, thrd))
@@ -2137,15 +2219,19 @@ destroy_attr:
     WZ_ERR_GOTO(join_thrds);
   if (attr_err)
     goto join_thrds;
+# endif
 #endif
-#endif
-  uint32_t stack_capa = 1;
-  uint32_t stack_len = 0;
-  wznode ** stack;
+  stack_capa = 1;
+  stack_len = 0;
   if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
     WZ_ERR_GOTO(join_thrds);
   stack[stack_len++] = node;
   while (stack_len) {
+    uint8_t type;
+    uint32_t req;
+    uint32_t len;
+    uint32_t i;
+    wznode * nodes;
     node = stack[--stack_len];
     if (node == NULL) {
       node = stack[--stack_len];
@@ -2175,41 +2261,42 @@ destroy_attr:
         }
       }
     }
-    uint8_t type = node->n.info & WZ_TYPE;
+    type = node->n.info & WZ_TYPE;
     if (type < WZ_UNK)
       continue;
     if (type > WZ_IMG) {
       wz_free_lv1(node);
       continue;
     }
-    uint32_t len;
-    wznode * nodes;
     if (type == WZ_ARY) {
       wzary * ary = node->n.val.ary;
       len   = ary->len;
       nodes = ary->nodes;
     } else {
+#ifndef WZ_NO_THRD
+      wz_iter_node_thrd_node * tnode;
+#endif
       wzimg * img = node->n.val.img;
       len   = img->len;
       nodes = img->nodes;
 #ifndef WZ_NO_THRD
-#ifdef WZ_WINDOWS
+# ifdef WZ_WINDOWS
       if (WaitForSingleObject(queue.mutex, INFINITE) != WAIT_OBJECT_0)
         WZ_ERR_GOTO(free_stack);
-#else
+# else
       if (pthread_mutex_lock(&queue.mutex))
         WZ_ERR_GOTO(free_stack);
-#endif
-      uint32_t req = queue.len + 1;
+# endif
+      req = queue.len + 1;
       if (req > queue.capa) {
+        wz_iter_node_thrd_node * mem;
         uint32_t l = queue.capa;
         do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-        wz_iter_node_thrd_node * mem;
         if ((mem = realloc(queue.nodes, l * sizeof(* queue.nodes))) == NULL)
           WZ_ERR_GOTO(free_stack);
         queue.nodes = mem, queue.capa = l;
       }
-      wz_iter_node_thrd_node * tnode = queue.nodes + queue.len;
+      tnode = queue.nodes + queue.len;
       tnode->w     = img->w;
       tnode->h     = img->h;
       tnode->depth = img->depth;
@@ -2219,33 +2306,33 @@ destroy_attr:
       tnode->key   = root->n.info & WZ_EMBED ? root->na_e.key : root->na.key;
       img->data = NULL;
       queue.len++;
-#ifdef WZ_WINDOWS
+# ifdef WZ_WINDOWS
       if (queue.len >= WZ_ITER_NODE_CAPA)
         if (SetEvent(queue.event) == FALSE)
           WZ_ERR_GOTO(free_stack);
       if (ReleaseMutex(queue.mutex) == FALSE)
         WZ_ERR_GOTO(free_stack);
-#else
+# else
       if (queue.len >= WZ_ITER_NODE_CAPA)
         if (pthread_cond_signal(&queue.cond))
           WZ_ERR_GOTO(free_stack);
       if (pthread_mutex_unlock(&queue.mutex))
         WZ_ERR_GOTO(free_stack);
-#endif
+# endif
 #endif
     }
-    uint32_t req = stack_len + 2 + len;
+    req = stack_len + 2 + len;
     if (req > stack_capa) {
+      wznode ** mem;
       uint32_t l = stack_capa;
       do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-      wznode ** mem;
       if ((mem = realloc(stack, l * sizeof(* stack))) == NULL)
         WZ_ERR_GOTO(free_stack);
       stack = mem, stack_capa = l;
     }
     stack_len++;
     stack[stack_len++] = NULL;
-    for (uint32_t i = len; i--;)
+    for (i = len; i--;)
       stack[stack_len++] = nodes + i;
   }
   if (!err)
@@ -2254,7 +2341,7 @@ free_stack:
   free(stack);
 join_thrds:
 #ifndef WZ_NO_THRD
-#ifdef WZ_WINDOWS
+# ifdef WZ_WINDOWS
   if (WaitForSingleObject(queue.mutex, INFINITE) != WAIT_OBJECT_0)
     ret = 1;
   queue.exit = 1;
@@ -2262,8 +2349,8 @@ join_thrds:
     ret = 1;
   if (ReleaseMutex(queue.mutex) == FALSE)
     ret = 1;
-  for (uint16_t i = 0; i < thrds_init; i++) {
-    wz_iter_node_thrd_data * thrd = thrds + i;
+  for (thrd_i = 0; thrd_i < thrds_init; thrd_i++) {
+    wz_iter_node_thrd_data * thrd = thrds + thrd_i;
     DWORD status;
     if (WaitForSingleObject(thrd->thrd, INFINITE) != WAIT_OBJECT_0 ||
         GetExitCodeThread(thrd->thrd, &status) == FALSE ||
@@ -2278,7 +2365,7 @@ close_event:
 close_mutex:
   if (CloseHandle(queue.mutex) == FALSE)
     ret = 1;
-#else
+# else
   if (pthread_mutex_lock(&queue.mutex))
     ret = 1;
   queue.exit = 1;
@@ -2286,8 +2373,8 @@ close_mutex:
     ret = 1;
   if (pthread_mutex_unlock(&queue.mutex))
     ret = 1;
-  for (uint16_t i = 0; i < thrds_init; i++) {
-    wz_iter_node_thrd_data * thrd = thrds + i;
+  for (thrd_i = 0; thrd_i < thrds_init; thrd_i++) {
+    wz_iter_node_thrd_data * thrd = thrds + thrd_i;
     void * status;
     if (pthread_join(thrd->tid, &status) ||
         status != NULL)
@@ -2300,13 +2387,13 @@ destroy_cond:
 destroy_mutex:
   if (pthread_mutex_destroy(&queue.mutex))
     ret = 1;
-#endif
+# endif
   free(queue.nodes);
 #endif
   return ret;
 }
 
-static size_t // [^\0{delim}]+
+static size_t /* [^\0{delim}]+ */
 wz_next_tok(const char ** begin, const char ** end, const char * str,
             const char delim) {
   for (;;) {
@@ -2435,6 +2522,10 @@ wznode *
 wz_open_node(wznode * node, const char * path) {
   wznode * root;
   wzfile * file;
+  uint8_t * keys;
+  char * search;
+  size_t search_capa;
+  uint8_t found;
   if (node->n.info & WZ_LEVEL) {
     root = node->n.root.node;
     file = root->n.root.file;
@@ -2442,11 +2533,17 @@ wz_open_node(wznode * node, const char * path) {
     root = NULL;
     file = node->n.root.file;
   }
-  uint8_t * keys = file->ctx->keys;
-  char * search = NULL;
-  size_t search_capa = 0;
-  uint8_t found = 0;
+  keys = file->ctx->keys;
+  search = NULL;
+  search_capa = 0;
+  found = 0;
   for (;;) {
+    const char * name;
+    size_t name_len;
+    uint32_t len;
+    uint32_t i;
+    wznode * nodes;
+    wznode * next;
     if (node->n.info & WZ_LEAF)
       root = node;
     if ((node->n.info & WZ_TYPE) >= WZ_UNK &&
@@ -2483,8 +2580,7 @@ wz_open_node(wznode * node, const char * path) {
           WZ_ERR_GOTO(free_search);
       }
     }
-    const char * name;
-    size_t name_len = wz_next_tok(&name, &path, path, '/');
+    name_len = wz_next_tok(&name, &path, path, '/');
     if (name_len == 2 && name[0] == '.' && name[1] == '.') {
       if ((node = node->n.parent) == NULL)
         WZ_ERR_GOTO(free_search);
@@ -2494,8 +2590,6 @@ wz_open_node(wznode * node, const char * path) {
       found = 1;
       goto free_search;
     }
-    uint32_t len;
-    wznode * nodes;
     switch (node->n.info & WZ_TYPE) {
     case WZ_ARY: {
       wzary * ary = node->n.val.ary;
@@ -2512,8 +2606,8 @@ wz_open_node(wznode * node, const char * path) {
     default:
       WZ_ERR_GOTO(free_search);
     }
-    wznode * next = NULL;
-    for (uint32_t i = 0; i < len; i++) {
+    next = NULL;
+    for (i = 0; i < len; i++) {
       wznode * child = nodes + i;
       uint32_t name_len_ = child->n.name_len;
       uint8_t * name_ = (child->n.info & WZ_EMBED ?
@@ -2537,12 +2631,16 @@ int
 wz_close_node(wznode * node) {
   int ret = 1;
   uint32_t stack_capa = 1;
+  uint32_t stack_len = 0;
   wznode ** stack;
   if ((stack = malloc(stack_capa * sizeof(* stack))) == NULL)
     WZ_ERR_RET(ret);
-  uint32_t stack_len = 0;
   stack[stack_len++] = node;
   while (stack_len) {
+    uint32_t req;
+    uint32_t len;
+    uint32_t i;
+    wznode * nodes;
     node = stack[--stack_len];
     if (node == NULL) {
       node = stack[--stack_len];
@@ -2555,8 +2653,6 @@ wz_close_node(wznode * node) {
     if ((node->n.info & WZ_TYPE) <= WZ_UNK ||
         node->n.val.ary == NULL)
       continue;
-    uint32_t len;
-    wznode * nodes;
     switch (node->n.info & WZ_TYPE) {
     case WZ_ARY: {
       wzary * ary = node->n.val.ary;
@@ -2574,17 +2670,17 @@ wz_close_node(wznode * node) {
       wz_free_lv1(node);
       continue;
     }
-    uint32_t req = stack_len + 2 + len;
+    req = stack_len + 2 + len;
     if (req > stack_capa) {
+      wznode ** fit;
       uint32_t l = stack_capa;
       do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-      wznode ** fit;
       if ((fit = realloc(stack, l * sizeof(* stack))) == NULL)
         WZ_ERR_GOTO(free_stack);
       stack = fit, stack_capa = l;
     }
     stack_len++, stack[stack_len++] = NULL;
-    for (uint32_t i = 0; i < len; i++)
+    for (i = 0; i < len; i++)
       stack[stack_len++] = nodes + i;
   }
   ret = 0;
@@ -2650,6 +2746,15 @@ wzfile *
 wz_open_file(const char * filename, wzctx * ctx) {
   wzfile * file = NULL;
   FILE * raw;
+  long size_l;
+  uint32_t size;
+  wzfile tmp;
+  uint32_t start;
+  uint16_t enc;
+  uint16_t dec;
+  uint32_t hash;
+  uint32_t addr;
+  uint8_t  key;
   if ((raw = fopen(filename, "rb")) == NULL) {
     perror(filename);
     return file;
@@ -2658,7 +2763,6 @@ wz_open_file(const char * filename, wzctx * ctx) {
     perror(filename);
     goto close_raw;
   }
-  long size_l;
   if ((size_l = ftell(raw)) < 0) {
     perror(filename);
     goto close_raw;
@@ -2671,24 +2775,18 @@ wz_open_file(const char * filename, wzctx * ctx) {
     perror(filename);
     goto close_raw;
   }
-  uint32_t size = (uint32_t) size_l;
-  wzfile tmp;
+  size = (uint32_t) size_l;
   tmp.raw = raw;
   tmp.pos = 0;
   tmp.size = size;
-  uint32_t start;
-  uint16_t enc;
-  if (wz_seek(4 + 4 + 4, SEEK_CUR, &tmp) || // ident + size + unk
+  if (wz_seek(4 + 4 + 4, SEEK_CUR, &tmp) || /* ident + size + unk */
       wz_read_le32(&start, &tmp) ||
-      wz_seek(start - tmp.pos, SEEK_CUR, &tmp) || // copyright
+      wz_seek(start - tmp.pos, SEEK_CUR, &tmp) || /* copyright */
       wz_read_le16(&enc, &tmp)) {
     perror(filename);
     goto close_raw;
   }
-  uint32_t addr = tmp.pos;
-  uint16_t dec;
-  uint32_t hash = 0;
-  uint8_t  key = 0;
+  addr = tmp.pos;
   if (wz_deduce_ver(&dec, &hash, &key,
                     enc, addr, start, size, raw, ctx->keys))
     WZ_ERR_GOTO(close_raw);
@@ -2725,18 +2823,20 @@ wz_close_file(wzfile * file) {
   return ret;
 }
 
-static void // aes ofb
+static void /* aes ofb */
 wz_encode_aes(uint8_t * cipher, uint32_t len,
               uint8_t * key, const uint8_t * iv) {
   aes256_context ctx;
-  aes256_init(&ctx, key);
   wzptr cipher_c;
   wzptr iv_c;
+  uint32_t i;
+  uint8_t j;
+  aes256_init(&ctx, key);
   cipher_c.u8 = cipher;
   iv_c.c8 = iv;
   len >>= 4;
-  for (uint32_t i = 0; i < len; i++) {
-    for (uint8_t j = 0; j < 16 / 4; j++)
+  for (i = 0; i < len; i++) {
+    for (j = 0; j < 16 / 4; j++)
       cipher_c.u32[j] = iv_c.c32[j];
     aes256_encrypt_ecb(&ctx, cipher_c.u8);
     iv_c = cipher_c, cipher_c.u8 += 16;
@@ -2751,16 +2851,18 @@ wz_init_ctx(void) {
   uint8_t aes_iv[16];
   wzptr aes_key_c;
   wzptr aes_iv_c;
+  uint8_t * keys;
+  uint8_t i;
+  uint8_t j;
   aes_key_c.u8 = aes_key;
-  for (uint8_t i = 0; i < 32 / 4; i++)
+  for (i = 0; i < 32 / 4; i++)
     aes_key_c.u32[i] = WZ_HTOLE32(wz_aes_key[i]);
   aes_iv_c.u8 = aes_iv;
-  uint8_t * keys;
   if ((keys = malloc(WZ_KEYS_LEN * WZ_KEY_UTF8_MAX_LEN)) == NULL)
     WZ_ERR_RET(ctx);
-  for (uint8_t i = 0; i < WZ_KEYS_LEN; i++) {
+  for (i = 0; i < WZ_KEYS_LEN; i++) {
     uint32_t aes_iv4 = WZ_HTOLE32(wz_aes_ivs[i]);
-    for (uint8_t j = 0; j < 16 / 4; j++)
+    for (j = 0; j < 16 / 4; j++)
       aes_iv_c.u32[j] = aes_iv4;
     wz_encode_aes(keys + i * WZ_KEY_UTF8_MAX_LEN, WZ_KEY_UTF8_MAX_LEN,
                   aes_key, aes_iv);

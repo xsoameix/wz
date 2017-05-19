@@ -14,12 +14,14 @@
 
 int
 main(int argc, char ** argv) {
+  Suite * suite;
+  SRunner * runner;
+  int failed;
   (void) argc;
   (void) argv;
-  int failed;
-  Suite * suite = suite_create("suite");
+  suite = suite_create("suite");
   suite_add_tcase(suite, create_tcase_file());
-  SRunner * runner = srunner_create(suite);
+  runner = srunner_create(suite);
   srunner_run_all(runner, CK_NORMAL);
   failed = srunner_ntests_failed(runner);
   srunner_free(runner);

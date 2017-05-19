@@ -1,12 +1,7 @@
 #ifndef WZ_PREDEF_H
 #define WZ_PREDEF_H
 
-// Standard Library
-#if defined(__GLIBC__)
-#  define WZ_LIB_C_GNU
-#endif
-
-// Operating System
+/* Operating System */
 #if defined(_WIN32)
 #  define WZ_WINDOWS
 #endif
@@ -14,7 +9,7 @@
 #  define WZ_MACOS
 #endif
 
-// Compiler
+/* Compiler */
 #if defined(__GNUC__) && \
     defined(__GNUC_MINOR__) && \
     defined(__GNUC_PATCHLEVEL__)

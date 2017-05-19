@@ -145,18 +145,18 @@ delete_file(wzfile * file) {
 
 START_TEST(test_read_bytes) {
   static const uint8_t normal[] = {'a', 'b'};
+  uint8_t buffer[sizeof(normal)];
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint8_t buffer[sizeof(normal)];
 
-  // It should be ok if len == 0
+  /* It should be ok if len == 0 */
   ck_assert(wz_read_bytes(buffer, 0, &file) == 0);
 
-  // It should be ok
+  /* It should be ok */
   ck_assert(wz_read_bytes(buffer, sizeof(normal), &file) == 0);
   ck_assert(memcmp(buffer, normal, sizeof(normal)) == 0);
 
-  // It should not change position and data if error occured
+  /* It should not change position and data if error occured */
   ck_assert(wz_read_bytes(buffer, sizeof(normal), &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(memcmp(buffer, normal, sizeof(normal)) == 0);
@@ -166,15 +166,15 @@ START_TEST(test_read_bytes) {
 
 START_TEST(test_read_byte) {
   static const uint8_t normal[] = {'a'};
+  uint8_t buffer;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint8_t buffer;
 
-  // It should be ok
+  /* It should be ok */
   ck_assert(wz_read_byte(&buffer, &file) == 0);
   ck_assert(buffer == normal[0]);
 
-  // It should not change position and data if error occured
+  /* It should not change position and data if error occured */
   ck_assert(wz_read_byte(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == normal[0]);
@@ -184,16 +184,17 @@ START_TEST(test_read_byte) {
 
 START_TEST(test_read_le16) {
   static const uint8_t normal[] = {0x01, 0x23};
+  uint16_t buffer;
+  uint16_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint16_t buffer;
 
-  // It should be ok
+  /* It should be ok */
   ck_assert(wz_read_le16(&buffer, &file) == 0);
   ck_assert(buffer == 0x2301);
 
-  // It should not change position and data if error occured
-  uint16_t copy = buffer;
+  /* It should not change position and data if error occured */
+  copy = buffer;
   ck_assert(wz_read_le16(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == copy);
@@ -203,16 +204,17 @@ START_TEST(test_read_le16) {
 
 START_TEST(test_read_le32) {
   static const uint8_t normal[] = {0x01, 0x23, 0x45, 0x67};
+  uint32_t buffer;
+  uint32_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint32_t buffer;
 
-  // It should be ok
+  /* It should be ok */
   ck_assert(wz_read_le32(&buffer, &file) == 0);
   ck_assert(buffer == 0x67452301);
 
-  // It should not change position and data if error occured
-  uint32_t copy = buffer;
+  /* It should not change position and data if error occured */
+  copy = buffer;
   ck_assert(wz_read_le32(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == copy);
@@ -224,16 +226,17 @@ START_TEST(test_read_le64) {
   static const uint8_t normal[] = {
     0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
   };
+  uint64_t buffer;
+  uint64_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint64_t buffer;
 
-  // It should be ok
+  /* It should be ok */
   ck_assert(wz_read_le64(&buffer, &file) == 0);
   ck_assert(buffer == 0xefcdab8967452301);
 
-  // It should not change position and data if error occured
-  uint64_t copy = buffer;
+  /* It should not change position and data if error occured */
+  copy = buffer;
   ck_assert(wz_read_le64(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == copy);
@@ -243,24 +246,25 @@ START_TEST(test_read_le64) {
 
 START_TEST(test_read_int32) {
   static const uint8_t normal[] = {0x01, 0xfe, 0x80, 0x23, 0x45, 0x67, 0x89};
+  uint32_t buffer;
+  uint32_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint32_t buffer;
 
-  // It should read positive int8
+  /* It should read positive int8 */
   ck_assert(wz_read_int32(&buffer, &file) == 0);
   ck_assert(buffer == 1);
 
-  // It should read negative int8
+  /* It should read negative int8 */
   ck_assert(wz_read_int32(&buffer, &file) == 0);
   ck_assert(buffer == 0xfffffffe);
 
-  // It should read postive int32
+  /* It should read postive int32 */
   ck_assert(wz_read_int32(&buffer, &file) == 0);
   ck_assert(buffer == 0x89674523);
 
-  // It should not change position and data if error occured
-  uint32_t copy = buffer;
+  /* It should not change position and data if error occured */
+  copy = buffer;
   ck_assert(wz_read_int32(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == copy);
@@ -272,24 +276,25 @@ START_TEST(test_read_int64) {
   static const uint8_t normal[] = {
     0x01, 0xfe, 0x80, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01
   };
+  uint64_t buffer;
+  uint64_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
-  uint64_t buffer;
 
-  // It should read positive int8
+  /* It should read positive int8 */
   ck_assert(wz_read_int64(&buffer, &file) == 0);
   ck_assert(buffer == 1);
 
-  // It should read negative int8
+  /* It should read negative int8 */
   ck_assert(wz_read_int64(&buffer, &file) == 0);
   ck_assert(buffer == 0xfffffffffffffffe);
 
-  // It should read postive int64
+  /* It should read postive int64 */
   ck_assert(wz_read_int64(&buffer, &file) == 0);
   ck_assert(buffer == 0x01efcdab89674523);
 
-  // It should not change position and data if error occured
-  uint64_t copy = buffer;
+  /* It should not change position and data if error occured */
+  copy = buffer;
   ck_assert(wz_read_int64(&buffer, &file) == 1);
   ck_assert(file.pos == sizeof(normal));
   ck_assert(buffer == copy);
@@ -314,54 +319,98 @@ keygen(uint8_t * key, uint32_t len) {
   static const uint32_t seed_offset = 0x77c85c28;
   uint32_t index  = numgen(numgen(seed_base)   + 0x9a0e1793);
   uint32_t offset = numgen(numgen(seed_offset) + 0x28d1f9c7);
-  for (uint32_t i = 0; i < len; i++)
+  uint32_t i;
+  for (i = 0; i < len; i++)
     key[i] = numgen((numgen(index++) + offset) ^ 0xdf53971e) & 0xff;
+}
+
+static const uint8_t cp1252[]     = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
+static const uint8_t cp1252_u8[]  = {'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'};
+static const uint8_t utf16le[]    = {0x42, 0x30, 0x44, 0x30}; /* love (jp) */
+static const uint8_t utf16le_u8[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
+static const uint8_t utf8[]       = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
+enum {KEY_BUF_SIZE = sizeof(cp1252)};
+
+static void
+cp1252_encode(uint8_t * enc,
+              const uint8_t * dec, uint32_t len, const uint8_t * key) {
+  uint8_t mask = 0xaa;
+  uint32_t i;
+  if (key == NULL)
+    for (i = 0; i < len; i++)
+      enc[i] = dec[i] ^ mask++;
+  else
+    for (i = 0; i < len; i++)
+      enc[i] = dec[i] ^ mask++ ^ key[i];
+}
+
+static void
+utf16le_encode(uint8_t * enc,
+               const uint8_t * dec, uint32_t len, const uint8_t * key) {
+  uint16_t mask = 0xaaaa;
+  uint32_t i;
+  if (key == NULL)
+    for (i = 0; i < len;) {
+      enc[i] = (uint8_t) (dec[i] ^ (mask & 0xff)), i++;
+      enc[i] = (uint8_t) (dec[i] ^ (mask >> 8)),   i++;
+      mask++;
+    }
+  else
+    for (i = 0; i < len;) {
+      enc[i] = (uint8_t) (dec[i] ^ (mask & 0xff) ^ key[i]), i++;
+      enc[i] = (uint8_t) (dec[i] ^ (mask >> 8)   ^ key[i]), i++;
+      mask++;
+    }
+}
+
+static void
+utf8_encode(uint8_t * enc,
+            const uint8_t * dec, uint32_t len, const uint8_t * key) {
+  uint32_t i;
+  for (i = 0; i < len; i++)
+    enc[i] = dec[i] ^ key[i];
 }
 
 START_TEST(test_decode_chars) {
   uint32_t key_len = 0x12000;
+  uint32_t dec_len;
   uint8_t * key;
+  uint8_t * enc;
+  uint32_t i;
+  uint32_t j;
+  uint8_t mask;
+  uint8_t same;
   ck_assert((key = malloc(key_len)) != NULL);
   keygen(key, key_len);
-  uint8_t * enc;
   ck_assert((enc = malloc(key_len)) != NULL);
 
-  // It should decode ascii/cp1252
+  /* It should decode ascii/cp1252 */
   {
-    static const uint8_t dec[] = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
-    uint8_t mask;
+    cp1252_encode(enc, cp1252, sizeof(cp1252), key);
+
+    /* when the first key is used */
+    ck_assert(wz_decode_chars(enc, sizeof(cp1252), 0, key, WZ_ENC_CP1252) == 0);
+    ck_assert(memcmp(enc, cp1252, sizeof(cp1252)) == 0);
+
+    cp1252_encode(enc, cp1252, sizeof(cp1252), NULL);
+
+    /* when the empty key is used */
+    ck_assert(wz_decode_chars(enc, sizeof(cp1252), 2, key, WZ_ENC_CP1252) == 0);
+    ck_assert(memcmp(enc, cp1252, sizeof(cp1252)) == 0);
 
     mask = 0xaa;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
-      enc[i] = dec[i] ^ mask++ ^ key[i];
-
-    // when the first key is used
-    ck_assert(wz_decode_chars(enc, sizeof(dec),
-                              0, key, WZ_ENC_CP1252) == 0);
-    ck_assert(memcmp(enc, dec, sizeof(dec)) == 0);
-
-    mask = 0xaa;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
-      enc[i] = dec[i] ^ mask++;
-
-    // when the empty key is used
-    ck_assert(wz_decode_chars(enc, sizeof(dec),
-                              2, key, WZ_ENC_CP1252) == 0);
-    ck_assert(memcmp(enc, dec, sizeof(dec)) == 0);
-
-    mask = 0xaa;
-    for (uint32_t i = 0; i < key_len; i++)
+    for (i = 0; i < key_len; i++)
       if (i < 0x10000)
         enc[i] = (uint8_t) (('a' + i % 26) ^ mask++ ^ key[i]);
       else
         enc[i] = (uint8_t) (('a' + i % 26) ^ mask++);
 
-    // when len > 0x10000
+    /* when len > 0x10000 */
     ck_assert(wz_decode_chars(enc, key_len,
                               0, key, WZ_ENC_CP1252) == 0);
     mask = 0xaa;
-    uint8_t same = 1;
-    for (uint32_t i = 0; i < key_len; i++)
+    same = 1;
+    for (i = 0; i < key_len; i++)
       if (enc[i] != 'a' + i % 26) {
         same = 0;
         break;
@@ -369,58 +418,40 @@ START_TEST(test_decode_chars) {
     ck_assert(same == 1);
   }
 
-  // It should decode utf16le
+  /* It should decode utf16le */
   {
-    static const uint8_t dec[] = {0x42, 0x30, 0x44, 0x30}; // love in japanese
-    uint16_t mask;
+    utf16le_encode(enc, utf16le, sizeof(utf16le), key);
 
-    mask = 0xaaaa;
-    for (uint8_t i = 0; i < sizeof(dec); i = (uint8_t) (i + 2)) {
-      enc[i + 1] = (uint8_t) (dec[i + 1] ^ (mask >> 8)   ^ key[i + 1]);
-      enc[i]     = (uint8_t) (dec[i]     ^ (mask & 0xff) ^ key[i]);
-      mask++;
-    }
-
-    // when the first key is used
-    ck_assert(wz_decode_chars(enc, sizeof(dec),
+    /* when the first key is used */
+    ck_assert(wz_decode_chars(enc, sizeof(utf16le),
                               0, key, WZ_ENC_UTF16LE) == 0);
-    ck_assert(memcmp(enc, dec, sizeof(dec)) == 0);
+    ck_assert(memcmp(enc, utf16le, sizeof(utf16le)) == 0);
 
-    mask = 0xaaaa;
-    for (uint8_t i = 0; i < sizeof(dec); i = (uint8_t) (i + 2)) {
-      enc[i + 1] = (uint8_t) (dec[i + 1] ^ (mask >> 8));
-      enc[i]     = (uint8_t) (dec[i]     ^ (mask & 0xff));
-      mask++;
-    }
+    utf16le_encode(enc, utf16le, sizeof(utf16le), NULL);
 
-    // when the empty key is used
-    ck_assert(wz_decode_chars(enc, sizeof(dec),
+    /* when the empty key is used */
+    ck_assert(wz_decode_chars(enc, sizeof(utf16le),
                               2, key, WZ_ENC_UTF16LE) == 0);
-    ck_assert(memcmp(enc, dec, sizeof(dec)) == 0);
+    ck_assert(memcmp(enc, utf16le, sizeof(utf16le)) == 0);
 
-    // It should fail when len > 0x10000
+    /* It should fail when len > 0x10000 */
     ck_assert(wz_decode_chars(enc, key_len,
                               0, key, WZ_ENC_UTF16LE) == 1);
   }
 
-  // It should decode utf8
+  /* It should decode utf8 */
   {
-    static const uint8_t dec[] = {
-      ' ', 0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84, ' ' // love in japanese
-    };
-    for (uint32_t i = 0; i < key_len;)
-      for (uint8_t j = 0; j < sizeof(dec); j++) {
-        enc[i] = dec[j] ^ key[i];
-        i++;
-      }
+    dec_len = key_len - (uint8_t) (key_len % sizeof(utf8));
+    for (i = 0; i < dec_len; i = (uint32_t) (i + sizeof(utf8)))
+      utf8_encode(enc + i, utf8, sizeof(utf8), key + i);
 
-    // when len > 0x10000
-    ck_assert(wz_decode_chars(enc, key_len,
+    /* when len > 0x10000 */
+    ck_assert(wz_decode_chars(enc, dec_len,
                               0, key, WZ_ENC_UTF8) == 0);
-    uint8_t same = 1;
-    for (uint32_t i = 0; i < key_len;) {
-      for (uint8_t j = 0; j < sizeof(dec); j++) {
-        if (enc[i] != dec[j]) {
+    same = 1;
+    for (i = 0; i < dec_len;) {
+      for (j = 0; j < sizeof(utf8); j++) {
+        if (enc[i] != utf8[j]) {
           same = 0;
           break;
         }
@@ -437,23 +468,27 @@ START_TEST(test_decode_chars) {
 } END_TEST
 
 START_TEST(test_read_chars) {
-  wzfile file;
+  uint8_t key[KEY_BUF_SIZE];
+  uint8_t i;
   uint8_t * bytes;
   uint32_t len;
   uint8_t encoding;
+  wzfile file;
 
-  // It should be ok
+  keygen(key, KEY_BUF_SIZE);
+
+  /* It should be ok */
   {
     static const uint8_t enc[] = {0x01, 0x23};
     uint8_t str[1 + sizeof(enc)];
 
     str[0] = (~sizeof(enc) + 1) & 0xff;
-    for (uint8_t i = 0; i < sizeof(enc); i++)
+    for (i = 0; i < sizeof(enc); i++)
       str[i + 1] = enc[i];
 
     create_file(&file, str, sizeof(str));
 
-    // when it is a short cp1252/ascii/utf8 string
+    /* when it is a short cp1252/ascii/utf8 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0xff, NULL, &file) == 0);
     ck_assert(len == sizeof(enc));
@@ -475,12 +510,12 @@ START_TEST(test_read_chars) {
     str[2] = 0;
     str[3] = 0;
     str[4] = 0;
-    for (uint8_t i = 0; i < sizeof(enc); i++)
+    for (i = 0; i < sizeof(enc); i++)
       str[i + 5] = enc[i];
 
     create_file(&file, str, sizeof(str));
 
-    // when it is a long cp1252/ascii/utf8 string
+    /* when it is a long cp1252/ascii/utf8 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0xff, NULL, &file) == 0);
     ck_assert(len == sizeof(enc));
@@ -498,12 +533,12 @@ START_TEST(test_read_chars) {
     uint8_t str[1 + sizeof(enc)];
 
     str[0] = sizeof(enc) >> 1;
-    for (uint8_t i = 0; i < sizeof(enc); i++)
+    for (i = 0; i < sizeof(enc); i++)
       str[i + 1] = enc[i];
 
     create_file(&file, str, sizeof(str));
 
-    // when it is a short utf16le string
+    /* when it is a short utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0xff, NULL, &file) == 0);
     ck_assert(len == sizeof(enc));
@@ -525,12 +560,12 @@ START_TEST(test_read_chars) {
     str[2] = 0;
     str[3] = 0;
     str[4] = 0;
-    for (uint8_t i = 0; i < sizeof(enc); i++)
+    for (i = 0; i < sizeof(enc); i++)
       str[i + 5] = enc[i];
 
     create_file(&file, str, sizeof(str));
 
-    // when it is a long utf16le string
+    /* when it is a long utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0xff, NULL, &file) == 0);
     ck_assert(len == sizeof(enc));
@@ -544,59 +579,44 @@ START_TEST(test_read_chars) {
     delete_file(&file);
   }
 
-  // It should decode if key is set
+  /* It should decode if key is set */
   {
-    static const uint8_t u8[] = {'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'};
-    static const uint8_t dec[] = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
-    uint8_t enc[1 + sizeof(dec)];
-    uint8_t key[sizeof(dec)];
-    keygen(key, sizeof(dec));
-    uint8_t mask = 0xaa;
+    uint8_t enc[1 + sizeof(cp1252)];
 
-    enc[0] = (~sizeof(dec) + 1) & 0xff;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
-      enc[i + 1] = dec[i] ^ mask++ ^ key[i];
+    enc[0] = (~sizeof(cp1252) + 1) & 0xff;
+    cp1252_encode(enc + 1, cp1252, sizeof(cp1252), key);
 
     create_file(&file, enc, sizeof(enc));
 
-    // when it is a cp1252 string
+    /* when it is a cp1252 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0, key, &file) == 0);
-    ck_assert(len == sizeof(u8));
-    ck_assert(memcmp(bytes, u8, sizeof(u8)) == 0);
-    ck_assert(bytes[sizeof(u8)] == '\0');
+    ck_assert(len == sizeof(cp1252_u8));
+    ck_assert(memcmp(bytes, cp1252_u8, sizeof(cp1252_u8)) == 0);
+    ck_assert(bytes[sizeof(cp1252_u8)] == '\0');
     ck_assert(encoding == WZ_ENC_CP1252);
-    ck_assert(memused() == sizeof(u8) + 1);
+    ck_assert(memused() == sizeof(cp1252_u8) + 1);
     wz_free_chars(bytes);
     ck_assert(memused() == 0);
 
     delete_file(&file);
   }
   {
-    static const uint8_t u8[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
-    static const uint8_t dec[] = {0x42, 0x30, 0x44, 0x30}; // love in japanese
-    uint8_t enc[1 + sizeof(dec)];
-    uint8_t key[sizeof(dec)];
-    keygen(key, sizeof(dec));
-    uint16_t mask = 0xaaaa;
+    uint8_t enc[1 + sizeof(utf16le)];
 
-    enc[0] = sizeof(dec) >> 1;
-    for (uint8_t i = 0; i < sizeof(dec); i = (uint8_t) (i + 2)) {
-      enc[i + 2] = (uint8_t) (dec[i + 1] ^ (mask >> 8)   ^ key[i + 1]);
-      enc[i + 1] = (uint8_t) (dec[i]     ^ (mask & 0xff) ^ key[i]);
-      mask++;
-    }
+    enc[0] = sizeof(utf16le) >> 1;
+    utf16le_encode(enc + 1, utf16le, sizeof(utf16le), key);
 
     create_file(&file, enc, sizeof(enc));
 
-    // when it is a utf16le string
+    /* when it is a utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
                             WZ_LV0_NAME, 0, key, &file) == 0);
-    ck_assert(len == sizeof(u8));
-    ck_assert(memcmp(bytes, u8, sizeof(u8)) == 0);
-    ck_assert(bytes[sizeof(u8)] == '\0');
+    ck_assert(len == sizeof(utf16le_u8));
+    ck_assert(memcmp(bytes, utf16le_u8, sizeof(utf16le_u8)) == 0);
+    ck_assert(bytes[sizeof(utf16le_u8)] == '\0');
     ck_assert(encoding == WZ_ENC_UTF16LE);
-    ck_assert(memused() == sizeof(u8) + 1);
+    ck_assert(memused() == sizeof(utf16le_u8) + 1);
     wz_free_chars(bytes);
     ck_assert(memused() == 0);
 
@@ -610,12 +630,12 @@ wz_encode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
   uint32_t key = 0x581c3f6d;
   uint32_t x = ~(pos - start) * hash - key;
   uint32_t n = x & 0x1f;
-  x = (x << n) | (x >> (32 - n)); // rotate left n bit
+  x = (x << n) | (x >> (32 - n)); /* rotate left n bit */
   * ret_val = x ^ (val - start * 2);
 }
 
 START_TEST(test_decode_addr) {
-  // It should be ok
+  /* It should be ok */
   uint32_t hash = 0x713;
   uint32_t start = 0x3c;
   uint32_t pos = 0x51;
@@ -632,18 +652,18 @@ START_TEST(test_seek) {
   wzfile file;
   create_file(&file, str, sizeof(str));
 
-  // It should seek relative address
+  /* It should seek relative address */
   ck_assert(wz_seek(3, SEEK_CUR, &file) == 0);
   ck_assert(wz_seek(1, SEEK_CUR, &file) == 0);
   ck_assert(ftell(file.raw) == 4);
   ck_assert(file.pos == 4);
 
-  // It should seek absolute address
+  /* It should seek absolute address */
   ck_assert(wz_seek(2, SEEK_SET, &file) == 0);
   ck_assert(ftell(file.raw) == 2);
   ck_assert(file.pos == 2);
 
-  // It should not seek invalid address
+  /* It should not seek invalid address */
   ck_assert(wz_seek(sizeof(str) + 1, SEEK_SET, &file) == 1);
   ck_assert(ftell(file.raw) == 2);
   ck_assert(file.pos == 2);
@@ -653,43 +673,52 @@ START_TEST(test_seek) {
 
 START_TEST(test_read_lv0) {
   uint8_t head[5];
-  for (uint8_t i = 0; i < sizeof(head); i++)
-    head[i] = i;
   const uint32_t root_addr = sizeof(head);
   const uint32_t start = root_addr - 3;
-  wznode node;
-  node.n.info = WZ_EMBED;
-  node.na_e.addr = root_addr;
+  const uint32_t hash = 0xc5e3;
   const uint32_t addr_dec = 0x01234567;
   uint32_t addr_pos;
   uint32_t addr_enc;
-  const uint32_t hash = 0xc5e3;
+  uint8_t offset;
+  uint8_t key[KEY_BUF_SIZE];
+  uint8_t enc[KEY_BUF_SIZE];
+  uint8_t i;
+  uint32_t child_addr;
+  uint8_t child_key;
+  uint8_t * child_name;
+  wznode * child;
+  wznode node;
   wzfile file;
+
+  for (i = 0; i < sizeof(head); i++)
+    head[i] = i;
+  node.n.info = WZ_EMBED;
+  node.na_e.addr = root_addr;
+  keygen(key, KEY_BUF_SIZE);
   file.key = 0;
   file.start = start;
   file.hash = hash;
 
-  // It should be ok
+  /* It should be ok */
   {
-    uint8_t key[1];
-
     uint8_t str[sizeof(head) + 1 + 1 + 10];
-    for (uint8_t i = 0; i < sizeof(head); i++)
+
+    for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
-    str[sizeof(head) + 0] = 0x01; // len
-    str[sizeof(head) + 1] = 0x01; // type
-    for (uint8_t i = 0; i < 10; i++)
+    str[sizeof(head) + 0] = 0x01; /* len */
+    str[sizeof(head) + 1] = 0x01; /* type */
+    for (i = 0; i < 10; i++)
       str[i + sizeof(head) + 2] = 0xff;
 
     create_file(&file, str, sizeof(str));
 
-    // It should read type 1
+    /* It should read type 1 */
     ck_assert(memused() == 0);
     ck_assert(wz_read_lv0(&node, &file, key) == 0);
     ck_assert(memused() != 0);
     ck_assert(node.n.val.ary != NULL);
     ck_assert(node.n.val.ary->len == 1);
-    wznode * child = node.n.val.ary->nodes;
+    child = node.n.val.ary->nodes;
     ck_assert((child->n.info & WZ_TYPE) == WZ_NIL);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
@@ -700,53 +729,44 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    static const uint8_t u8[] = {'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'};
-    static const uint8_t dec[] = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
-    uint8_t key[sizeof(dec)];
-    keygen(key, sizeof(dec));
-    uint8_t enc[sizeof(dec)];
-    uint8_t mask = 0xaa;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
-      enc[i] = dec[i] ^ mask++ ^ key[i];
-    uint8_t str[sizeof(head) + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + sizeof(dec)];
-    uint8_t offset = (uint8_t) (sizeof(str) - sizeof(dec) - 1 - 1 - start);
-    addr_pos = sizeof(str) - sizeof(dec) - 1 - 1 - 4;
+    uint8_t str[sizeof(head) + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + sizeof(cp1252)];
+
+    offset = (uint8_t) (sizeof(str) - sizeof(cp1252) - 1 - 1 - start);
+    cp1252_encode(enc, cp1252, sizeof(cp1252), key);
+    addr_pos = sizeof(str) - sizeof(cp1252) - 1 - 1 - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    for (uint8_t i = 0; i < sizeof(head); i++)
+    for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
-    str[sizeof(head) + 0]  = 0x01; // len
-    str[sizeof(head) + 1]  = 0x02; // type
-    str[sizeof(head) + 2]  = offset; // offset
+    str[sizeof(head) + 0]  = 0x01; /* len */
+    str[sizeof(head) + 1]  = 0x02; /* type */
+    str[sizeof(head) + 2]  = offset; /* offset */
     str[sizeof(head) + 3]  = 0;
     str[sizeof(head) + 4]  = 0;
     str[sizeof(head) + 5]  = 0;
-    str[sizeof(head) + 6]  = 0x01; // size
-    str[sizeof(head) + 7]  = 0x23; // check
-    str[sizeof(head) + 8]  = (addr_enc      ) & 0xff; // addr
+    str[sizeof(head) + 6]  = 0x01; /* size */
+    str[sizeof(head) + 7]  = 0x23; /* check */
+    str[sizeof(head) + 8]  = (addr_enc      ) & 0xff; /* addr */
     str[sizeof(head) + 9]  = (addr_enc >>  8) & 0xff;
     str[sizeof(head) + 10] = (addr_enc >> 16) & 0xff;
     str[sizeof(head) + 11] = (uint8_t) (addr_enc >> 24);
-    str[sizeof(head) + 12] = 0x04; // second type
-    str[sizeof(head) + 13] = (~sizeof(dec) + 1) & 0xff;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
+    str[sizeof(head) + 12] = 0x04; /* second type */
+    str[sizeof(head) + 13] = (~sizeof(cp1252) + 1) & 0xff;
+    for (i = 0; i < sizeof(cp1252); i++)
       str[i + sizeof(head) + 14] = enc[i];
 
     create_file(&file, str, sizeof(str));
 
-    // It should read type 2
+    /* It should read type 2 */
     ck_assert(memused() == 0);
     ck_assert(wz_read_lv0(&node, &file, key) == 0);
     ck_assert(memused() != 0);
     ck_assert(node.n.val.ary != NULL);
     ck_assert(node.n.val.ary->len == 1);
-    wznode * child = node.n.val.ary->nodes;
+    child = node.n.val.ary->nodes;
     ck_assert((child->n.info & WZ_TYPE) == WZ_UNK);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8));
-    uint32_t child_addr;
-    uint8_t child_key;
-    uint8_t * child_name;
+    ck_assert(child->n.name_len == sizeof(cp1252_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -758,8 +778,8 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8, sizeof(u8)) == 0);
-    ck_assert(child_name[sizeof(u8)] == '\0');
+    ck_assert(memcmp(child_name, cp1252_u8, sizeof(cp1252_u8)) == 0);
+    ck_assert(child_name[sizeof(cp1252_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     wz_free_lv0(&node);
     ck_assert(memused() == 0);
@@ -767,50 +787,38 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    static const uint8_t u8[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
-    static const uint8_t dec[] = {0x42, 0x30, 0x44, 0x30}; // love in japanese
-    uint8_t key[sizeof(dec)];
-    keygen(key, sizeof(dec));
-    uint8_t enc[sizeof(dec)];
-    uint16_t mask = 0xaaaa;
-    for (uint8_t i = 0; i < sizeof(dec); i = (uint8_t) (i + 2)) {
-      enc[i + 1] = (uint8_t) (dec[i + 1] ^ (mask >> 8)   ^ key[i + 1]);
-      enc[i]     = (uint8_t) (dec[i]     ^ (mask & 0xff) ^ key[i]);
-      mask++;
-    }
-    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(dec) + 1 + 1 + 4];
+    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+
+    utf16le_encode(enc, utf16le, sizeof(utf16le), key);
     addr_pos = sizeof(str) - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    for (uint8_t i = 0; i < sizeof(head); i++)
+    for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
-    str[sizeof(head) + 0] = 0x01; // len
-    str[sizeof(head) + 1] = 0x03; // type
-    str[sizeof(head) + 2] = sizeof(dec) >> 1;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
+    str[sizeof(head) + 0] = 0x01; /* len */
+    str[sizeof(head) + 1] = 0x03; /* type */
+    str[sizeof(head) + 2] = sizeof(utf16le) >> 1;
+    for (i = 0; i < sizeof(utf16le); i++)
       str[i + sizeof(head) + 3] = enc[i];
-    str[sizeof(head) + sizeof(enc) + 3] = 0x01; // size
-    str[sizeof(head) + sizeof(enc) + 4] = 0x23; // check
-    str[sizeof(head) + sizeof(enc) + 5] = (addr_enc      ) & 0xff; // addr
-    str[sizeof(head) + sizeof(enc) + 6] = (addr_enc >>  8) & 0xff;
-    str[sizeof(head) + sizeof(enc) + 7] = (addr_enc >> 16) & 0xff;
-    str[sizeof(head) + sizeof(enc) + 8] = (uint8_t) (addr_enc >> 24);
+    str[sizeof(head) + sizeof(utf16le) + 3] = 0x01; /* size */
+    str[sizeof(head) + sizeof(utf16le) + 4] = 0x23; /* check */
+    str[sizeof(head) + sizeof(utf16le) + 5] = (addr_enc      ) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 6] = (addr_enc >>  8) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 7] = (addr_enc >> 16) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 8] = (uint8_t) (addr_enc >> 24);
 
     create_file(&file, str, sizeof(str));
 
-    // It should read type 3
+    /* It should read type 3 */
     ck_assert(memused() == 0);
     ck_assert(wz_read_lv0(&node, &file, key) == 0);
     ck_assert(memused() != 0);
     ck_assert(node.n.val.ary != NULL);
     ck_assert(node.n.val.ary->len == 1);
-    wznode * child = node.n.val.ary->nodes;
+    child = node.n.val.ary->nodes;
     ck_assert((child->n.info & WZ_TYPE) == WZ_ARY);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8));
-    uint32_t child_addr;
-    uint8_t child_key;
-    uint8_t * child_name;
+    ck_assert(child->n.name_len == sizeof(utf16le_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -822,8 +830,8 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8, sizeof(u8)) == 0);
-    ck_assert(child_name[sizeof(u8)] == '\0');
+    ck_assert(memcmp(child_name, utf16le_u8, sizeof(utf16le_u8)) == 0);
+    ck_assert(child_name[sizeof(utf16le_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     wz_free_lv0(&node);
     ck_assert(memused() == 0);
@@ -831,50 +839,38 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    static const uint8_t u8[] = {0xe6, 0x84, 0x9b, 0xe6, 0x83, 0x85};
-    static const uint8_t dec[] = {0x1b, 0x61, 0xc5, 0x60}; // love in japanese
-    uint8_t key[sizeof(dec)];
-    keygen(key, sizeof(dec));
-    uint8_t enc[sizeof(dec)];
-    uint16_t mask = 0xaaaa;
-    for (uint8_t i = 0; i < sizeof(dec); i = (uint8_t) (i + 2)) {
-      enc[i + 1] = (uint8_t) (dec[i + 1] ^ (mask >> 8)   ^ key[i + 1]);
-      enc[i]     = (uint8_t) (dec[i]     ^ (mask & 0xff) ^ key[i]);
-      mask++;
-    }
-    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(dec) + 1 + 1 + 4];
+    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+
+    utf16le_encode(enc, utf16le, sizeof(utf16le), key);
     addr_pos = sizeof(str) - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    for (uint8_t i = 0; i < sizeof(head); i++)
+    for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
-    str[sizeof(head) + 0] = 0x01; // len
-    str[sizeof(head) + 1] = 0x04; // type
-    str[sizeof(head) + 2] = sizeof(dec) >> 1;
-    for (uint8_t i = 0; i < sizeof(dec); i++)
+    str[sizeof(head) + 0] = 0x01; /* len */
+    str[sizeof(head) + 1] = 0x04; /* type */
+    str[sizeof(head) + 2] = sizeof(utf16le) >> 1;
+    for (i = 0; i < sizeof(utf16le); i++)
       str[i + sizeof(head) + 3] = enc[i];
-    str[sizeof(head) + sizeof(dec) + 3] = 0x01; // size
-    str[sizeof(head) + sizeof(dec) + 4] = 0x23; // check
-    str[sizeof(head) + sizeof(dec) + 5] = (addr_enc      ) & 0xff; // addr
-    str[sizeof(head) + sizeof(dec) + 6] = (addr_enc >>  8) & 0xff;
-    str[sizeof(head) + sizeof(dec) + 7] = (addr_enc >> 16) & 0xff;
-    str[sizeof(head) + sizeof(dec) + 8] = (uint8_t) (addr_enc >> 24);
+    str[sizeof(head) + sizeof(utf16le) + 3] = 0x01; /* size */
+    str[sizeof(head) + sizeof(utf16le) + 4] = 0x23; /* check */
+    str[sizeof(head) + sizeof(utf16le) + 5] = (addr_enc      ) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 6] = (addr_enc >>  8) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 7] = (addr_enc >> 16) & 0xff;
+    str[sizeof(head) + sizeof(utf16le) + 8] = (uint8_t) (addr_enc >> 24);
 
     create_file(&file, str, sizeof(str));
 
-    // It should read type 4
+    /* It should read type 4 */
     ck_assert(memused() == 0);
     ck_assert(wz_read_lv0(&node, &file, key) == 0);
     ck_assert(memused() != 0);
     ck_assert(node.n.val.ary != NULL);
     ck_assert(node.n.val.ary->len == 1);
-    wznode * child = node.n.val.ary->nodes;
+    child = node.n.val.ary->nodes;
     ck_assert((child->n.info & WZ_TYPE) == WZ_UNK);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8));
-    uint32_t child_addr;
-    uint8_t child_key;
-    uint8_t * child_name;
+    ck_assert(child->n.name_len == sizeof(utf16le_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -886,8 +882,8 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8, sizeof(u8)) == 0);
-    ck_assert(child_name[sizeof(u8)] == '\0');
+    ck_assert(memcmp(child_name, utf16le_u8, sizeof(utf16le_u8)) == 0);
+    ck_assert(child_name[sizeof(utf16le_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     wz_free_lv0(&node);
     ck_assert(memused() == 0);
@@ -895,31 +891,17 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    static const uint8_t u8_3[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
-    static const uint8_t dec3[] = {0x42, 0x30, 0x44, 0x30}; // love in japanese
-    static const uint8_t u8_4[] = {'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'};
-    static const uint8_t dec4[] = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
-
-    uint32_t key_len = 1;
-    if (sizeof(dec3) > key_len) key_len = sizeof(dec3);
-    if (sizeof(dec4) > key_len) key_len = sizeof(dec4);
-    uint8_t * key;
-    ck_assert((key = malloc(key_len)) != NULL);
-    keygen(key, key_len);
-    uint8_t * enc;
-    ck_assert((enc = malloc(key_len)) != NULL);
-    uint8_t mask_8;
-    uint16_t mask_16;
-    uint8_t offset;
     uint8_t str1[1 + 10];
     uint8_t str2[1 + 4 + 1 + 1 + 4];
-    uint8_t str3[1 + 1 + sizeof(dec3) + 1 + 1 + 4];
-    uint8_t str4[1 + 1 + sizeof(dec4) + 1 + 1 + 4];
+    uint8_t str3[1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+    uint8_t str4[1 + 1 + sizeof(cp1252) + 1 + 1 + 4];
     uint32_t str_len = sizeof(head) + 1;
+    uint32_t str_i;
+    uint8_t * str;
 
     str_len += (uint32_t) sizeof(str1);
-    str1[0] = 0x01; // type
-    for (uint8_t i = 0; i < 10; i++)
+    str1[0] = 0x01; /* type */
+    for (i = 0; i < 10; i++)
       str1[i + 1] = 0xff;
 
     str_len += (uint32_t) sizeof(str2);
@@ -927,70 +909,60 @@ START_TEST(test_read_lv0) {
                         sizeof(str1) + sizeof(str2) + sizeof(str3));
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    str2[0]  = 0x02; // type
-    str2[1]  = offset; // offset
+    str2[0]  = 0x02; /* type */
+    str2[1]  = offset; /* offset */
     str2[2]  = 0;
     str2[3]  = 0;
     str2[4]  = 0;
-    str2[5]  = 0x01; // size
-    str2[6]  = 0x23; // check
-    str2[7]  = (addr_enc      ) & 0xff; // addr
+    str2[5]  = 0x01; /* size */
+    str2[6]  = 0x23; /* check */
+    str2[7]  = (addr_enc      ) & 0xff; /* addr */
     str2[8]  = (addr_enc >>  8) & 0xff;
     str2[9]  = (addr_enc >> 16) & 0xff;
     str2[10] = (uint8_t) (addr_enc >> 24);
 
-    mask_16 = 0xaaaa;
-    for (uint8_t i = 0; i < sizeof(dec3); i = (uint8_t) (i + 2)) {
-      enc[i + 1] = (uint8_t) (dec3[i + 1] ^ (mask_16 >> 8)   ^ key[i + 1]);
-      enc[i]     = (uint8_t) (dec3[i]     ^ (mask_16 & 0xff) ^ key[i]);
-      mask_16++;
-    }
+    utf16le_encode(enc, utf16le, sizeof(utf16le), key);
     str_len += (uint32_t) sizeof(str3);
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    str3[0] = 0x03; // type
-    str3[1] = sizeof(dec3) >> 1;
-    for (uint8_t i = 0; i < sizeof(dec3); i++)
+    str3[0] = 0x03; /* type */
+    str3[1] = sizeof(utf16le) >> 1;
+    for (i = 0; i < sizeof(utf16le); i++)
       str3[i + 2] = enc[i];
-    str3[sizeof(dec3) + 2] = 0x01; // size
-    str3[sizeof(dec3) + 3] = 0x23; // check
-    str3[sizeof(dec3) + 4] = (addr_enc      ) & 0xff; // addr
-    str3[sizeof(dec3) + 5] = (addr_enc >>  8) & 0xff;
-    str3[sizeof(dec3) + 6] = (addr_enc >> 16) & 0xff;
-    str3[sizeof(dec3) + 7] = (uint8_t) (addr_enc >> 24);
+    str3[sizeof(utf16le) + 2] = 0x01; /* size */
+    str3[sizeof(utf16le) + 3] = 0x23; /* check */
+    str3[sizeof(utf16le) + 4] = (addr_enc      ) & 0xff; /* addr */
+    str3[sizeof(utf16le) + 5] = (addr_enc >>  8) & 0xff;
+    str3[sizeof(utf16le) + 6] = (addr_enc >> 16) & 0xff;
+    str3[sizeof(utf16le) + 7] = (uint8_t) (addr_enc >> 24);
 
-    mask_8 = 0xaa;
-    for (uint8_t i = 0; i < sizeof(dec4); i++)
-      enc[i] = dec4[i] ^ mask_8++ ^ key[i];
+    cp1252_encode(enc, cp1252, sizeof(cp1252), key);
     str_len += (uint32_t) sizeof(str4);
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-    str4[0] = 0x04; // type
-    str4[1] = (~sizeof(dec4) + 1) & 0xff;
-    for (uint8_t i = 0; i < sizeof(dec4); i++)
+    str4[0] = 0x04; /* type */
+    str4[1] = (~sizeof(cp1252) + 1) & 0xff;
+    for (i = 0; i < sizeof(cp1252); i++)
       str4[i + 2] = enc[i];
-    str4[sizeof(dec4) + 2] = 0x01; // size
-    str4[sizeof(dec4) + 3] = 0x23; // check
-    str4[sizeof(dec4) + 4] = (addr_enc      ) & 0xff; // addr
-    str4[sizeof(dec4) + 5] = (addr_enc >>  8) & 0xff;
-    str4[sizeof(dec4) + 6] = (addr_enc >> 16) & 0xff;
-    str4[sizeof(dec4) + 7] = (uint8_t) (addr_enc >> 24);
+    str4[sizeof(cp1252) + 2] = 0x01; /* size */
+    str4[sizeof(cp1252) + 3] = 0x23; /* check */
+    str4[sizeof(cp1252) + 4] = (addr_enc      ) & 0xff; /* addr */
+    str4[sizeof(cp1252) + 5] = (addr_enc >>  8) & 0xff;
+    str4[sizeof(cp1252) + 6] = (addr_enc >> 16) & 0xff;
+    str4[sizeof(cp1252) + 7] = (uint8_t) (addr_enc >> 24);
 
-    free(enc);
-
-    uint8_t * str;
     ck_assert((str = malloc(str_len)) != NULL);
-    uint32_t str_i = 0;
-    for (uint8_t i = 0; i < sizeof(head); i++)
+    str_i = 0;
+    for (i = 0; i < sizeof(head); i++)
       str[str_i++] = head[i];
-    str[str_i++] = 4; // len
-    for (uint8_t i = 0; i < sizeof(str1); i++)
+    str[str_i++] = 4; /* len */
+    for (i = 0; i < sizeof(str1); i++)
       str[str_i++] = str1[i];
-    for (uint8_t i = 0; i < sizeof(str2); i++)
+    for (i = 0; i < sizeof(str2); i++)
       str[str_i++] = str2[i];
-    for (uint8_t i = 0; i < sizeof(str3); i++)
+    for (i = 0; i < sizeof(str3); i++)
       str[str_i++] = str3[i];
-    for (uint8_t i = 0; i < sizeof(str4); i++)
+    for (i = 0; i < sizeof(str4); i++)
       str[str_i++] = str4[i];
 
     create_file(&file, str, str_len);
@@ -1002,23 +974,20 @@ START_TEST(test_read_lv0) {
     ck_assert(memused() != 0);
     ck_assert(node.n.val.ary != NULL);
     ck_assert(node.n.val.ary->len == 4);
-    wznode * child = node.n.val.ary->nodes;
-    uint32_t child_addr;
-    uint8_t child_key;
-    uint8_t * child_name;
+    child = node.n.val.ary->nodes;
 
-    // It should read type 1
+    /* It should read type 1 */
     ck_assert((child->n.info & WZ_TYPE) == WZ_NIL);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
     ck_assert(child->n.val.ary == NULL);
     child++;
 
-    // It should read type 2
+    /* It should read type 2 */
     ck_assert((child->n.info & WZ_TYPE) == WZ_UNK);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8_4));
+    ck_assert(child->n.name_len == sizeof(cp1252_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -1030,16 +999,16 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8_4, sizeof(u8_4)) == 0);
-    ck_assert(child_name[sizeof(u8_4)] == '\0');
+    ck_assert(memcmp(child_name, cp1252_u8, sizeof(cp1252_u8)) == 0);
+    ck_assert(child_name[sizeof(cp1252_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     child++;
 
-    // It should read type 3
+    /* It should read type 3 */
     ck_assert((child->n.info & WZ_TYPE) == WZ_ARY);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8_3));
+    ck_assert(child->n.name_len == sizeof(utf16le_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -1051,16 +1020,16 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8_3, sizeof(u8_3)) == 0);
-    ck_assert(child_name[sizeof(u8_3)] == '\0');
+    ck_assert(memcmp(child_name, utf16le_u8, sizeof(utf16le_u8)) == 0);
+    ck_assert(child_name[sizeof(utf16le_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     child++;
 
-    // It should read type 4
+    /* It should read type 4 */
     ck_assert((child->n.info & WZ_TYPE) == WZ_UNK);
     ck_assert(child->n.parent == &node);
     ck_assert(child->n.root.file == &file);
-    ck_assert(child->n.name_len == sizeof(u8_4));
+    ck_assert(child->n.name_len == sizeof(cp1252_u8));
     if (child->n.info & WZ_EMBED) {
       child_addr = child->na_e.addr;
       child_key = child->na_e.key;
@@ -1072,8 +1041,8 @@ START_TEST(test_read_lv0) {
     }
     ck_assert(child_addr == addr_dec);
     ck_assert(child_key == 0xff);
-    ck_assert(memcmp(child_name, u8_4, sizeof(u8_4)) == 0);
-    ck_assert(child_name[sizeof(u8_4)] == '\0');
+    ck_assert(memcmp(child_name, cp1252_u8, sizeof(cp1252_u8)) == 0);
+    ck_assert(child_name[sizeof(cp1252_u8)] == '\0');
     ck_assert(child->n.val.ary == NULL);
     child++;
 
@@ -1081,22 +1050,20 @@ START_TEST(test_read_lv0) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
-
-    free(key);
   }
 
-  // It should not be ok
+  /* It should not be ok */
   {
-    uint8_t key[1];
     uint8_t str[sizeof(head) + 1 + 1];
-    for (uint8_t i = 0; i < sizeof(head); i++)
+
+    for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
-    str[sizeof(head) + 0]  = 0x01; // len
-    str[sizeof(head) + 1]  = 0x05; // type
+    str[sizeof(head) + 0]  = 0x01; /* len */
+    str[sizeof(head) + 1]  = 0x05; /* type */
 
     create_file(&file, str, sizeof(str));
 
-    // It should not read type 5
+    /* It should not read type 5 */
     ck_assert(memused() == 0);
     ck_assert(wz_read_lv0(&node, &file, key) == 1);
     ck_assert(memused() == 0);
@@ -1108,7 +1075,7 @@ START_TEST(test_read_lv0) {
 START_TEST(test_encode_ver) {
   uint16_t dec = 0x0123;
 
-  // It should be ok
+  /* It should be ok */
   uint16_t enc;
   uint32_t hash;
   wz_encode_ver(&enc, &hash, dec);
@@ -1120,58 +1087,55 @@ START_TEST(test_deduce_ver) {
   static const uint8_t str_dec[] = {'a', 'b'};
   uint8_t str_enc[sizeof(str_dec)];
   uint8_t key[sizeof(str_dec)];
-  keygen(key, sizeof(str_dec));
-  uint8_t mask = 0xaa;
-  for (uint8_t i = 0; i < sizeof(str_dec); i++)
-    str_enc[i] = str_dec[i] ^ mask++ ^ key[i];
-
   uint8_t head[5];
-  for (uint8_t i = 0; i < sizeof(head); i++)
-    head[i] = i;
   uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
-  uint32_t str_len = sizeof(head) + sizeof(str1);
+  uint32_t str_i;
+  uint8_t str[sizeof(head) + sizeof(str1)];
+  const uint32_t root_addr = sizeof(head);
+  const uint32_t start = root_addr - 3;
+  const uint32_t addr_pos = sizeof(str) - 4;
+  const uint32_t addr_dec = root_addr;
+  uint32_t addr_enc;
+  uint8_t i;
   const uint16_t dec = 0x00ce;
   uint32_t hash;
   uint16_t enc;
+  uint16_t ret_dec;
+  uint32_t ret_hash;
+  uint8_t ret_key = 1;
+  wzfile file;
+
+  for (i = 0; i < sizeof(head); i++)
+    head[i] = i;
+  keygen(key, sizeof(str_dec));
+  cp1252_encode(str_enc, str_dec, sizeof(str_dec), key);
+
   wz_encode_ver(&enc, &hash, dec);
-  const uint32_t root_addr = sizeof(head);
-  const uint32_t start = root_addr - 3;
-  const uint32_t addr_pos = str_len - 4;
-  const uint32_t addr_dec = root_addr;
-  uint32_t addr_enc;
   wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
   ck_assert(addr_enc != 0);
-  str1[0] = 1; // len
-  str1[1] = 0x03; // type
+  str1[0] = 1; /* len */
+  str1[1] = 0x03; /* type */
   str1[2] = (~sizeof(str_dec) + 1) & 0xff;
-  for (uint8_t i = 0; i < sizeof(str_dec); i++)
+  for (i = 0; i < sizeof(str_dec); i++)
     str1[i + 3] = str_enc[i];
-  str1[sizeof(str_dec) + 3] = 0x01; // size
-  str1[sizeof(str_dec) + 4] = 0x23; // check
-  str1[sizeof(str_dec) + 5] = (addr_enc      ) & 0xff; // addr
+  str1[sizeof(str_dec) + 3] = 0x01; /* size */
+  str1[sizeof(str_dec) + 4] = 0x23; /* check */
+  str1[sizeof(str_dec) + 5] = (addr_enc      ) & 0xff; /* addr */
   str1[sizeof(str_dec) + 6] = (addr_enc >>  8) & 0xff;
   str1[sizeof(str_dec) + 7] = (addr_enc >> 16) & 0xff;
   str1[sizeof(str_dec) + 8] = (uint8_t) (addr_enc >> 24);
 
-  uint8_t * str;
-  ck_assert((str = malloc(str_len)) != NULL);
-  uint32_t str_i = 0;
-  for (uint8_t i = 0; i < sizeof(head); i++)
+  str_i = 0;
+  for (i = 0; i < sizeof(head); i++)
     str[str_i++] = head[i];
-  for (uint8_t i = 0; i < sizeof(str1); i++)
+  for (i = 0; i < sizeof(str1); i++)
     str[str_i++] = str1[i];
 
-  wzfile file;
-  create_file(&file, str, str_len);
+  create_file(&file, str, sizeof(str));
 
-  free(str);
-
-  // It should be ok
-  uint16_t ret_dec;
-  uint32_t ret_hash;
-  uint8_t ret_key = 1;
+  /* It should be ok */
   ck_assert(wz_deduce_ver(&ret_dec, &ret_hash, &ret_key, enc,
-                          root_addr, start, str_len, file.raw, key) == 0);
+                          root_addr, start, sizeof(str), file.raw, key) == 0);
   ck_assert(ret_dec == dec);
   ck_assert(ret_hash == hash);
   ck_assert(ret_key == 0);
@@ -1190,33 +1154,49 @@ START_TEST(test_encode_aes) {
     0x1b, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00,
     0x33, 0x00, 0x00, 0x00, 0x52, 0x00, 0x00, 0x00
   };
-
-  // It shoule be ok
   uint8_t cipher[32];
-  wz_encode_aes(cipher, sizeof(cipher), key, iv);
   static const uint8_t expected[sizeof(cipher)] = {
     0x96, 0xae, 0x3f, 0xa4, 0x48, 0xfa, 0xdd, 0x90,
     0x46, 0x76, 0x05, 0x61, 0x97, 0xce, 0x78, 0x68,
     0x2b, 0xa0, 0x44, 0x8f, 0xc1, 0x56, 0x7e, 0x32,
     0xfc, 0xe1, 0xf5, 0xb3, 0x14, 0x14, 0xc5, 0x22
   };
+
+  /* It shoule be ok */
+  wz_encode_aes(cipher, sizeof(cipher), key, iv);
   ck_assert(memcmp(cipher, expected, sizeof(cipher)) == 0);
 } END_TEST
 
 START_TEST(test_open_file) {
-  static const uint8_t copy[] = {'a', 'b'};
-  uint8_t head[4 + 4 + 4 + 4 + sizeof(copy) + 2];
   const uint16_t dec = 0x00ce;
   uint32_t hash;
   uint16_t enc;
-  wz_encode_ver(&enc, &hash, dec);
+  static const uint8_t copy[] = {'a', 'b'};
+  uint8_t head[4 + 4 + 4 + 4 + sizeof(copy) + 2];
   const uint32_t root_addr = sizeof(head);
   const uint8_t start = sizeof(head) - 2;
-  head[0]  = 0x01; // ident
+  static const uint8_t str_dec[] = {'c', 'd'};
+  uint8_t str_enc[sizeof(str_dec)];
+  uint8_t * key;
+  uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
+  uint32_t str_len = sizeof(head) + sizeof(str1);
+  uint32_t str_i;
+  uint8_t * str;
+  const uint32_t addr_pos = str_len - 4;
+  const uint32_t addr_dec = root_addr;
+  uint32_t addr_enc;
+  uint8_t i;
+  size_t mem_size;
+  wzctx * ctx;
+  wzfile created;
+  wzfile * file;
+
+  wz_encode_ver(&enc, &hash, dec);
+  head[0]  = 0x01; /* ident */
   head[1]  = 0x23;
   head[2]  = 0x45;
   head[3]  = 0x67;
-  head[4]  = 0x01; // size
+  head[4]  = 0x01; /* size */
   head[5]  = 0x00;
   head[6]  = 0x00;
   head[7]  = 0x00;
@@ -1228,57 +1208,44 @@ START_TEST(test_open_file) {
   head[13] = 0x00;
   head[14] = 0x00;
   head[15] = 0x00;
-  for (uint8_t i = 0; i < sizeof(copy); i++)
+  for (i = 0; i < sizeof(copy); i++)
     head[i + 16] = copy[i];
   head[sizeof(copy) + 16] = (uint8_t) (enc & 0xff);
   head[sizeof(copy) + 17] = (uint8_t) (enc >> 8);
-  static const uint8_t str_dec[] = {'c', 'd'};
 
-  wzctx * ctx;
   ck_assert(memused() == 0);
   ck_assert((ctx = wz_init_ctx()) != NULL);
   ck_assert(memused() != 0);
-  size_t mem_size = memused();
-  uint8_t * key = ctx->keys;
+  mem_size = memused();
+  key = ctx->keys;
 
-  uint8_t str_enc[sizeof(str_dec)];
-  uint8_t mask = 0xaa;
-  for (uint8_t i = 0; i < sizeof(str_dec); i++)
-    str_enc[i] = str_dec[i] ^ mask++ ^ key[i];
-  uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
-  uint32_t str_len = sizeof(head) + sizeof(str1);
-  const uint32_t addr_pos = str_len - 4;
-  const uint32_t addr_dec = root_addr;
-  uint32_t addr_enc;
+  cp1252_encode(str_enc, str_dec, sizeof(str_dec), key);
   wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
-  str1[0] = 0x01; // len
-  str1[1] = 0x03; // type
+  str1[0] = 0x01; /* len */
+  str1[1] = 0x03; /* type */
   str1[2] = (~sizeof(str_dec) + 1) & 0xff;
-  for (uint8_t i = 0; i < sizeof(str_dec); i++)
+  for (i = 0; i < sizeof(str_dec); i++)
     str1[i + 3] = str_enc[i];
-  str1[sizeof(str_dec) + 3] = 0x01; // size
-  str1[sizeof(str_dec) + 4] = 0x23; // check
+  str1[sizeof(str_dec) + 3] = 0x01; /* size */
+  str1[sizeof(str_dec) + 4] = 0x23; /* check */
   str1[sizeof(str_dec) + 5] = (addr_enc      ) & 0xff;
   str1[sizeof(str_dec) + 6] = (addr_enc >>  8) & 0xff;
   str1[sizeof(str_dec) + 7] = (addr_enc >> 16) & 0xff;
   str1[sizeof(str_dec) + 8] = (uint8_t) (addr_enc >> 24);
 
-  uint8_t * str;
   ck_assert((str = malloc(str_len)) != NULL);
-  uint32_t str_i = 0;
-  for (uint8_t i = 0; i < sizeof(head); i++)
+  str_i = 0;
+  for (i = 0; i < sizeof(head); i++)
     str[str_i++] = head[i];
-  for (uint8_t i = 0; i < sizeof(str1); i++)
+  for (i = 0; i < sizeof(str1); i++)
     str[str_i++] = str1[i];
 
-  wzfile created;
   create_file(&created, str, str_len);
   close_file(&created);
 
   free(str);
 
-  // It should be ok
-  wzfile * file;
+  /* It should be ok */
   ck_assert(memused() == mem_size);
   ck_assert((file = wz_open_file(tmp_fname, ctx)) != NULL);
   ck_assert(memused() > mem_size);
@@ -1295,7 +1262,7 @@ START_TEST(test_open_file) {
   ck_assert(wz_close_file(file) == 0);
 
   ck_assert(memused() == mem_size);
-  wz_free_ctx(ctx);
+  ck_assert(wz_free_ctx(ctx) == 0);
   ck_assert(memused() == 0);
 } END_TEST
 

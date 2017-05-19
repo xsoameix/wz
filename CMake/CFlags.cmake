@@ -14,7 +14,7 @@ endmacro()
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   set(CFLAGS
     # C Language Options
-    "-std=c99"
+    "-std=c89"
 
     "-pthread"
 
@@ -38,7 +38,7 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     "-Wformat-security"
     "-Wformat-y2k"
     #"-Wframe-larger-than=len"
-    #"-Wjump-misses-init"
+    "-Wjump-misses-init"
     "-Wimplicit"
     "-Winit-self"
     "-Winline"
@@ -83,8 +83,7 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     "-Wstrict-prototypes"
     #"-Wtraditional"
     #"-Wtraditional-conversion"
-    #"-Wdeclaration-after-statement"
-    )
+    "-Wdeclaration-after-statement")
 elseif ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
   set(CFLAGS
     "-Werror"

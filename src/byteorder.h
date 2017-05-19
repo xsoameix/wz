@@ -17,8 +17,9 @@
 #  ifdef WZ_MSVC
 #    pragma warning(push, 3)
 #  endif
-#  include <limits.h> // Let <features.h> be included, which defined __GLIBC__
-#  if defined(WZ_LIB_C_GNU)
+/* <features.h>, which defined __GLIBC__, will be included */
+#  include <limits.h>
+#  if defined(__GLIBC__)
 #    include <endian.h>
 #  endif
 #  ifdef WZ_MSVC
@@ -45,11 +46,11 @@
 #endif
 
 #ifndef __has_builtin
-#  define __has_builtin(x) 0 // compatibility with non-clang compilers
+#  define __has_builtin(x) 0 /* compatibility with non-clang compilers */
 #endif
 
-// clang use the Microsoft rather than GCC intrinsics, so
-//  we check for defined(WZ_MSVC) before defined(WZ_CLANG)
+/* clang use the Microsoft rather than GCC intrinsics, so
+    we check for defined(WZ_MSVC) before defined(WZ_CLANG) */
 #if defined(WZ_MSVC)
 #  pragma warning(push, 3)
 #  include <stdlib.h>

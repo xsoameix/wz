@@ -16,7 +16,7 @@ typedef struct {
   size_t size;
   void * ptr;
   char   freed;
-  char   _[sizeof(void *) - 1]; // padding
+  char   _[sizeof(void *) - 1]; /* padding */
 } musage;
 
 static musage * mused = NULL;
@@ -28,16 +28,16 @@ static size_t mused_err = 0;
 void *
 wrap_malloc(size_t size) {
   size_t req = mused_len + 1;
+  void * ptr;
   if (mused_capa < req) {
+    musage * mem;
     size_t l = mused_capa;
     do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-    musage * mem;
     if ((mem = realloc(mused, l * sizeof(* mused))) == NULL)
       return NULL;
     mused = mem;
     mused_capa = l;
   }
-  void * ptr;
   if ((ptr = malloc(size)) == NULL)
     return NULL;
   mused[mused_len].size = size;
