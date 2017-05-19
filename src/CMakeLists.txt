@@ -52,7 +52,7 @@ set_target_properties(
 # wz/*.h - headers
 set(INSTALL_BINARY_DIR    "${CMAKE_INSTALL_PREFIX}/bin")
 set(INSTALL_LIBRARY_DIR   "${CMAKE_INSTALL_PREFIX}/lib")
-set(INSTALL_INCLUDE_DIR   "${CMAKE_INSTALL_PREFIX}/include/wz")
+set(INSTALL_INCLUDE_DIR   "${CMAKE_INSTALL_PREFIX}/include")
 set(INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_PREFIX}/share/pkgconfig")
 set(INSTALL_PKGCONFIG     "${CMAKE_CURRENT_BINARY_DIR}/wz.pc")
 configure_file(
@@ -73,7 +73,7 @@ install(
       "${INSTALL_LIBRARY_DIR}")
 install(
   FILES
-    "file.h"
+    "wz.h"
   DESTINATION
     "${INSTALL_INCLUDE_DIR}")
 install(

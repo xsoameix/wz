@@ -12,15 +12,13 @@
 #  include <time.h>
 #endif
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
-#include <inttypes.h>
 
 #ifdef WZ_MSVC
 #  pragma warning(pop)
 #endif
 
-#include "file.h"
+#include "wz.h"
 
 static int cmd_version(int argc, char ** argv);
 static int cmd_help(int argc, char ** argv);
@@ -137,8 +135,8 @@ cmd_ls(int argc, char ** argv) {
   }
   switch (wz_get_type(node)) {
   case WZ_ARY: {
-    uint32_t len;
-    uint32_t i;
+    wz_uint32_t len;
+    wz_uint32_t i;
     (void) wz_get_len(&len, node);
     for (i = 0; i < len; i++) {
       printf("%s\n", wz_get_name(wz_open_node_at(node, i)));
@@ -146,14 +144,14 @@ cmd_ls(int argc, char ** argv) {
     break;
   }
   case WZ_IMG: {
-    uint32_t w;
-    uint32_t h;
-    uint16_t depth;
-    uint8_t scale;
-    uint8_t * data = wz_get_img(&w, &h, &depth, &scale, node);
+    wz_uint32_t w;
+    wz_uint32_t h;
+    wz_uint16_t depth;
+    wz_uint8_t scale;
+    wz_uint8_t * data = wz_get_img(&w, &h, &depth, &scale, node);
     if (savename == NULL) {
-      uint32_t len;
-      uint32_t i;
+      wz_uint32_t len;
+      wz_uint32_t i;
       const char * depth_name;
       switch (depth) {
       case WZ_COLOR_8888: depth_name = "8888"; break;
@@ -168,8 +166,8 @@ cmd_ls(int argc, char ** argv) {
       case 4:  scale = 16; break; /* pow(2, 4) == 16 */
       default: scale =  0; break;
       }
-      printf("(image: %"PRIu32" %"PRIu32" %s/%"PRIu16")\n",
-             w, h, depth_name, scale);
+      printf("(image: %"WZ_PRIu32" %"WZ_PRIu32" %s/%"WZ_PRIu32")\n",
+             w, h, depth_name, (wz_uint32_t) scale);
       (void) wz_get_len(&len, node);
       for (i = 0; i < len; i++) {
         printf("%s\n", wz_get_name(wz_open_node_at(node, i)));
@@ -194,10 +192,10 @@ close_savefile:
     break;
   }
   case WZ_AO: {
-    uint32_t size;
-    uint32_t ms;
-    uint16_t format;
-    uint8_t * data = wz_get_ao(&size, &ms, &format, node);
+    wz_uint32_t size;
+    wz_uint32_t ms;
+    wz_uint16_t format;
+    wz_uint8_t * data = wz_get_ao(&size, &ms, &format, node);
     if (savename == NULL) {
       const char * format_name;
       switch (format) {
@@ -205,7 +203,8 @@ close_savefile:
       case WZ_AUDIO_MP3: format_name = "mp3"; break;
       default:           format_name = "unk"; break;
       }
-      printf("(audio: %02"PRIu32":%02"PRIu32".%03"PRIu32" %"PRIu32"B %s)\n",
+      printf("(audio: %02"WZ_PRIu32":%02"WZ_PRIu32".%03"WZ_PRIu32" "
+             "%"WZ_PRIu32"B %s)\n",
              ms / 60000,
              ms / 1000 % 60,
              ms % 1000,
@@ -230,15 +229,15 @@ close_savefile_:
     break;
   }
   case WZ_VEX: {
-    uint32_t len;
-    uint32_t i;
+    wz_uint32_t len;
+    wz_uint32_t i;
     (void) wz_get_vex_len(&len, node);
     printf("(vex: ");
     for (i = 0; i < len; i++) {
-      int32_t x;
-      int32_t y;
+      wz_int32_t x;
+      wz_int32_t y;
       (void) wz_get_vex_at(&x, &y, i, node);
-      printf("%"PRId32" %"PRId32, x, y);
+      printf("%"WZ_PRId32" %"WZ_PRId32, x, y);
       if (i < len - 1)
         printf(", ");
     }
@@ -246,31 +245,31 @@ close_savefile_:
     break;
   }
   case WZ_VEC: {
-    int32_t x;
-    int32_t y;
+    wz_int32_t x;
+    wz_int32_t y;
     (void) wz_get_vec(&x, &y, node);
-    printf("(vec: %"PRId32" %"PRId32")\n", x, y);
+    printf("(vec: %"WZ_PRId32" %"WZ_PRId32")\n", x, y);
     break;
   }
   case WZ_STR:
     printf("(str: %s)\n", wz_get_str(node));
     break;
   case WZ_I16: {
-    int32_t val;
+    wz_int32_t val;
     (void) wz_get_int(&val, node);
-    printf("(i16: %"PRId16")\n", val);
+    printf("(i16: %"WZ_PRId32")\n", (wz_int32_t) val);
     break;
   }
   case WZ_I32: {
-    int32_t val;
+    wz_int32_t val;
     (void) wz_get_int(&val, node);
-    printf("(i32: %"PRId32")\n", val);
+    printf("(i32: %"WZ_PRId32")\n", val);
     break;
   }
   case WZ_I64: {
-    int64_t val;
+    wz_int64_t val;
     (void) wz_get_i64(&val, node);
-    printf("(i64: %"PRId64")\n", val);
+    printf("(i64: %"WZ_PRId64")\n", val);
     break;
   }
   case WZ_F32: {
@@ -304,7 +303,7 @@ cmd_time(int argc, char ** argv) {
   /* wz time <file> [<file>...] */
   /* timing of parsing wz file(s) */
   int ret = 1;
-  uint8_t err = 0;
+  wz_uint8_t err = 0;
   wzctx * ctx;
 #if defined(WZ_WINDOWS)
   LARGE_INTEGER freq;
@@ -312,12 +311,12 @@ cmd_time(int argc, char ** argv) {
   LARGE_INTEGER end;
 #elif defined(WZ_MACOS)
   mach_timebase_info_data_t info;
-  uint64_t start;
+  wz_uint64_t start;
 #else
   struct timespec start;
   struct timespec end;
 #endif
-  uint64_t duration;
+  wz_uint64_t duration;
   int i;
   if (argc < 3) {
     fprintf(stderr,
@@ -362,17 +361,17 @@ close_file:
 #if defined(WZ_WINDOWS)
   if (QueryPerformanceCounter(&end) == FALSE)
     goto free_ctx;
-  duration = (uint64_t) ((end.QuadPart - start.QuadPart) *
-                         1000000000 / freq.QuadPart);
+  duration = (wz_uint64_t) ((end.QuadPart - start.QuadPart) *
+                            1000000000 / freq.QuadPart);
 #elif defined(WZ_MACOS)
   duration = (mach_absolute_time() - start) * info.numer / info.denom;
 #else
   if (clock_gettime(CLOCK_MONOTONIC, &end))
     goto free_ctx;
-  duration = (uint64_t) ((end.tv_sec - start.tv_sec) * 1000000000 +
-                         (end.tv_nsec - start.tv_nsec));
+  duration = (wz_uint64_t) ((end.tv_sec - start.tv_sec) * 1000000000 +
+                            (end.tv_nsec - start.tv_nsec));
 #endif
-  printf("took %3"PRIu64".%09"PRIu64" seconds, %s occurred\n",
+  printf("took %3"WZ_PRIu64".%09"WZ_PRIu64" seconds, %s occurred\n",
          duration / 1000000000,
          duration % 1000000000,
          err ? "error" : "no error");

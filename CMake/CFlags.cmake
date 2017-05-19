@@ -83,7 +83,9 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     "-Wstrict-prototypes"
     #"-Wtraditional"
     #"-Wtraditional-conversion"
-    "-Wdeclaration-after-statement")
+    "-Wdeclaration-after-statement"
+
+    "-Wno-long-long")
 elseif ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
   set(CFLAGS
     "-Werror"

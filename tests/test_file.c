@@ -23,7 +23,7 @@
 START_TEST(test_node) {
 #define offof(a, b) (size_t) ((char *) (&(&(a))->b) - (char *) &(a))
   wznode n;
-#if UINTPTR_MAX <= UINT32_MAX
+#ifdef WZ_ARCH_32
   ck_assert(sizeof(n.n16_e)          == 22);
   ck_assert(offof(n, n16_e.name_buf) == 10);
   ck_assert(sizeof(n.n16_e.name_buf) == 12);
@@ -118,7 +118,7 @@ START_TEST(test_node) {
 static const char tmp_fname[] = "tmpfile";
 
 static void
-create_file(wzfile * file, const uint8_t * bytes, uint32_t len) {
+create_file(wzfile * file, const wz_uint8_t * bytes, wz_uint32_t len) {
   FILE * raw;
   ck_assert((raw = fopen(tmp_fname, "w+b")) != NULL);
   if (len) {
@@ -144,8 +144,8 @@ delete_file(wzfile * file) {
 }
 
 START_TEST(test_read_bytes) {
-  static const uint8_t normal[] = {'a', 'b'};
-  uint8_t buffer[sizeof(normal)];
+  static const wz_uint8_t normal[] = {'a', 'b'};
+  wz_uint8_t buffer[sizeof(normal)];
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -165,8 +165,8 @@ START_TEST(test_read_bytes) {
 } END_TEST
 
 START_TEST(test_read_byte) {
-  static const uint8_t normal[] = {'a'};
-  uint8_t buffer;
+  static const wz_uint8_t normal[] = {'a'};
+  wz_uint8_t buffer;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -183,9 +183,9 @@ START_TEST(test_read_byte) {
 } END_TEST
 
 START_TEST(test_read_le16) {
-  static const uint8_t normal[] = {0x01, 0x23};
-  uint16_t buffer;
-  uint16_t copy;
+  static const wz_uint8_t normal[] = {0x01, 0x23};
+  wz_uint16_t buffer;
+  wz_uint16_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -203,9 +203,9 @@ START_TEST(test_read_le16) {
 } END_TEST
 
 START_TEST(test_read_le32) {
-  static const uint8_t normal[] = {0x01, 0x23, 0x45, 0x67};
-  uint32_t buffer;
-  uint32_t copy;
+  static const wz_uint8_t normal[] = {0x01, 0x23, 0x45, 0x67};
+  wz_uint32_t buffer;
+  wz_uint32_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -223,11 +223,11 @@ START_TEST(test_read_le32) {
 } END_TEST
 
 START_TEST(test_read_le64) {
-  static const uint8_t normal[] = {
+  static const wz_uint8_t normal[] = {
     0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
   };
-  uint64_t buffer;
-  uint64_t copy;
+  wz_uint64_t buffer;
+  wz_uint64_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -245,9 +245,9 @@ START_TEST(test_read_le64) {
 } END_TEST
 
 START_TEST(test_read_int32) {
-  static const uint8_t normal[] = {0x01, 0xfe, 0x80, 0x23, 0x45, 0x67, 0x89};
-  uint32_t buffer;
-  uint32_t copy;
+  static const wz_uint8_t normal[] = {0x01, 0xfe, 0x80, 0x23, 0x45, 0x67, 0x89};
+  wz_uint32_t buffer;
+  wz_uint32_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -273,11 +273,11 @@ START_TEST(test_read_int32) {
 } END_TEST
 
 START_TEST(test_read_int64) {
-  static const uint8_t normal[] = {
+  static const wz_uint8_t normal[] = {
     0x01, 0xfe, 0x80, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01
   };
-  uint64_t buffer;
-  uint64_t copy;
+  wz_uint64_t buffer;
+  wz_uint64_t copy;
   wzfile file;
   create_file(&file, normal, sizeof(normal));
 
@@ -302,11 +302,11 @@ START_TEST(test_read_int64) {
   delete_file(&file);
 } END_TEST
 
-static uint32_t
-numgen(uint32_t x) {
-  static const uint32_t prime = 4294967291;
+static wz_uint32_t
+numgen(wz_uint32_t x) {
+  static const wz_uint32_t prime = 4294967291;
   if (x < prime) {
-    uint32_t residue = (uint32_t) (((uint64_t) x * x) % prime);
+    wz_uint32_t residue = (wz_uint32_t) (((wz_uint64_t) x * x) % prime);
     return (x <= prime / 2) ? residue : prime - residue;
   } else {
     return x;
@@ -314,28 +314,33 @@ numgen(uint32_t x) {
 }
 
 static void
-keygen(uint8_t * key, uint32_t len) {
-  static const uint32_t seed_base   = 0xca63ad9a;
-  static const uint32_t seed_offset = 0x77c85c28;
-  uint32_t index  = numgen(numgen(seed_base)   + 0x9a0e1793);
-  uint32_t offset = numgen(numgen(seed_offset) + 0x28d1f9c7);
-  uint32_t i;
+keygen(wz_uint8_t * key, wz_uint32_t len) {
+  static const wz_uint32_t seed_base   = 0xca63ad9a;
+  static const wz_uint32_t seed_offset = 0x77c85c28;
+  wz_uint32_t index  = numgen(numgen(seed_base)   + 0x9a0e1793);
+  wz_uint32_t offset = numgen(numgen(seed_offset) + 0x28d1f9c7);
+  wz_uint32_t i;
   for (i = 0; i < len; i++)
     key[i] = numgen((numgen(index++) + offset) ^ 0xdf53971e) & 0xff;
 }
 
-static const uint8_t cp1252[]     = {'f', 'i', 'a', 'n', 'c', 0xe9, 'e'};
-static const uint8_t cp1252_u8[]  = {'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'};
-static const uint8_t utf16le[]    = {0x42, 0x30, 0x44, 0x30}; /* love (jp) */
-static const uint8_t utf16le_u8[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
-static const uint8_t utf8[]       = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
+static const wz_uint8_t cp1252[] = {
+  'f', 'i', 'a', 'n', 'c', 0xe9, 'e'
+};
+static const wz_uint8_t cp1252_u8[] = {
+  'f', 'i', 'a', 'n', 'c', 0xc3, 0xa9, 'e'
+};
+static const wz_uint8_t utf16le[]    = {0x42, 0x30, 0x44, 0x30}; /* love (jp) */
+static const wz_uint8_t utf16le_u8[] = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
+static const wz_uint8_t utf8[]       = {0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84};
 enum {KEY_BUF_SIZE = sizeof(cp1252)};
 
 static void
-cp1252_encode(uint8_t * enc,
-              const uint8_t * dec, uint32_t len, const uint8_t * key) {
-  uint8_t mask = 0xaa;
-  uint32_t i;
+cp1252_encode(wz_uint8_t * enc,
+              const wz_uint8_t * dec, wz_uint32_t len,
+              const wz_uint8_t * key) {
+  wz_uint8_t mask = 0xaa;
+  wz_uint32_t i;
   if (key == NULL)
     for (i = 0; i < len; i++)
       enc[i] = dec[i] ^ mask++;
@@ -345,41 +350,43 @@ cp1252_encode(uint8_t * enc,
 }
 
 static void
-utf16le_encode(uint8_t * enc,
-               const uint8_t * dec, uint32_t len, const uint8_t * key) {
-  uint16_t mask = 0xaaaa;
-  uint32_t i;
+utf16le_encode(wz_uint8_t * enc,
+               const wz_uint8_t * dec, wz_uint32_t len,
+               const wz_uint8_t * key) {
+  wz_uint16_t mask = 0xaaaa;
+  wz_uint32_t i;
   if (key == NULL)
     for (i = 0; i < len;) {
-      enc[i] = (uint8_t) (dec[i] ^ (mask & 0xff)), i++;
-      enc[i] = (uint8_t) (dec[i] ^ (mask >> 8)),   i++;
+      enc[i] = (wz_uint8_t) (dec[i] ^ (mask & 0xff)), i++;
+      enc[i] = (wz_uint8_t) (dec[i] ^ (mask >> 8)),   i++;
       mask++;
     }
   else
     for (i = 0; i < len;) {
-      enc[i] = (uint8_t) (dec[i] ^ (mask & 0xff) ^ key[i]), i++;
-      enc[i] = (uint8_t) (dec[i] ^ (mask >> 8)   ^ key[i]), i++;
+      enc[i] = (wz_uint8_t) (dec[i] ^ (mask & 0xff) ^ key[i]), i++;
+      enc[i] = (wz_uint8_t) (dec[i] ^ (mask >> 8)   ^ key[i]), i++;
       mask++;
     }
 }
 
 static void
-utf8_encode(uint8_t * enc,
-            const uint8_t * dec, uint32_t len, const uint8_t * key) {
-  uint32_t i;
+utf8_encode(wz_uint8_t * enc,
+            const wz_uint8_t * dec, wz_uint32_t len,
+            const wz_uint8_t * key) {
+  wz_uint32_t i;
   for (i = 0; i < len; i++)
     enc[i] = dec[i] ^ key[i];
 }
 
 START_TEST(test_decode_chars) {
-  uint32_t key_len = 0x12000;
-  uint32_t dec_len;
-  uint8_t * key;
-  uint8_t * enc;
-  uint32_t i;
-  uint32_t j;
-  uint8_t mask;
-  uint8_t same;
+  wz_uint32_t key_len = 0x12000;
+  wz_uint32_t dec_len;
+  wz_uint8_t * key;
+  wz_uint8_t * enc;
+  wz_uint32_t i;
+  wz_uint32_t j;
+  wz_uint8_t mask;
+  wz_uint8_t same;
   ck_assert((key = malloc(key_len)) != NULL);
   keygen(key, key_len);
   ck_assert((enc = malloc(key_len)) != NULL);
@@ -401,9 +408,9 @@ START_TEST(test_decode_chars) {
     mask = 0xaa;
     for (i = 0; i < key_len; i++)
       if (i < 0x10000)
-        enc[i] = (uint8_t) (('a' + i % 26) ^ mask++ ^ key[i]);
+        enc[i] = (wz_uint8_t) (('a' + i % 26) ^ mask++ ^ key[i]);
       else
-        enc[i] = (uint8_t) (('a' + i % 26) ^ mask++);
+        enc[i] = (wz_uint8_t) (('a' + i % 26) ^ mask++);
 
     /* when len > 0x10000 */
     ck_assert(wz_decode_chars(enc, key_len,
@@ -441,8 +448,8 @@ START_TEST(test_decode_chars) {
 
   /* It should decode utf8 */
   {
-    dec_len = key_len - (uint8_t) (key_len % sizeof(utf8));
-    for (i = 0; i < dec_len; i = (uint32_t) (i + sizeof(utf8)))
+    dec_len = key_len - (wz_uint8_t) (key_len % sizeof(utf8));
+    for (i = 0; i < dec_len; i = (wz_uint32_t) (i + sizeof(utf8)))
       utf8_encode(enc + i, utf8, sizeof(utf8), key + i);
 
     /* when len > 0x10000 */
@@ -468,19 +475,19 @@ START_TEST(test_decode_chars) {
 } END_TEST
 
 START_TEST(test_read_chars) {
-  uint8_t key[KEY_BUF_SIZE];
-  uint8_t i;
-  uint8_t * bytes;
-  uint32_t len;
-  uint8_t encoding;
+  wz_uint8_t key[KEY_BUF_SIZE];
+  wz_uint8_t i;
+  wz_uint8_t * bytes;
+  wz_uint32_t len;
+  wz_uint8_t encoding;
   wzfile file;
 
   keygen(key, KEY_BUF_SIZE);
 
   /* It should be ok */
   {
-    static const uint8_t enc[] = {0x01, 0x23};
-    uint8_t str[1 + sizeof(enc)];
+    static const wz_uint8_t enc[] = {0x01, 0x23};
+    wz_uint8_t str[1 + sizeof(enc)];
 
     str[0] = (~sizeof(enc) + 1) & 0xff;
     for (i = 0; i < sizeof(enc); i++)
@@ -502,10 +509,10 @@ START_TEST(test_read_chars) {
     delete_file(&file);
   }
   {
-    static const uint8_t enc[] = {0x45, 0x67};
-    uint8_t str[1 + 4 + sizeof(enc)];
+    static const wz_uint8_t enc[] = {0x45, 0x67};
+    wz_uint8_t str[1 + 4 + sizeof(enc)];
 
-    str[0] = (uint8_t) INT8_MIN;
+    str[0] = (wz_uint8_t) WZ_INT8_MIN;
     str[1] = sizeof(enc);
     str[2] = 0;
     str[3] = 0;
@@ -529,8 +536,8 @@ START_TEST(test_read_chars) {
     delete_file(&file);
   }
   {
-    static const uint8_t enc[] = {0x89, 0xab};
-    uint8_t str[1 + sizeof(enc)];
+    static const wz_uint8_t enc[] = {0x89, 0xab};
+    wz_uint8_t str[1 + sizeof(enc)];
 
     str[0] = sizeof(enc) >> 1;
     for (i = 0; i < sizeof(enc); i++)
@@ -552,10 +559,10 @@ START_TEST(test_read_chars) {
     delete_file(&file);
   }
   {
-    static const uint8_t enc[] = {0x89, 0xab};
-    uint8_t str[1 + 4 + sizeof(enc)];
+    static const wz_uint8_t enc[] = {0x89, 0xab};
+    wz_uint8_t str[1 + 4 + sizeof(enc)];
 
-    str[0] = INT8_MAX;
+    str[0] = WZ_INT8_MAX;
     str[1] = sizeof(enc) >> 1;
     str[2] = 0;
     str[3] = 0;
@@ -581,7 +588,7 @@ START_TEST(test_read_chars) {
 
   /* It should decode if key is set */
   {
-    uint8_t enc[1 + sizeof(cp1252)];
+    wz_uint8_t enc[1 + sizeof(cp1252)];
 
     enc[0] = (~sizeof(cp1252) + 1) & 0xff;
     cp1252_encode(enc + 1, cp1252, sizeof(cp1252), key);
@@ -602,7 +609,7 @@ START_TEST(test_read_chars) {
     delete_file(&file);
   }
   {
-    uint8_t enc[1 + sizeof(utf16le)];
+    wz_uint8_t enc[1 + sizeof(utf16le)];
 
     enc[0] = sizeof(utf16le) >> 1;
     utf16le_encode(enc + 1, utf16le, sizeof(utf16le), key);
@@ -625,22 +632,22 @@ START_TEST(test_read_chars) {
 } END_TEST
 
 static void
-wz_encode_addr(uint32_t * ret_val, uint32_t val, uint32_t pos,
-               uint32_t start, uint32_t hash) {
-  uint32_t key = 0x581c3f6d;
-  uint32_t x = ~(pos - start) * hash - key;
-  uint32_t n = x & 0x1f;
+wz_encode_addr(wz_uint32_t * ret_val, wz_uint32_t val, wz_uint32_t pos,
+               wz_uint32_t start, wz_uint32_t hash) {
+  wz_uint32_t key = 0x581c3f6d;
+  wz_uint32_t x = ~(pos - start) * hash - key;
+  wz_uint32_t n = x & 0x1f;
   x = (x << n) | (x >> (32 - n)); /* rotate left n bit */
   * ret_val = x ^ (val - start * 2);
 }
 
 START_TEST(test_decode_addr) {
   /* It should be ok */
-  uint32_t hash = 0x713;
-  uint32_t start = 0x3c;
-  uint32_t pos = 0x51;
-  uint32_t dec = 0x2ed;
-  uint32_t enc;
+  wz_uint32_t hash = 0x713;
+  wz_uint32_t start = 0x3c;
+  wz_uint32_t pos = 0x51;
+  wz_uint32_t dec = 0x2ed;
+  wz_uint32_t enc;
   wz_encode_addr(&enc, dec, pos, start, hash);
   ck_assert(enc != dec);
   wz_decode_addr(&enc, enc, pos, start, hash);
@@ -648,7 +655,7 @@ START_TEST(test_decode_addr) {
 } END_TEST
 
 START_TEST(test_seek) {
-  static const uint8_t str[] = {0x01, 0x23, 0x45, 0x67, 0x89};
+  static const wz_uint8_t str[] = {0x01, 0x23, 0x45, 0x67, 0x89};
   wzfile file;
   create_file(&file, str, sizeof(str));
 
@@ -672,20 +679,20 @@ START_TEST(test_seek) {
 } END_TEST
 
 START_TEST(test_read_lv0) {
-  uint8_t head[5];
-  const uint32_t root_addr = sizeof(head);
-  const uint32_t start = root_addr - 3;
-  const uint32_t hash = 0xc5e3;
-  const uint32_t addr_dec = 0x01234567;
-  uint32_t addr_pos;
-  uint32_t addr_enc;
-  uint8_t offset;
-  uint8_t key[KEY_BUF_SIZE];
-  uint8_t enc[KEY_BUF_SIZE];
-  uint8_t i;
-  uint32_t child_addr;
-  uint8_t child_key;
-  uint8_t * child_name;
+  wz_uint8_t head[5];
+  const wz_uint32_t root_addr = sizeof(head);
+  const wz_uint32_t start = root_addr - 3;
+  const wz_uint32_t hash = 0xc5e3;
+  const wz_uint32_t addr_dec = 0x01234567;
+  wz_uint32_t addr_pos;
+  wz_uint32_t addr_enc;
+  wz_uint8_t offset;
+  wz_uint8_t key[KEY_BUF_SIZE];
+  wz_uint8_t enc[KEY_BUF_SIZE];
+  wz_uint8_t i;
+  wz_uint32_t child_addr;
+  wz_uint8_t child_key;
+  wz_uint8_t * child_name;
   wznode * child;
   wznode node;
   wzfile file;
@@ -701,7 +708,7 @@ START_TEST(test_read_lv0) {
 
   /* It should be ok */
   {
-    uint8_t str[sizeof(head) + 1 + 1 + 10];
+    wz_uint8_t str[sizeof(head) + 1 + 1 + 10];
 
     for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
@@ -729,9 +736,10 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    uint8_t str[sizeof(head) + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + sizeof(cp1252)];
+    wz_uint8_t str[sizeof(head) + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 +
+                   sizeof(cp1252)];
 
-    offset = (uint8_t) (sizeof(str) - sizeof(cp1252) - 1 - 1 - start);
+    offset = (wz_uint8_t) (sizeof(str) - sizeof(cp1252) - 1 - 1 - start);
     cp1252_encode(enc, cp1252, sizeof(cp1252), key);
     addr_pos = sizeof(str) - sizeof(cp1252) - 1 - 1 - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
@@ -748,7 +756,7 @@ START_TEST(test_read_lv0) {
     str[sizeof(head) + 8]  = (addr_enc      ) & 0xff; /* addr */
     str[sizeof(head) + 9]  = (addr_enc >>  8) & 0xff;
     str[sizeof(head) + 10] = (addr_enc >> 16) & 0xff;
-    str[sizeof(head) + 11] = (uint8_t) (addr_enc >> 24);
+    str[sizeof(head) + 11] = (wz_uint8_t) (addr_enc >> 24);
     str[sizeof(head) + 12] = 0x04; /* second type */
     str[sizeof(head) + 13] = (~sizeof(cp1252) + 1) & 0xff;
     for (i = 0; i < sizeof(cp1252); i++)
@@ -787,7 +795,7 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+    wz_uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
 
     utf16le_encode(enc, utf16le, sizeof(utf16le), key);
     addr_pos = sizeof(str) - 4;
@@ -804,7 +812,7 @@ START_TEST(test_read_lv0) {
     str[sizeof(head) + sizeof(utf16le) + 5] = (addr_enc      ) & 0xff;
     str[sizeof(head) + sizeof(utf16le) + 6] = (addr_enc >>  8) & 0xff;
     str[sizeof(head) + sizeof(utf16le) + 7] = (addr_enc >> 16) & 0xff;
-    str[sizeof(head) + sizeof(utf16le) + 8] = (uint8_t) (addr_enc >> 24);
+    str[sizeof(head) + sizeof(utf16le) + 8] = (wz_uint8_t) (addr_enc >> 24);
 
     create_file(&file, str, sizeof(str));
 
@@ -839,7 +847,7 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+    wz_uint8_t str[sizeof(head) + 1 + 1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
 
     utf16le_encode(enc, utf16le, sizeof(utf16le), key);
     addr_pos = sizeof(str) - 4;
@@ -856,7 +864,7 @@ START_TEST(test_read_lv0) {
     str[sizeof(head) + sizeof(utf16le) + 5] = (addr_enc      ) & 0xff;
     str[sizeof(head) + sizeof(utf16le) + 6] = (addr_enc >>  8) & 0xff;
     str[sizeof(head) + sizeof(utf16le) + 7] = (addr_enc >> 16) & 0xff;
-    str[sizeof(head) + sizeof(utf16le) + 8] = (uint8_t) (addr_enc >> 24);
+    str[sizeof(head) + sizeof(utf16le) + 8] = (wz_uint8_t) (addr_enc >> 24);
 
     create_file(&file, str, sizeof(str));
 
@@ -891,22 +899,22 @@ START_TEST(test_read_lv0) {
     delete_file(&file);
   }
   {
-    uint8_t str1[1 + 10];
-    uint8_t str2[1 + 4 + 1 + 1 + 4];
-    uint8_t str3[1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
-    uint8_t str4[1 + 1 + sizeof(cp1252) + 1 + 1 + 4];
-    uint32_t str_len = sizeof(head) + 1;
-    uint32_t str_i;
-    uint8_t * str;
+    wz_uint8_t str1[1 + 10];
+    wz_uint8_t str2[1 + 4 + 1 + 1 + 4];
+    wz_uint8_t str3[1 + 1 + sizeof(utf16le) + 1 + 1 + 4];
+    wz_uint8_t str4[1 + 1 + sizeof(cp1252) + 1 + 1 + 4];
+    wz_uint32_t str_len = sizeof(head) + 1;
+    wz_uint32_t str_i;
+    wz_uint8_t * str;
 
-    str_len += (uint32_t) sizeof(str1);
+    str_len += (wz_uint32_t) sizeof(str1);
     str1[0] = 0x01; /* type */
     for (i = 0; i < 10; i++)
       str1[i + 1] = 0xff;
 
-    str_len += (uint32_t) sizeof(str2);
-    offset = (uint8_t) ((root_addr - start) + 1 +
-                        sizeof(str1) + sizeof(str2) + sizeof(str3));
+    str_len += (wz_uint32_t) sizeof(str2);
+    offset = (wz_uint8_t) ((root_addr - start) + 1 +
+                           sizeof(str1) + sizeof(str2) + sizeof(str3));
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
     str2[0]  = 0x02; /* type */
@@ -919,10 +927,10 @@ START_TEST(test_read_lv0) {
     str2[7]  = (addr_enc      ) & 0xff; /* addr */
     str2[8]  = (addr_enc >>  8) & 0xff;
     str2[9]  = (addr_enc >> 16) & 0xff;
-    str2[10] = (uint8_t) (addr_enc >> 24);
+    str2[10] = (wz_uint8_t) (addr_enc >> 24);
 
     utf16le_encode(enc, utf16le, sizeof(utf16le), key);
-    str_len += (uint32_t) sizeof(str3);
+    str_len += (wz_uint32_t) sizeof(str3);
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
     str3[0] = 0x03; /* type */
@@ -934,10 +942,10 @@ START_TEST(test_read_lv0) {
     str3[sizeof(utf16le) + 4] = (addr_enc      ) & 0xff; /* addr */
     str3[sizeof(utf16le) + 5] = (addr_enc >>  8) & 0xff;
     str3[sizeof(utf16le) + 6] = (addr_enc >> 16) & 0xff;
-    str3[sizeof(utf16le) + 7] = (uint8_t) (addr_enc >> 24);
+    str3[sizeof(utf16le) + 7] = (wz_uint8_t) (addr_enc >> 24);
 
     cp1252_encode(enc, cp1252, sizeof(cp1252), key);
-    str_len += (uint32_t) sizeof(str4);
+    str_len += (wz_uint32_t) sizeof(str4);
     addr_pos = str_len - 4;
     wz_encode_addr(&addr_enc, addr_dec, addr_pos, start, hash);
     str4[0] = 0x04; /* type */
@@ -949,7 +957,7 @@ START_TEST(test_read_lv0) {
     str4[sizeof(cp1252) + 4] = (addr_enc      ) & 0xff; /* addr */
     str4[sizeof(cp1252) + 5] = (addr_enc >>  8) & 0xff;
     str4[sizeof(cp1252) + 6] = (addr_enc >> 16) & 0xff;
-    str4[sizeof(cp1252) + 7] = (uint8_t) (addr_enc >> 24);
+    str4[sizeof(cp1252) + 7] = (wz_uint8_t) (addr_enc >> 24);
 
     ck_assert((str = malloc(str_len)) != NULL);
     str_i = 0;
@@ -1054,7 +1062,7 @@ START_TEST(test_read_lv0) {
 
   /* It should not be ok */
   {
-    uint8_t str[sizeof(head) + 1 + 1];
+    wz_uint8_t str[sizeof(head) + 1 + 1];
 
     for (i = 0; i < sizeof(head); i++)
       str[i] = head[i];
@@ -1073,36 +1081,36 @@ START_TEST(test_read_lv0) {
 } END_TEST
 
 START_TEST(test_encode_ver) {
-  uint16_t dec = 0x0123;
+  wz_uint16_t dec = 0x0123;
 
   /* It should be ok */
-  uint16_t enc;
-  uint32_t hash;
+  wz_uint16_t enc;
+  wz_uint32_t hash;
   wz_encode_ver(&enc, &hash, dec);
   ck_assert(enc == 0x005e);
   ck_assert(hash == 0xd372);
 } END_TEST
 
 START_TEST(test_deduce_ver) {
-  static const uint8_t str_dec[] = {'a', 'b'};
-  uint8_t str_enc[sizeof(str_dec)];
-  uint8_t key[sizeof(str_dec)];
-  uint8_t head[5];
-  uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
-  uint32_t str_i;
-  uint8_t str[sizeof(head) + sizeof(str1)];
-  const uint32_t root_addr = sizeof(head);
-  const uint32_t start = root_addr - 3;
-  const uint32_t addr_pos = sizeof(str) - 4;
-  const uint32_t addr_dec = root_addr;
-  uint32_t addr_enc;
-  uint8_t i;
-  const uint16_t dec = 0x00ce;
-  uint32_t hash;
-  uint16_t enc;
-  uint16_t ret_dec;
-  uint32_t ret_hash;
-  uint8_t ret_key = 1;
+  static const wz_uint8_t str_dec[] = {'a', 'b'};
+  wz_uint8_t str_enc[sizeof(str_dec)];
+  wz_uint8_t key[sizeof(str_dec)];
+  wz_uint8_t head[5];
+  wz_uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
+  wz_uint32_t str_i;
+  wz_uint8_t str[sizeof(head) + sizeof(str1)];
+  const wz_uint32_t root_addr = sizeof(head);
+  const wz_uint32_t start = root_addr - 3;
+  const wz_uint32_t addr_pos = sizeof(str) - 4;
+  const wz_uint32_t addr_dec = root_addr;
+  wz_uint32_t addr_enc;
+  wz_uint8_t i;
+  const wz_uint16_t dec = 0x00ce;
+  wz_uint32_t hash;
+  wz_uint16_t enc;
+  wz_uint16_t ret_dec;
+  wz_uint32_t ret_hash;
+  wz_uint8_t ret_key = 1;
   wzfile file;
 
   for (i = 0; i < sizeof(head); i++)
@@ -1123,7 +1131,7 @@ START_TEST(test_deduce_ver) {
   str1[sizeof(str_dec) + 5] = (addr_enc      ) & 0xff; /* addr */
   str1[sizeof(str_dec) + 6] = (addr_enc >>  8) & 0xff;
   str1[sizeof(str_dec) + 7] = (addr_enc >> 16) & 0xff;
-  str1[sizeof(str_dec) + 8] = (uint8_t) (addr_enc >> 24);
+  str1[sizeof(str_dec) + 8] = (wz_uint8_t) (addr_enc >> 24);
 
   str_i = 0;
   for (i = 0; i < sizeof(head); i++)
@@ -1144,18 +1152,18 @@ START_TEST(test_deduce_ver) {
 } END_TEST
 
 START_TEST(test_encode_aes) {
-  static const uint8_t iv[16] = {
+  static const wz_uint8_t iv[16] = {
     0x4d, 0x23, 0xc7, 0x2b, 0x4d, 0x23, 0xc7, 0x2b,
     0x4d, 0x23, 0xc7, 0x2b, 0x4d, 0x23, 0xc7, 0x2b
   };
-  static uint8_t key[32] = {
+  static wz_uint8_t key[32] = {
     0x13, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
     0x06, 0x00, 0x00, 0x00, 0xb4, 0x00, 0x00, 0x00,
     0x1b, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00,
     0x33, 0x00, 0x00, 0x00, 0x52, 0x00, 0x00, 0x00
   };
-  uint8_t cipher[32];
-  static const uint8_t expected[sizeof(cipher)] = {
+  wz_uint8_t cipher[32];
+  static const wz_uint8_t expected[sizeof(cipher)] = {
     0x96, 0xae, 0x3f, 0xa4, 0x48, 0xfa, 0xdd, 0x90,
     0x46, 0x76, 0x05, 0x61, 0x97, 0xce, 0x78, 0x68,
     0x2b, 0xa0, 0x44, 0x8f, 0xc1, 0x56, 0x7e, 0x32,
@@ -1168,24 +1176,24 @@ START_TEST(test_encode_aes) {
 } END_TEST
 
 START_TEST(test_open_file) {
-  const uint16_t dec = 0x00ce;
-  uint32_t hash;
-  uint16_t enc;
-  static const uint8_t copy[] = {'a', 'b'};
-  uint8_t head[4 + 4 + 4 + 4 + sizeof(copy) + 2];
-  const uint32_t root_addr = sizeof(head);
-  const uint8_t start = sizeof(head) - 2;
-  static const uint8_t str_dec[] = {'c', 'd'};
-  uint8_t str_enc[sizeof(str_dec)];
-  uint8_t * key;
-  uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
-  uint32_t str_len = sizeof(head) + sizeof(str1);
-  uint32_t str_i;
-  uint8_t * str;
-  const uint32_t addr_pos = str_len - 4;
-  const uint32_t addr_dec = root_addr;
-  uint32_t addr_enc;
-  uint8_t i;
+  const wz_uint16_t dec = 0x00ce;
+  wz_uint32_t hash;
+  wz_uint16_t enc;
+  static const wz_uint8_t copy[] = {'a', 'b'};
+  wz_uint8_t head[4 + 4 + 4 + 4 + sizeof(copy) + 2];
+  const wz_uint32_t root_addr = sizeof(head);
+  const wz_uint8_t start = sizeof(head) - 2;
+  static const wz_uint8_t str_dec[] = {'c', 'd'};
+  wz_uint8_t str_enc[sizeof(str_dec)];
+  wz_uint8_t * key;
+  wz_uint8_t str1[1 + 1 + 1 + sizeof(str_dec) + 1 + 1 + 4];
+  wz_uint32_t str_len = sizeof(head) + sizeof(str1);
+  wz_uint32_t str_i;
+  wz_uint8_t * str;
+  const wz_uint32_t addr_pos = str_len - 4;
+  const wz_uint32_t addr_dec = root_addr;
+  wz_uint32_t addr_enc;
+  wz_uint8_t i;
   size_t mem_size;
   wzctx * ctx;
   wzfile created;
@@ -1210,8 +1218,8 @@ START_TEST(test_open_file) {
   head[15] = 0x00;
   for (i = 0; i < sizeof(copy); i++)
     head[i + 16] = copy[i];
-  head[sizeof(copy) + 16] = (uint8_t) (enc & 0xff);
-  head[sizeof(copy) + 17] = (uint8_t) (enc >> 8);
+  head[sizeof(copy) + 16] = (wz_uint8_t) (enc & 0xff);
+  head[sizeof(copy) + 17] = (wz_uint8_t) (enc >> 8);
 
   ck_assert(memused() == 0);
   ck_assert((ctx = wz_init_ctx()) != NULL);
@@ -1231,7 +1239,7 @@ START_TEST(test_open_file) {
   str1[sizeof(str_dec) + 5] = (addr_enc      ) & 0xff;
   str1[sizeof(str_dec) + 6] = (addr_enc >>  8) & 0xff;
   str1[sizeof(str_dec) + 7] = (addr_enc >> 16) & 0xff;
-  str1[sizeof(str_dec) + 8] = (uint8_t) (addr_enc >> 24);
+  str1[sizeof(str_dec) + 8] = (wz_uint8_t) (addr_enc >> 24);
 
   ck_assert((str = malloc(str_len)) != NULL);
   str_i = 0;

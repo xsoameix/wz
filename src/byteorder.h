@@ -2,6 +2,7 @@
 #define WZ_BYTEORDER_H
 
 #include "predef.h"
+#include "wz.h"
 
 #if defined(__BYTE_ORDER__)
 #  if defined(__ORDER_BIG_ENDIAN__) && \
@@ -72,9 +73,9 @@
 #  define WZ_SWAP16(x) wz_swap16(x)
 #  define WZ_SWAP32(x) wz_swap32(x)
 #  define WZ_SWAP64(x) wz_swap64(x)
-uint16_t wz_swap16(uint16_t x16);
-uint32_t wz_swap32(uint32_t x32);
-uint64_t wz_swap64(uint64_t x64);
+wz_uint16_t wz_swap16(wz_uint16_t x16);
+wz_uint32_t wz_swap32(wz_uint32_t x32);
+wz_uint64_t wz_swap64(wz_uint64_t x64);
 #endif
 
 #if defined(WZ_ENDIAN_BIG_BYTE)
