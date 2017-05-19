@@ -88,6 +88,8 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     "-Wno-long-long")
 elseif ("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
   set(CFLAGS
+    "-std=c89"
+    "-pthread"
     "-Werror"
     "-Weverything"
     "-Wno-double-promotion"
