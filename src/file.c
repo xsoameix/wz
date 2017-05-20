@@ -34,6 +34,7 @@
 /* This Library */
 
 #include "wz.h"
+#include "type.h"
 #include "byteorder.h"
 
 #define WZ_IS_LV0_NIL(type)  ((type) == 0x01)

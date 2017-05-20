@@ -19,6 +19,7 @@
 #endif
 
 #include "wz.h"
+#include "type.h"
 
 static int cmd_version(int argc, char ** argv);
 static int cmd_help(int argc, char ** argv);
