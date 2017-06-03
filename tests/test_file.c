@@ -1194,10 +1194,15 @@ START_TEST(test_open_file) {
   const wz_uint32_t addr_dec = root_addr;
   wz_uint32_t addr_enc;
   wz_uint8_t i;
-  size_t mem_size;
+  size_t mem_size_ctx;
+  size_t mem_size_file;
+  size_t mem_size_root;
+  size_t mem_size_node;
   wzctx * ctx;
   wzfile created;
   wzfile * file;
+  wznode * root;
+  wznode * node;
 
   wz_encode_ver(&enc, &hash, dec);
   head[0]  = 0x01; /* ident */
@@ -1224,7 +1229,7 @@ START_TEST(test_open_file) {
   ck_assert(memused() == 0);
   ck_assert((ctx = wz_init_ctx()) != NULL);
   ck_assert(memused() != 0);
-  mem_size = memused();
+  mem_size_ctx = memused();
   key = ctx->keys;
 
   cp1252_encode(str_enc, str_dec, sizeof(str_dec), key);
@@ -1254,9 +1259,10 @@ START_TEST(test_open_file) {
   free(str);
 
   /* It should be ok */
-  ck_assert(memused() == mem_size);
+  ck_assert(memused() == mem_size_ctx);
   ck_assert((file = wz_open_file(tmp_fname, ctx)) != NULL);
-  ck_assert(memused() > mem_size);
+  ck_assert(memused() > mem_size_ctx);
+  mem_size_file = memused();
   ck_assert(file->size == str_len);
   ck_assert(file->start == start);
   ck_assert(file->hash == hash);
@@ -1267,9 +1273,23 @@ START_TEST(test_open_file) {
   ck_assert(file->root.na_e.addr == root_addr);
   ck_assert(file->root.n.val.ary == NULL);
 
+  ck_assert(memused() == mem_size_file);
+  ck_assert((root = wz_open_root(file)) != NULL);
+  ck_assert(memused() > mem_size_file);
+  mem_size_root = memused();
+  ck_assert((node = wz_open_node(root, (const char *) str_dec)) != NULL);
+  ck_assert(memused() > mem_size_root);
+  mem_size_node = memused();
+  ck_assert(wz_open_node(node, "..") == root);
+  ck_assert(memused() == mem_size_node);
+  ck_assert(wz_close_node(node) == 0);
+  ck_assert(memused() == mem_size_root);
+  ck_assert(wz_close_node(root) == 0);
+  ck_assert(memused() == mem_size_file);
+
   ck_assert(wz_close_file(file) == 0);
 
-  ck_assert(memused() == mem_size);
+  ck_assert(memused() == mem_size_ctx);
   ck_assert(wz_free_ctx(ctx) == 0);
   ck_assert(memused() == 0);
 } END_TEST
