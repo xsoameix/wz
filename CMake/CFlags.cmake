@@ -43,7 +43,7 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     "-Winit-self"
     "-Winline"
     "-Winvalid-pch"
-    "-Wlarger-than=512"
+    #"-Wlarger-than=len" # test coverage increase maximum size of usage
     "-Wunsafe-loop-optimizations"
     "-Wlogical-op"
     "-Wlong-long"
