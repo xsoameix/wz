@@ -14,11 +14,13 @@
 #include "test_file.h"
 #include "wrap_alloc.h"
 
+#define realloc wrap_realloc
 #define malloc wrap_malloc
 #define free wrap_free
 #include "file.c"
 #undef free
 #undef malloc
+#undef realloc
 
 START_TEST(test_node) {
 #define offof(a, b) (size_t) ((char *) (&(&(a))->b) - (char *) &(a))

@@ -50,22 +50,20 @@ wrap_malloc(size_t size) {
 
 void
 wrap_free(void * ptr) {
-  musage * usage;
   size_t i;
   if (ptr == NULL)
     return;
-  usage = NULL;
-  for (i = 0; i < mused_len; i++) {
-    usage = &mused[mused_len - i - 1];
-    if (usage->ptr == ptr && !usage->freed)
+  for (i = mused_len;;) {
+    if (!i) {
+      mused_err++;
+      return;
+    }
+    i--;
+    if (mused[i].ptr == ptr && !mused[i].freed)
       break;
   }
-  if (i == mused_len) {
-    mused_err++;
-    return;
-  }
-  usage->freed = 1;
-  mused_size -= usage->size;
+  mused[i].freed = 1;
+  mused_size -= mused[i].size;
   free(ptr);
   if (mused_size == 0) {
     free(mused);
@@ -73,6 +71,29 @@ wrap_free(void * ptr) {
     mused_len = 0;
     mused_capa = 0;
   }
+}
+
+void *
+wrap_realloc(void * ptr, size_t size) {
+  void * mem;
+  size_t i;
+  if (ptr == NULL)
+    return wrap_malloc(size);
+  for (i = mused_len;;) {
+    if (!i) {
+      mused_err++;
+      return NULL;
+    }
+    i--;
+    if (mused[i].ptr == ptr && !mused[i].freed)
+      break;
+  }
+  if ((mem = realloc(ptr, size)) == NULL)
+    return NULL;
+  mused_size = mused_size - mused[i].size + size;
+  mused[i].size = size;
+  mused[i].ptr = mem;
+  return mem;
 }
 
 size_t memused(void) { return mused_size; }
