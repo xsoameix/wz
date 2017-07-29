@@ -793,7 +793,7 @@ free_utf8_ptr:
   if (ret && utf8_ptr != NULL)
     free(utf8_ptr);
 free_bytes_ptr:
-  if (utf8_ptr != NULL || (ret && !capa))
+  if ((ret || utf8_ptr != NULL) && !capa)
     free(bytes_ptr);
   return ret;
 }
