@@ -1099,10 +1099,10 @@ wz_deduce_ver(wz_uint16_t * ret_dec, wz_uint32_t * ret_hash,
         }
       }
     }
-    if (key == 0xff)
-      WZ_ERR_GOTO(free_entities);
     if (!guessed)
       goto free_entities;
+    if (key == 0xff)
+      WZ_ERR_GOTO(free_entities);
     * ret_dec = g_dec;
     * ret_hash = g_hash;
     * ret_key = key;
