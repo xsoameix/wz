@@ -476,9 +476,76 @@ START_TEST(test_decode_chars) {
   free(key);
 } END_TEST
 
+static void
+cp1252_short(wz_uint8_t * str, wz_uint32_t * size,
+             const wz_uint8_t * bytes, wz_uint32_t len) {
+  wz_uint32_t i;
+  ck_assert(len < -WZ_INT8_MIN);
+  if (str == NULL) {
+    * size = 1 + len;
+    return;
+  }
+  str[0] = (~len + 1) & 0xff;
+  for (i = 0; i < len; i++)
+    str[i + 1] = bytes[i];
+}
+
+static void
+cp1252_long(wz_uint8_t * str, wz_uint32_t * size,
+            const wz_uint8_t * bytes, wz_uint32_t len) {
+  wz_uint32_t i;
+  if (str == NULL) {
+    * size = 1 + 4 + len;
+    return;
+  }
+  str[0] = (wz_uint8_t) WZ_INT8_MIN;
+  str[1] = (len      ) & 0xff;
+  str[2] = (len >>  8) & 0xff;
+  str[3] = (len >> 16) & 0xff;
+  str[4] = (wz_uint8_t) (len >> 24);
+  for (i = 0; i < len; i++)
+    str[i + 5] = bytes[i];
+}
+
+static void
+utf16le_short(wz_uint8_t * str, wz_uint32_t * size,
+              const wz_uint8_t * bytes, wz_uint32_t len) {
+  wz_uint32_t i;
+  ck_assert(!(len & 0x01));
+  ck_assert((len >> 1) < WZ_INT8_MAX);
+  if (str == NULL) {
+    * size = 1 + len;
+    return;
+  }
+  str[0] = (len >> 1) & 0xff;
+  for (i = 0; i < len; i++)
+    str[i + 1] = bytes[i];
+}
+
+static void
+utf16le_long(wz_uint8_t * str, wz_uint32_t * size,
+             const wz_uint8_t * bytes, wz_uint32_t len) {
+  wz_uint32_t i;
+  ck_assert(!(len & 0x01));
+  if (str == NULL) {
+    * size = 1 + 4 + len;
+    return;
+  }
+  len >>= 1;
+  str[0] = (wz_uint8_t) WZ_INT8_MAX;
+  str[1] = (len      ) & 0xff;
+  str[2] = (len >>  8) & 0xff;
+  str[3] = (len >> 16) & 0xff;
+  str[4] = (wz_uint8_t) (len >> 24);
+  len <<= 1;
+  for (i = 0; i < len; i++)
+    str[i + 5] = bytes[i];
+}
+
 START_TEST(test_read_chars) {
   wz_uint8_t key[KEY_BUF_SIZE];
-  wz_uint8_t i;
+  wz_uint8_t * str;
+  wz_uint32_t size;
   wz_uint8_t * bytes;
   wz_uint32_t len;
   wz_uint8_t encoding;
@@ -489,13 +556,11 @@ START_TEST(test_read_chars) {
   /* It should be ok */
   {
     static const wz_uint8_t enc[] = {0x01, 0x23};
-    wz_uint8_t str[1 + sizeof(enc)];
 
-    str[0] = (~sizeof(enc) + 1) & 0xff;
-    for (i = 0; i < sizeof(enc); i++)
-      str[i + 1] = enc[i];
-
-    create_file(&file, str, sizeof(str));
+    cp1252_short(NULL, &size, enc, sizeof(enc));
+    ck_assert((str = malloc(size)) != NULL);
+    cp1252_short(str, NULL, enc, sizeof(enc));
+    create_file(&file, str, size);
 
     /* when it is a short cp1252/ascii/utf8 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -509,20 +574,15 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
   {
     static const wz_uint8_t enc[] = {0x45, 0x67};
-    wz_uint8_t str[1 + 4 + sizeof(enc)];
 
-    str[0] = (wz_uint8_t) WZ_INT8_MIN;
-    str[1] = sizeof(enc);
-    str[2] = 0;
-    str[3] = 0;
-    str[4] = 0;
-    for (i = 0; i < sizeof(enc); i++)
-      str[i + 5] = enc[i];
-
-    create_file(&file, str, sizeof(str));
+    cp1252_long(NULL, &size, enc, sizeof(enc));
+    ck_assert((str = malloc(size)) != NULL);
+    cp1252_long(str, NULL, enc, sizeof(enc));
+    create_file(&file, str, size);
 
     /* when it is a long cp1252/ascii/utf8 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -536,16 +596,15 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
   {
     static const wz_uint8_t enc[] = {0x89, 0xab};
-    wz_uint8_t str[1 + sizeof(enc)];
 
-    str[0] = sizeof(enc) >> 1;
-    for (i = 0; i < sizeof(enc); i++)
-      str[i + 1] = enc[i];
-
-    create_file(&file, str, sizeof(str));
+    utf16le_short(NULL, &size, enc, sizeof(enc));
+    ck_assert((str = malloc(size)) != NULL);
+    utf16le_short(str, NULL, enc, sizeof(enc));
+    create_file(&file, str, size);
 
     /* when it is a short utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -559,20 +618,15 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
   {
     static const wz_uint8_t enc[] = {0x89, 0xab};
-    wz_uint8_t str[1 + 4 + sizeof(enc)];
 
-    str[0] = WZ_INT8_MAX;
-    str[1] = sizeof(enc) >> 1;
-    str[2] = 0;
-    str[3] = 0;
-    str[4] = 0;
-    for (i = 0; i < sizeof(enc); i++)
-      str[i + 5] = enc[i];
-
-    create_file(&file, str, sizeof(str));
+    utf16le_long(NULL, &size, enc, sizeof(enc));
+    ck_assert((str = malloc(size)) != NULL);
+    utf16le_long(str, NULL, enc, sizeof(enc));
+    create_file(&file, str, size);
 
     /* when it is a long utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -586,16 +640,16 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
 
   /* It should decode if key is set */
   {
-    wz_uint8_t enc[1 + sizeof(cp1252)];
-
-    enc[0] = (~sizeof(cp1252) + 1) & 0xff;
-    cp1252_encode(enc + 1, cp1252, sizeof(cp1252), key);
-
-    create_file(&file, enc, sizeof(enc));
+    cp1252_short(NULL, &size, cp1252, sizeof(cp1252));
+    ck_assert((str = malloc(size)) != NULL);
+    cp1252_short(str, NULL, cp1252, sizeof(cp1252));
+    cp1252_encode(str + 1, cp1252, sizeof(cp1252), key);
+    create_file(&file, str, size);
 
     /* when it is a cp1252 string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -609,14 +663,14 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
   {
-    wz_uint8_t enc[1 + sizeof(utf16le)];
-
-    enc[0] = sizeof(utf16le) >> 1;
-    utf16le_encode(enc + 1, utf16le, sizeof(utf16le), key);
-
-    create_file(&file, enc, sizeof(enc));
+    utf16le_short(NULL, &size, utf16le, sizeof(utf16le));
+    ck_assert((str = malloc(size)) != NULL);
+    utf16le_short(str, NULL, utf16le, sizeof(utf16le));
+    utf16le_encode(str + 1, utf16le, sizeof(utf16le), key);
+    create_file(&file, str, size);
 
     /* when it is a utf16le string */
     ck_assert(wz_read_chars(&bytes, &len, &encoding, 0, 0,
@@ -630,6 +684,7 @@ START_TEST(test_read_chars) {
     ck_assert(memused() == 0);
 
     delete_file(&file);
+    free(str);
   }
 } END_TEST
 
