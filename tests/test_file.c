@@ -1279,7 +1279,7 @@ START_TEST(test_open_file) {
   ck_assert((root = wz_open_root(file)) != NULL);
   ck_assert(memused() > mem_size_file);
   mem_size_root = memused();
-  ck_assert((node = wz_open_node(root, (const char *) str_dec)) != NULL);
+  ck_assert((node = wz_open_node(root, "cd")) != NULL);
   ck_assert(memused() > mem_size_root);
   mem_size_node = memused();
   ck_assert(wz_open_node(node, "..") == root);
