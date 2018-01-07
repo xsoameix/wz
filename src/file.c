@@ -2417,12 +2417,12 @@ wz_next_tok(const char ** begin, const char ** end, const char * str,
 }
 
 wz_uint8_t
-wz_get_type(wznode * node) {
+wz_get_type(const wznode * node) {
   return node->n.info & WZ_TYPE;
 }
 
 int
-wz_get_int(wz_int32_t * val, wznode * node) {
+wz_get_int(wz_int32_t * val, const wznode * node) {
   switch (node->n.info & WZ_TYPE) {
   case WZ_I16: * val = node->n16.val;   break;
   case WZ_I32: * val = node->n32.val.i; break;
@@ -2432,7 +2432,7 @@ wz_get_int(wz_int32_t * val, wznode * node) {
 }
 
 int
-wz_get_i64(wz_int64_t * val, wznode * node) {
+wz_get_i64(wz_int64_t * val, const wznode * node) {
   if ((node->n.info & WZ_TYPE) != WZ_I64)
     WZ_ERR_RET(1);
   * val = node->n64.val.i;
@@ -2440,7 +2440,7 @@ wz_get_i64(wz_int64_t * val, wznode * node) {
 }
 
 int
-wz_get_f32(float * val, wznode * node) {
+wz_get_f32(float * val, const wznode * node) {
   if ((node->n.info & WZ_TYPE) != WZ_F32)
     WZ_ERR_RET(1);
   * val = node->n32.val.f;
@@ -2448,7 +2448,7 @@ wz_get_f32(float * val, wznode * node) {
 }
 
 int
-wz_get_f64(double * val, wznode * node) {
+wz_get_f64(double * val, const wznode * node) {
   if ((node->n.info & WZ_TYPE) != WZ_F64)
     WZ_ERR_RET(1);
   * val = node->n64.val.f;
@@ -2456,7 +2456,7 @@ wz_get_f64(double * val, wznode * node) {
 }
 
 char *
-wz_get_str(wznode * node) {
+wz_get_str(const wznode * node) {
   wzstr * str;
   if ((node->n.info & WZ_TYPE) != WZ_STR ||
       ((str = node->n.val.str) == NULL))
@@ -2466,7 +2466,7 @@ wz_get_str(wznode * node) {
 
 wz_uint8_t *
 wz_get_img(wz_uint32_t * w, wz_uint32_t * h,
-           wz_uint16_t * depth, wz_uint8_t * scale, wznode * node) {
+           wz_uint16_t * depth, wz_uint8_t * scale, const wznode * node) {
   wzimg * img;
   if ((node->n.info & WZ_TYPE) != WZ_IMG ||
       (img = node->n.val.img) == NULL)
@@ -2481,7 +2481,7 @@ wz_get_img(wz_uint32_t * w, wz_uint32_t * h,
 }
 
 int
-wz_get_vex_len(wz_uint32_t * len, wznode * node) {
+wz_get_vex_len(wz_uint32_t * len, const wznode * node) {
   wzvex * vex;
   if ((node->n.info & WZ_TYPE) != WZ_VEX ||
       (vex = node->n.val.vex) == NULL)
@@ -2491,7 +2491,8 @@ wz_get_vex_len(wz_uint32_t * len, wznode * node) {
 }
 
 int
-wz_get_vex_at(wz_int32_t * x, wz_int32_t * y, wz_uint32_t i, wznode * node) {
+wz_get_vex_at(wz_int32_t * x, wz_int32_t * y, wz_uint32_t i,
+              const wznode * node) {
   wzvex * vex;
   if ((node->n.info & WZ_TYPE) != WZ_VEX ||
       (vex = node->n.val.vex) == NULL ||
@@ -2503,7 +2504,7 @@ wz_get_vex_at(wz_int32_t * x, wz_int32_t * y, wz_uint32_t i, wznode * node) {
 }
 
 int
-wz_get_vec(wz_int32_t * x, wz_int32_t * y, wznode * node) {
+wz_get_vec(wz_int32_t * x, wz_int32_t * y, const wznode * node) {
   if ((node->n.info & WZ_TYPE) != WZ_VEC)
     WZ_ERR_RET(1);
   * x = node->n64.val.vec.x;
@@ -2513,7 +2514,7 @@ wz_get_vec(wz_int32_t * x, wz_int32_t * y, wznode * node) {
 
 wz_uint8_t *
 wz_get_ao(wz_uint32_t * size, wz_uint32_t * ms, wz_uint16_t * format,
-          wznode * node) {
+          const wznode * node) {
   wzao * ao;
   if ((node->n.info & WZ_TYPE) != WZ_AO ||
       (ao = node->n.val.ao) == NULL)
@@ -2700,13 +2701,14 @@ wz_open_root(wzfile * file) {
   return wz_open_node(&file->root, "");
 }
 
-char *
-wz_get_name(wznode * node) {
-  return (char *) (node->n.info & WZ_EMBED ? node->n.name_e : node->n.name);
+const char *
+wz_get_name(const wznode * node) {
+  return (const char *) (node->n.info & WZ_EMBED ?
+                         node->n.name_e : node->n.name);
 }
 
 int
-wz_get_len(wz_uint32_t * len, wznode * node) {
+wz_get_len(wz_uint32_t * len, const wznode * node) {
   switch (node->n.info & WZ_TYPE) {
   case WZ_ARY: {
     wzary * ary;

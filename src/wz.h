@@ -93,28 +93,28 @@ enum { /* microsoft define these values in Mmreg.h */
 /** Get type of wznode. The type can be #WZ_NIL, #WZ_I16, #WZ_I32, #WZ_I64,
  * #WZ_F32, #WZ_F64, #WZ_VEC, #WZ_UNK, #WZ_ARY, #WZ_IMG, #WZ_VEX, #WZ_AO,
  * or #WZ_STR. */
-wz_uint8_t   wz_get_type(wznode * node);
+wz_uint8_t   wz_get_type(const wznode * node);
 
 /** Get the integer of wznode with type #WZ_I16 or #WZ_I32.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_int(wz_int32_t * val, wznode * node);
+int          wz_get_int(wz_int32_t * val, const wznode * node);
 
 /** Get the integer of wznode with type #WZ_I64.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_i64(wz_int64_t * val, wznode * node);
+int          wz_get_i64(wz_int64_t * val, const wznode * node);
 
 /** Get the floting point of wznode with type #WZ_F32.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_f32(float * val, wznode * node);
+int          wz_get_f32(float * val, const wznode * node);
 
 /** Get the floting point of wznode with type #WZ_F64.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_f64(double * val, wznode * node);
+int          wz_get_f64(double * val, const wznode * node);
 
 /** Get the characters (UTF-8 encoded, null byte terminated) of wznode
  * with type #WZ_STR.
  * @return the characters. Return NULL if error occurred. */
-char *       wz_get_str(wznode * node);
+char *       wz_get_str(const wznode * node);
 
 /** Get the image of wznode with type #WZ_IMG. The parameters @p depth and
  * @p scale indicate what format of image was stored in wz file, not the
@@ -129,20 +129,21 @@ char *       wz_get_str(wznode * node);
  * @param[in] node the node
  * @return the pixels of image. Return NULL if error occurred. */
 wz_uint8_t * wz_get_img(wz_uint32_t * w, wz_uint32_t * h,
-                        wz_uint16_t * depth, wz_uint8_t * scale, wznode * node);
+                        wz_uint16_t * depth, wz_uint8_t * scale,
+                        const wznode * node);
 
 /** Get the number of children of convex of wznode with type #WZ_VEX.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_vex_len(wz_uint32_t * len, wznode * node);
+int          wz_get_vex_len(wz_uint32_t * len, const wznode * node);
 
 /** Get the \p i th child of convex of wznode with type #WZ_VEX.
  * @return 0 if succeed, 1 if error occurred. */
 int          wz_get_vex_at(wz_int32_t * x, wz_int32_t * y, wz_uint32_t i,
-                           wznode * node);
+                           const wznode * node);
 
 /** Get the vector of wznode with type #WZ_VEC.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_vec(wz_int32_t * x, wz_int32_t * y, wznode * node);
+int          wz_get_vec(wz_int32_t * x, wz_int32_t * y, const wznode * node);
 
 /** Get the audio of wznode with type #WZ_AO. Returned audio data can be
  * #WZ_AUDIO_PCM or #WZ_AUDIO_MP3, based on the paramter @p format.
@@ -153,7 +154,7 @@ int          wz_get_vec(wz_int32_t * x, wz_int32_t * y, wznode * node);
  * @param[in] node the node
  * @return the audio including header. Return NULL if error occurred. */
 wz_uint8_t * wz_get_ao(wz_uint32_t * size, wz_uint32_t * ms,
-                       wz_uint16_t * format, wznode * node);
+                       wz_uint16_t * format, const wznode * node);
 
 /** Get the child wznode of wznode with given @p path.
  * @note the children of wznode would be freed after wz_close_node()
@@ -170,11 +171,11 @@ wznode *     wz_open_node_at(wznode * node, wz_uint32_t i);
 /** Get the name (UTF-8 encoded, null byte terminated) of wznode.
  * This function always succeed.
  * @return the name of wznode. */
-char *       wz_get_name(wznode * node);
+const char * wz_get_name(const wznode * node);
 
 /** Get the number of children of wznode.
  * @return 0 if succeed, 1 if error occurred. */
-int          wz_get_len(wz_uint32_t * len, wznode * node);
+int          wz_get_len(wz_uint32_t * len, const wznode * node);
 
 /** Close the children of wznode. The function has no effect if wznode
  * has no child wznodes.
