@@ -2458,7 +2458,8 @@ wz_get_f64(double * val, const wznode * node) {
 char *
 wz_get_str(const wznode * node) {
   wzstr * str;
-  if ((node->n.info & WZ_TYPE) != WZ_STR ||
+  if (((node->n.info & WZ_TYPE) != WZ_STR &&
+       (node->n.info & WZ_TYPE) != WZ_UOL) ||
       ((str = node->n.val.str) == NULL))
     WZ_ERR_RET(NULL);
   return (char *) str->bytes;
