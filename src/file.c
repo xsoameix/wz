@@ -2527,12 +2527,13 @@ wz_get_ao(wz_uint32_t * size, wz_uint32_t * ms, wz_uint16_t * format,
 
 wznode *
 wz_open_node(wznode * node, const char * path) {
+  wznode * link;
   wznode * root;
   wzfile * file;
   wz_uint8_t * keys;
   char * search;
-  size_t search_capa;
   wz_uint8_t found;
+  link = NULL;
   if (node->n.info & WZ_LEVEL) {
     root = node->n.root.node;
     file = root->n.root.file;
@@ -2542,7 +2543,6 @@ wz_open_node(wznode * node, const char * path) {
   }
   keys = file->ctx->keys;
   search = NULL;
-  search_capa = 0;
   found = 0;
   for (;;) {
     const char * name;
@@ -2558,34 +2558,38 @@ wz_open_node(wznode * node, const char * path) {
       if (node->n.info & (WZ_LEVEL | WZ_LEAF)) {
         if (wz_read_lv1(node, root, file, keys, 1))
           WZ_ERR_GOTO(free_search);
-        if ((node->n.info & WZ_TYPE) == WZ_UOL) {
-          wzstr * uol = node->n.val.str;
-          if (path == NULL) {
-            path = (char *) uol->bytes;
-          } else {
-            char * str = search;
-            size_t req = uol->len + 1 + strlen(path) + 1;
-            if (req > search_capa) {
-              size_t l = search_capa;
-              do { l = l < 4 ? 4 : l + l / 4; } while (l < req);
-              if ((str = realloc(str, l)) == NULL)
-                WZ_ERR_GOTO(free_search);
-              search = str;
-              search_capa = l;
-            }
-            strcpy(str, (char *) uol->bytes), str += uol->len;
-            strcat(str, "/"),                 str += 1;
-            strcat(str, path);
-            path = search;
-          }
-          if ((node = node->n.parent) == NULL)
-            WZ_ERR_GOTO(free_search);
-          continue;
-        }
       } else {
         if (wz_read_lv0(node, file, keys))
           WZ_ERR_GOTO(free_search);
       }
+    }
+    if ((node->n.info & WZ_TYPE) == WZ_UOL) {
+      wzstr * uol = node->n.val.str;
+      const char * next_name;
+      const char * dummy;
+      if (path != NULL)
+        (void) wz_next_tok(&next_name, &dummy, path, '/');
+      else
+        next_name = NULL;
+      if (link == NULL && next_name == NULL)
+        link = node; /* first UOL AND path is "", return this if UOL invalid */
+      if (path == NULL) {
+        path = (char *) uol->bytes;
+      } else {
+        char * str;
+        char * new_search;
+        if ((new_search = malloc(uol->len + 1 + strlen(path) + 1)) == NULL)
+          WZ_ERR_GOTO(free_search);
+        str = new_search;
+        strcpy(str, (char *) uol->bytes), str += uol->len;
+        strcat(str, "/"),                 str += 1;
+        strcat(str, path);
+        free(search);
+        path = search = new_search;
+      }
+      if ((node = node->n.parent) == NULL)
+        WZ_ERR_GOTO(free_search);
+      continue;
     }
     name_len = wz_next_tok(&name, &path, path, '/');
     if (name_len == 2 && name[0] == '.' && name[1] == '.') {
@@ -2631,7 +2635,7 @@ wz_open_node(wznode * node, const char * path) {
   }
 free_search:
   free(search);
-  return found ? node : NULL;
+  return found ? node : (link != NULL ? link : NULL);
 }
 
 int
